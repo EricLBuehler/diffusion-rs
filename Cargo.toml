@@ -1,0 +1,21 @@
+[workspace]
+members = [
+    "diffusersrs_core",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+description = "Blazingly fast inference of diffusion models."
+homepage = "https://github.com/EricLBuehler/diffusers-rs"
+repository = "https://github.com/EricLBuehler/diffusers-rs"
+keywords = ["machine-learning"]
+categories = ["science"]
+license = "MIT"
+
+[workspace.dependencies]
+candle-core = "0.8.0"
+candle-nn = "0.8.0"
+serde = "1.0.197"
+serde_json = "1.0.114"
