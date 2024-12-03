@@ -152,7 +152,7 @@ impl DequantizeOp {
                     };
                     let block_end = block_idx + valid_items;
 
-                    let local_abs_max = absmax[block_idx / self.blocksize];
+                    let local_abs_max = absmax[block_idx / (self.blocksize / 2)];
 
                     max = max.max(block_end);
                     for i in block_idx..block_end {
@@ -177,7 +177,7 @@ impl DequantizeOp {
                     };
                     let block_end = block_idx + valid_items;
 
-                    let local_abs_max = absmax[block_idx / self.blocksize];
+                    let local_abs_max = absmax[block_idx / (self.blocksize / 2)];
 
                     max = max.max(block_end);
                     for i in block_idx..block_end {

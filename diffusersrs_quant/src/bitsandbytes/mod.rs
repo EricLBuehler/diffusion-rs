@@ -68,6 +68,8 @@ pub struct BnbQuantLinear {
 
 impl BnbQuantLinear {
     pub fn linear_b(_in_dim: usize, out_dim: usize, bias: bool, vb: VarBuilder) -> Result<Self> {
+        let weight = vb.get_unchecked_dtype("weight", DType::U8)?;
+
         let vb_w = vb.pp("weight");
 
         if !vb_w.contains_tensor("quant_state.bitsandbytes__nf4")
@@ -141,8 +143,6 @@ impl BnbQuantLinear {
             offset: state.nested_offset,
             dtype: state.dtype,
         };
-
-        let weight = vb.get_unchecked_dtype("weight", DType::U8)?;
 
         Ok(Self {
             weight,
