@@ -153,14 +153,14 @@ impl BnbQuantLinear {
     }
 
     /// Dequantize input (u8). Handles nested absmax dequantization.
-    fn dequantize_blockwise(
+    fn dequantize(
         input: &Tensor,
         params: &BnbQuantParmas,
         quant_ty: BnbQuantType,
     ) -> Result<Tensor> {
         let mut absmax = params.absmax.clone();
         if let Some(nested) = &params.nested {
-            absmax = Self::dequantize_blockwise(&params.absmax, nested, BnbQuantType::Int8)?;
+            absmax = Self::dequantize(&params.absmax, nested, BnbQuantType::Int8)?;
             absmax = (absmax + params.offset.context("`offset` must be present.")?)?;
         }
 
@@ -188,8 +188,12 @@ impl BnbQuantLinear {
 }
 
 impl QuantLinear for BnbQuantLinear {
+    fn dequantize_w(&self) -> Result<Tensor> {
+        Self::dequantize(&self.weight, &self.params, self.quant_ty)
+    }
+
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        let w = Self::dequantize_blockwise(&self.weight, &self.params, self.quant_ty)?
+        let w = Self::dequantize(&self.weight, &self.params, self.quant_ty)?
             .t()?
             .to_dtype(xs.dtype())?;
         let res = xs.broadcast_matmul(&w)?;

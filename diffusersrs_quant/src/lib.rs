@@ -35,6 +35,8 @@ pub enum QuantMethod {
 }
 
 pub trait QuantLinear: Debug {
+    fn dequantize_w(&self) -> Result<Tensor>;
+
     fn forward(&self, xs: &Tensor) -> Result<Tensor>;
 }
 
