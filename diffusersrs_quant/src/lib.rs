@@ -1,6 +1,6 @@
 use std::{fmt::Debug, sync::Arc};
 
-use bitsandbytes::Bnb4bitQuantLinear;
+use bitsandbytes::BnbQuantLinear;
 use candle_core::{Module, Result, Tensor};
 use candle_nn::VarBuilder;
 use serde::{Deserialize, Serialize};
@@ -53,7 +53,7 @@ pub fn linear_no_bias(
     let layer = if let Some(quant_conf) = &config {
         match quant_conf.quant_method {
             QuantMethod::Bitsandbytes => {
-                Arc::new(Bnb4bitQuantLinear::linear_b(in_dim, out_dim, false, vb)?) as Arc<_>
+                Arc::new(BnbQuantLinear::linear_b(in_dim, out_dim, false, vb)?) as Arc<_>
             }
             QuantMethod::Unreachable => unreachable!(),
         }
@@ -73,7 +73,7 @@ pub fn linear(
     let layer = if let Some(quant_conf) = &config {
         match quant_conf.quant_method {
             QuantMethod::Bitsandbytes => {
-                Arc::new(Bnb4bitQuantLinear::linear_b(in_dim, out_dim, true, vb)?) as Arc<_>
+                Arc::new(BnbQuantLinear::linear_b(in_dim, out_dim, true, vb)?) as Arc<_>
             }
             QuantMethod::Unreachable => unreachable!(),
         }

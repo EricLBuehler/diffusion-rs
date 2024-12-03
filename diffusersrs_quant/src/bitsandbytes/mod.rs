@@ -6,6 +6,8 @@ use serde::Deserialize;
 
 use crate::QuantLinear;
 
+mod op;
+
 const SUPPORTED_BLOCKSIZE: [usize; 7] = [2048, 4096, 1024, 512, 256, 128, 64];
 
 #[derive(Debug, Deserialize, Clone, Copy)]
@@ -16,6 +18,13 @@ enum BnbDType {
     BF16,
     #[serde(rename = "float16")]
     F16,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum BnbQuantType {
+    Int8,
+    Fp4,
+    Nf4,
 }
 
 impl From<BnbDType> for DType {
@@ -50,20 +59,21 @@ struct BnbQuantParmas {
 }
 
 #[derive(Debug)]
-pub struct Bnb4bitQuantLinear {
+pub struct BnbQuantLinear {
     weight: Tensor,
     bias: Option<Tensor>,
     params: BnbQuantParmas,
+    quant_ty: BnbQuantType,
 }
 
-impl Bnb4bitQuantLinear {
-    pub fn linear_b(in_dim: usize, out_dim: usize, bias: bool, vb: VarBuilder) -> Result<Self> {
+impl BnbQuantLinear {
+    pub fn linear_b(_in_dim: usize, out_dim: usize, bias: bool, vb: VarBuilder) -> Result<Self> {
         let vb_w = vb.pp("weight");
 
         if !vb_w.contains_tensor("quant_state.bitsandbytes__nf4")
             && !vb_w.contains_tensor("quant_state.bitsandbytes__fp4")
         {
-            candle_core::bail!("`Bnb4bitQuantLinear` expects either `...__nf4` or `...__fp4` tensors, this means the layer is not 4bit.");
+            candle_core::bail!("`BnbQuantLinear` expects either `...__nf4` or `...__fp4` tensors, this means the layer is not 4bit.");
         }
 
         let bias = if bias {
@@ -72,13 +82,27 @@ impl Bnb4bitQuantLinear {
             None
         };
 
-        let state = if vb_w.contains_tensor("quant_state.bitsandbytes__nf4") {
-            vb_w.get_unchecked_dtype("quant_state.bitsandbytes__nf4", DType::U8)?
+        let quant_ty = if vb_w.contains_tensor("quant_state.bitsandbytes__nf4") {
+            BnbQuantType::Nf4
         } else if vb_w.contains_tensor("quant_state.bitsandbytes__fp4") {
-            vb_w.get_unchecked_dtype("quant_state.bitsandbytes__fp4", DType::U8)?
+            BnbQuantType::Fp4
         } else {
-            unreachable!()
+            BnbQuantType::Int8
         };
+
+        let state = match quant_ty {
+            BnbQuantType::Nf4 => {
+                Some(vb_w.get_unchecked_dtype("quant_state.bitsandbytes__nf4", DType::U8)?)
+            }
+            BnbQuantType::Fp4 => {
+                Some(vb_w.get_unchecked_dtype("quant_state.bitsandbytes__fp4", DType::U8)?)
+            }
+            BnbQuantType::Int8 => None,
+        };
+        let Some(state) = state else {
+            candle_core::bail!("Only fp8/nf4 quantization is supported for now.")
+        };
+
         let state_str = String::from_utf8(state.to_vec1::<u8>()?)?;
         let state: BnbQuantState =
             serde_json::from_str(&state_str).map_err(candle_core::Error::msg)?;
@@ -124,24 +148,24 @@ impl Bnb4bitQuantLinear {
             weight,
             bias,
             params,
+            quant_ty,
         })
     }
 
     /// Dequantize input (u8). Handles nested absmax dequantization.
-    fn dequantize_blockwise(input: &Tensor, params: &BnbQuantParmas) -> Result<Tensor> {
+    fn dequantize_blockwise(
+        input: &Tensor,
+        params: &BnbQuantParmas,
+        quant_ty: BnbQuantType,
+    ) -> Result<Tensor> {
         let mut absmax = params.absmax.clone();
         if let Some(nested) = &params.nested {
-            absmax = Self::dequantize_blockwise(&params.absmax, &nested)?;
+            absmax = Self::dequantize_blockwise(&params.absmax, nested, BnbQuantType::Int8)?;
             absmax = (absmax + params.offset.context("`offset` must be present.")?)?;
         }
 
-        let out = unsafe {
-            Tensor::empty(
-                params.shape.clone().unwrap_or(input.shape().clone()),
-                params.dtype.into(),
-                input.device(),
-            )?
-        };
+        let out_shape = params.shape.clone().unwrap_or(input.shape().clone());
+        let out_dtype: DType = params.dtype.into();
 
         if !SUPPORTED_BLOCKSIZE.contains(&params.blocksize) {
             candle_core::bail!(
@@ -150,12 +174,29 @@ impl Bnb4bitQuantLinear {
             );
         }
 
-        todo!();
+        op::dequantize(
+            input,
+            &absmax,
+            &params.code,
+            out_shape,
+            params.blocksize,
+            quant_ty,
+            params.dtype,
+        )?
+        .to_dtype(out_dtype)
     }
 }
 
-impl QuantLinear for Bnb4bitQuantLinear {
+impl QuantLinear for BnbQuantLinear {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        todo!()
+        let w = Self::dequantize_blockwise(&self.weight, &self.params, self.quant_ty)?
+            .t()?
+            .to_dtype(xs.dtype())?;
+        let res = xs.broadcast_matmul(&w)?;
+        if let Some(bias) = &self.bias {
+            res + bias
+        } else {
+            Ok(res)
+        }
     }
 }

@@ -1,4 +1,4 @@
-use candle_core::{DType, Device};
+use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
 use diffusersrs_quant::{linear_no_bias, QuantizedConfig};
 
@@ -20,6 +20,11 @@ fn test_load() -> candle_core::Result<()> {
     )?;
 
     dbg!(&layer);
+
+    let xs = Tensor::randn(0f32, 1f32, (1, 8192), &dev)?;
+
+    let res = layer.forward(&xs)?;
+    dbg!(&res.mean_all()?);
 
     Ok(())
 }
