@@ -12,3 +12,4 @@ homepage.workspace = true
 [dependencies]
 candle-core.workspace = true
 candle-nn.workspace = true
+mistralrs-quant.workspace = true
