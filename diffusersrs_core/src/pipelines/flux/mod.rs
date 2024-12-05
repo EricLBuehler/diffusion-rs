@@ -1,7 +1,8 @@
-use std::{collections::HashMap, fs, sync::Arc};
+use std::{cmp::Ordering, collections::HashMap, fs, sync::Arc};
 
 use anyhow::Result;
-use candle_core::Device;
+use candle_core::{DType, Device, Tensor, D};
+use candle_nn::Module;
 use serde::Deserialize;
 use tokenizers::{models::bpe::BPE, ModelWrapper, Tokenizer};
 
@@ -13,7 +14,9 @@ use crate::{
     util::from_mmaped_safetensors,
 };
 
-use super::{ComponentElem, Loader, ModelPipeline};
+use super::{ComponentElem, DiffusionGenerationParams, Loader, ModelPipeline};
+
+mod sampling;
 
 pub struct FluxLoader;
 
@@ -23,7 +26,6 @@ struct SchedulerConfig {
     base_shift: f64,
     max_image_seq_len: usize,
     max_shift: f64,
-    num_train_timesteps: usize,
     shift: f64,
     use_dynamic_shifting: bool,
 }
@@ -141,7 +143,6 @@ impl Loader for FluxLoader {
         } else {
             anyhow::bail!("incorrect storage of flux model")
         };
-        dbg!(&flux_component);
 
         let pipeline = FluxPipeline {
             clip_tokenizer,
@@ -150,6 +151,7 @@ impl Loader for FluxLoader {
             t5_model: t5_component,
             vae_model: vae_component,
             flux_model: flux_component,
+            scheduler_config,
         };
 
         Ok(Arc::new(pipeline))
@@ -163,6 +165,112 @@ pub struct FluxPipeline {
     t5_model: T5EncoderModel,
     vae_model: Arc<dyn VAEModel>,
     flux_model: FluxModel,
+    scheduler_config: SchedulerConfig,
 }
 
-impl ModelPipeline for FluxPipeline {}
+impl ModelPipeline for FluxPipeline {
+    fn forward(
+        &self,
+        prompts: Vec<String>,
+        params: DiffusionGenerationParams,
+    ) -> candle_core::Result<Tensor> {
+        let mut t5_input_ids = Tensor::new(
+            self.t5_tokenizer
+                .encode_batch(prompts.clone(), true)
+                .map_err(|e| candle_core::Error::Msg(e.to_string()))?
+                .into_iter()
+                .map(|e| e.get_ids().to_vec())
+                .collect::<Vec<_>>(),
+            self.t5_model.device(),
+        )?;
+
+        if !self.scheduler_config.use_dynamic_shifting {
+            match t5_input_ids.dim(1)?.cmp(&256) {
+                Ordering::Greater => {
+                    candle_core::bail!("T5 embedding length greater than 256, please shrink the prompt or use the -dev (with guidance distillation) version.")
+                }
+                Ordering::Less | Ordering::Equal => {
+                    t5_input_ids =
+                        t5_input_ids.pad_with_zeros(D::Minus1, 0, 256 - t5_input_ids.dim(1)?)?;
+                }
+            }
+        }
+
+        let t5_embed = self.t5_model.forward(&t5_input_ids)?;
+
+        let clip_input_ids = Tensor::new(
+            self.clip_tokenizer
+                .encode_batch(prompts, true)
+                .map_err(|e| candle_core::Error::Msg(e.to_string()))?
+                .into_iter()
+                .map(|e| e.get_ids().to_vec())
+                .collect::<Vec<_>>(),
+            self.clip_model.device(),
+        )?;
+        let clip_embed = self.clip_model.forward(&clip_input_ids)?;
+
+        let img: Tensor = sampling::get_noise(
+            t5_embed.dim(0)?,
+            params.height,
+            params.width,
+            t5_embed.device(),
+        )?
+        .to_dtype(t5_embed.dtype())?;
+
+        let state = sampling::State::new(&t5_embed, &clip_embed, &img)?;
+        let shift = if self.scheduler_config.use_dynamic_shifting {
+            Some((
+                state.img.dims()[1],
+                self.scheduler_config.base_shift,
+                self.scheduler_config.max_shift,
+            ))
+        } else {
+            None
+        };
+        let timesteps = sampling::get_schedule(
+            params
+                .num_steps
+                .unwrap_or(if self.scheduler_config.use_dynamic_shifting {
+                    50
+                } else {
+                    4
+                }),
+            shift,
+            self.scheduler_config.base_image_seq_len,
+            self.scheduler_config.max_image_seq_len,
+        );
+
+        let img = if self.scheduler_config.use_dynamic_shifting {
+            sampling::denoise(
+                &self.flux_model,
+                &state.img,
+                &state.img_ids,
+                &state.txt,
+                &state.txt_ids,
+                &state.vec,
+                &timesteps,
+                params.guidance_scale,
+            )?
+        } else {
+            sampling::denoise_no_guidance(
+                &self.flux_model,
+                &state.img,
+                &state.img_ids,
+                &state.txt,
+                &state.txt_ids,
+                &state.vec,
+                &timesteps,
+            )?
+        };
+
+        let latent_img = sampling::unpack(&img, params.height, params.width)?;
+
+        let latent_img =
+            ((latent_img / self.vae_model.scale_factor())? + self.vae_model.shift_factor())?;
+        let img = self.vae_model.decode(&latent_img)?;
+
+        let normalized_img = ((img.clamp(-1f32, 1f32)? + 1.0)? * 127.5)?.to_dtype(DType::U8)?;
+
+        Ok(normalized_img)
+    }
+}

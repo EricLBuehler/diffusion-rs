@@ -6,7 +6,7 @@ use candle_nn::Module;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Copy, Deserialize)]
-enum Activation {
+pub enum Activation {
     #[serde(rename = "quick_gelu")]
     QuickGelu,
 }
@@ -243,6 +243,7 @@ pub struct ClipTextTransformer {
     embeddings: ClipTextEmbeddings,
     encoder: ClipEncoder,
     final_layer_norm: candle_nn::LayerNorm,
+    device: Device,
 }
 
 impl ClipTextTransformer {
@@ -255,7 +256,12 @@ impl ClipTextTransformer {
             embeddings,
             encoder,
             final_layer_norm,
+            device: vs.device().clone(),
         })
+    }
+
+    pub fn device(&self) -> &Device {
+        &self.device
     }
 
     // TODO: rewrrite to newer version

@@ -111,7 +111,7 @@ impl VAEModel for AutoEncoderKl {
     fn decode(&self, xs: &Tensor) -> Result<Tensor> {
         // let xs = ((xs / self.scale_factor)? + self.shift_factor)?;
         let mut z = xs.apply(&self.decoder)?;
-        if let Some(conv) = &self.quant_conv {
+        if let Some(conv) = &self.post_quant_conv {
             z = z.apply(conv)?;
         }
         Ok(z)

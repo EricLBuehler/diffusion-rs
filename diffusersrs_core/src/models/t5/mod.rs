@@ -40,7 +40,7 @@ fn masked_fill(on_false: &Tensor, mask: &Tensor, on_true: f32) -> Result<Tensor>
 }
 
 #[derive(Debug, Deserialize, Default, Clone, PartialEq)]
-struct ActivationWithOptionalGating {
+pub struct ActivationWithOptionalGating {
     gated: bool,
     activation: candle_nn::Activation,
 }
@@ -245,38 +245,6 @@ impl T5LayerFF {
             gated_dense_act,
             layer_norm,
         })
-    }
-
-    fn cast_to(&mut self, device: &Device) -> Result<()> {
-        self.layer_norm = T5LayerNorm {
-            weight: self.layer_norm.weight.to_device(device)?,
-            variance_epsilon: self.layer_norm.variance_epsilon,
-        };
-        if let Some(dense) = &mut self.dense_act {
-            dense.wi = Linear::new(
-                dense.wi.weight().to_device(device)?,
-                dense.wi.bias().map(|x| x.to_device(device).unwrap()),
-            );
-            dense.wo = Linear::new(
-                dense.wo.weight().to_device(device)?,
-                dense.wo.bias().map(|x| x.to_device(device).unwrap()),
-            );
-        }
-        if let Some(dense) = &mut self.gated_dense_act {
-            dense.wi_0 = Linear::new(
-                dense.wi_0.weight().to_device(device)?,
-                dense.wi_0.bias().map(|x| x.to_device(device).unwrap()),
-            );
-            dense.wi_1 = Linear::new(
-                dense.wi_1.weight().to_device(device)?,
-                dense.wi_1.bias().map(|x| x.to_device(device).unwrap()),
-            );
-            dense.wo = Linear::new(
-                dense.wo.weight().to_device(device)?,
-                dense.wo.bias().map(|x| x.to_device(device).unwrap()),
-            );
-        }
-        Ok(())
     }
 }
 
@@ -488,45 +456,6 @@ impl T5LayerSelfAttention {
         let ys = (xs + ys)?;
         Ok((ys, position_bias))
     }
-
-    fn cast_to(&mut self, device: &Device) -> Result<()> {
-        self.self_attention.q = Linear::new(
-            self.self_attention.q.weight().to_device(device)?,
-            self.self_attention
-                .q
-                .bias()
-                .map(|x| x.to_device(device).unwrap()),
-        );
-        self.self_attention.k = Linear::new(
-            self.self_attention.k.weight().to_device(device)?,
-            self.self_attention
-                .k
-                .bias()
-                .map(|x| x.to_device(device).unwrap()),
-        );
-        self.self_attention.v = Linear::new(
-            self.self_attention.v.weight().to_device(device)?,
-            self.self_attention
-                .v
-                .bias()
-                .map(|x| x.to_device(device).unwrap()),
-        );
-        self.self_attention.o = Linear::new(
-            self.self_attention.o.weight().to_device(device)?,
-            self.self_attention
-                .o
-                .bias()
-                .map(|x| x.to_device(device).unwrap()),
-        );
-        if let Some(embed) = &mut self.self_attention.relative_attention_bias {
-            *embed = Embedding::new(embed.embeddings().to_device(device)?, embed.hidden_size());
-        }
-        self.layer_norm = T5LayerNorm {
-            weight: self.layer_norm.weight.to_device(device)?,
-            variance_epsilon: self.layer_norm.variance_epsilon,
-        };
-        Ok(())
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -561,45 +490,6 @@ impl T5LayerCrossAttention {
         )?;
         let ys = (hidden_states + ys)?;
         Ok((ys, position_bias))
-    }
-
-    fn cast_to(&mut self, device: &Device) -> Result<()> {
-        self.cross_attention.q = Linear::new(
-            self.cross_attention.q.weight().to_device(device)?,
-            self.cross_attention
-                .q
-                .bias()
-                .map(|x| x.to_device(device).unwrap()),
-        );
-        self.cross_attention.k = Linear::new(
-            self.cross_attention.k.weight().to_device(device)?,
-            self.cross_attention
-                .k
-                .bias()
-                .map(|x| x.to_device(device).unwrap()),
-        );
-        self.cross_attention.v = Linear::new(
-            self.cross_attention.v.weight().to_device(device)?,
-            self.cross_attention
-                .v
-                .bias()
-                .map(|x| x.to_device(device).unwrap()),
-        );
-        self.cross_attention.o = Linear::new(
-            self.cross_attention.o.weight().to_device(device)?,
-            self.cross_attention
-                .o
-                .bias()
-                .map(|x| x.to_device(device).unwrap()),
-        );
-        if let Some(embed) = &mut self.cross_attention.relative_attention_bias {
-            *embed = Embedding::new(embed.embeddings().to_device(device)?, embed.hidden_size());
-        }
-        self.layer_norm = T5LayerNorm {
-            weight: self.layer_norm.weight.to_device(device)?,
-            variance_epsilon: self.layer_norm.variance_epsilon,
-        };
-        Ok(())
     }
 }
 
@@ -721,15 +611,6 @@ impl T5Block {
         }
         Ok((xs, position_bias))
     }
-
-    fn cast_to(&mut self, device: &Device) -> Result<()> {
-        self.self_attn.cast_to(device)?;
-        if let Some(cross_attn) = &mut self.cross_attn {
-            cross_attn.cast_to(device)?;
-        }
-        self.ff.cast_to(device)?;
-        Ok(())
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -765,14 +646,14 @@ impl T5Stack {
     }
 
     fn forward(
-        &mut self,
+        &self,
         input_ids: &Tensor,
         encoder_hidden_states: Option<&Tensor>,
     ) -> Result<Tensor> {
         let input_embeds = self.shared.as_ref().forward(input_ids)?;
         let mut hidden_states = input_embeds;
         let mut position_bias = None;
-        for block in self.block.iter_mut() {
+        for block in self.block.iter() {
             (hidden_states, position_bias) = block.forward(
                 &hidden_states,
                 position_bias.as_ref(),
@@ -807,7 +688,11 @@ impl T5EncoderModel {
         Ok(Self { encoder })
     }
 
-    pub fn forward(&mut self, input_ids: &Tensor) -> Result<Tensor> {
+    pub fn forward(&self, input_ids: &Tensor) -> Result<Tensor> {
         self.encoder.forward(input_ids, None)
+    }
+
+    pub fn device(&self) -> &Device {
+        &self.encoder.device
     }
 }

@@ -322,28 +322,6 @@ impl SelfAttention {
         let (q, k, v) = self.qkv(xs)?;
         attention(&q, &k, &v, pe)?.apply(&self.proj)
     }
-
-    fn cast_to(&mut self, device: &Device) -> Result<()> {
-        self.qkv = Linear::new(
-            self.qkv.weight().to_device(device)?,
-            self.qkv.bias().map(|x| x.to_device(device).unwrap()),
-        );
-        self.proj = Linear::new(
-            self.proj.weight().to_device(device)?,
-            self.proj.bias().map(|x| x.to_device(device).unwrap()),
-        );
-        self.norm = QkNorm {
-            query_norm: RmsNorm::<RmsNormNonQuantized>::new(
-                self.norm.query_norm.inner().weight().to_device(device)?,
-                1e-6,
-            ),
-            key_norm: RmsNorm::<RmsNormNonQuantized>::new(
-                self.norm.key_norm.inner().weight().to_device(device)?,
-                1e-6,
-            ),
-        };
-        Ok(())
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -357,18 +335,6 @@ impl Mlp {
         let lin1 = candle_nn::linear(in_sz, mlp_sz, vb.pp("0.proj"))?;
         let lin2 = candle_nn::linear(mlp_sz, in_sz, vb.pp("2"))?;
         Ok(Self { lin1, lin2 })
-    }
-
-    fn cast_to(&mut self, device: &Device) -> Result<()> {
-        self.lin1 = Linear::new(
-            self.lin1.weight().to_device(device)?,
-            self.lin1.bias().map(|x| x.to_device(device).unwrap()),
-        );
-        self.lin2 = Linear::new(
-            self.lin2.weight().to_device(device)?,
-            self.lin2.bias().map(|x| x.to_device(device).unwrap()),
-        );
-        Ok(())
     }
 }
 
@@ -463,50 +429,6 @@ impl DoubleStreamBlock {
 
         Ok((img, txt))
     }
-
-    fn cast_to(&mut self, device: &Device) -> Result<()> {
-        self.img_mod.lin = Linear::new(
-            self.img_mod.lin.weight().to_device(device)?,
-            self.img_mod
-                .lin
-                .bias()
-                .map(|x| x.to_device(device).unwrap()),
-        );
-        self.img_norm1 = LayerNorm::new(
-            self.img_norm1.weight().to_device(device)?,
-            self.img_norm1.bias().to_device(device)?,
-            1e-6,
-        );
-        self.img_attn.cast_to(device)?;
-        self.img_norm2 = LayerNorm::new(
-            self.img_norm2.weight().to_device(device)?,
-            self.img_norm2.bias().to_device(device)?,
-            1e-6,
-        );
-        self.img_mlp.cast_to(device)?;
-
-        self.txt_mod.lin = Linear::new(
-            self.txt_mod.lin.weight().to_device(device)?,
-            self.txt_mod
-                .lin
-                .bias()
-                .map(|x| x.to_device(device).unwrap()),
-        );
-        self.txt_norm1 = LayerNorm::new(
-            self.txt_norm1.weight().to_device(device)?,
-            self.txt_norm1.bias().to_device(device)?,
-            1e-6,
-        );
-        self.txt_attn.cast_to(device)?;
-        self.txt_norm2 = LayerNorm::new(
-            self.txt_norm2.weight().to_device(device)?,
-            self.txt_norm2.bias().to_device(device)?,
-            1e-6,
-        );
-        self.txt_mlp.cast_to(device)?;
-
-        Ok(())
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -577,40 +499,6 @@ impl SingleStreamBlock {
         let output = Tensor::cat(&[attn, mlp.gelu()?], 2)?.apply(&self.linear2)?;
         xs + mod_.gate(&output)
     }
-
-    fn cast_to(&mut self, device: &Device) -> Result<()> {
-        self.linear1 = Linear::new(
-            self.linear1.weight().to_device(device)?,
-            self.linear1.bias().map(|x| x.to_device(device).unwrap()),
-        );
-        self.linear2 = Linear::new(
-            self.linear2.weight().to_device(device)?,
-            self.linear2.bias().map(|x| x.to_device(device).unwrap()),
-        );
-        self.norm = QkNorm {
-            query_norm: RmsNorm::<RmsNormNonQuantized>::new(
-                self.norm.query_norm.inner().weight().to_device(device)?,
-                1e-6,
-            ),
-            key_norm: RmsNorm::<RmsNormNonQuantized>::new(
-                self.norm.key_norm.inner().weight().to_device(device)?,
-                1e-6,
-            ),
-        };
-        self.pre_norm = LayerNorm::new(
-            self.pre_norm.weight().to_device(device)?,
-            self.pre_norm.bias().to_device(device)?,
-            1e-6,
-        );
-        self.modulation.lin = Linear::new(
-            self.modulation.lin.weight().to_device(device)?,
-            self.modulation
-                .lin
-                .bias()
-                .map(|x| x.to_device(device).unwrap()),
-        );
-        Ok(())
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -654,7 +542,6 @@ pub struct Flux {
     double_blocks: Vec<DoubleStreamBlock>,
     single_blocks: Vec<SingleStreamBlock>,
     final_layer: LastLayer,
-    device: Device,
 }
 
 impl Flux {
@@ -722,13 +609,12 @@ impl Flux {
             double_blocks,
             single_blocks,
             final_layer,
-            device: device.clone(),
         })
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn forward(
-        &mut self,
+        &self,
         img: &Tensor,
         img_ids: &Tensor,
         txt: &Tensor,
@@ -760,12 +646,12 @@ impl Flux {
         let vec_ = (vec_ + y.apply(&self.vector_in))?;
 
         // Double blocks
-        for block in self.double_blocks.iter_mut() {
+        for block in self.double_blocks.iter() {
             (img, txt) = block.forward(&img, &txt, &vec_, &pe)?;
         }
         // Single blocks
         let mut img = Tensor::cat(&[&txt, &img], 1)?;
-        for block in self.single_blocks.iter_mut() {
+        for block in self.single_blocks.iter() {
             img = block.forward(&img, &vec_, &pe)?;
         }
         let img = img.i((.., txt.dim(1)?..))?;

@@ -3,12 +3,37 @@ mod flux;
 use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
 
 use anyhow::Result;
-use candle_core::Device;
+use candle_core::{Device, Tensor};
 use flux::FluxLoader;
 use hf_hub::{api::sync::ApiBuilder, Repo, RepoType};
+use image::{DynamicImage, RgbImage};
 use serde::Deserialize;
 
 use crate::util::{get_token, TokenSource};
+
+#[derive(Debug, Clone)]
+pub struct DiffusionGenerationParams {
+    pub height: usize,
+    pub width: usize,
+    /// The number of denoising steps. More denoising steps usually lead to a higher quality image at the
+    /// expense of slower inference. Defaults to 50.
+    pub num_steps: Option<usize>,
+    /// Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
+    /// usually at the expense of lower image quality. Defaults to 3.5.
+    pub guidance_scale: f64,
+}
+
+impl Default for DiffusionGenerationParams {
+    /// Image dimensions will be 720x1280. Default steps for the model will be used.
+    fn default() -> Self {
+        Self {
+            height: 720,
+            width: 1280,
+            num_steps: None,
+            guidance_scale: 3.5,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub(crate) enum ComponentElem {
@@ -33,7 +58,13 @@ pub(crate) trait Loader {
     ) -> Result<Arc<dyn ModelPipeline>>;
 }
 
-pub trait ModelPipeline {}
+pub trait ModelPipeline {
+    fn forward(
+        &self,
+        prompts: Vec<String>,
+        params: DiffusionGenerationParams,
+    ) -> candle_core::Result<Tensor>;
+}
 
 #[derive(Clone, Debug, Deserialize)]
 struct ModelIndex {
@@ -41,7 +72,7 @@ struct ModelIndex {
     name: String,
 }
 
-pub struct Pipeline {}
+pub struct Pipeline(Arc<dyn ModelPipeline>);
 
 impl Pipeline {
     pub fn load(
@@ -135,8 +166,32 @@ impl Pipeline {
 
         let device = Device::new_metal(0)?;
 
-        loader.load_from_components(components, &device)?;
+        let model = loader.load_from_components(components, &device)?;
 
-        todo!();
+        Ok(Self(model))
+    }
+
+    pub fn forward(
+        &self,
+        prompts: Vec<String>,
+        params: DiffusionGenerationParams,
+    ) -> anyhow::Result<Vec<DynamicImage>> {
+        let img = self.0.forward(prompts, params)?;
+
+        let (_b, c, h, w) = img.dims4()?;
+        let mut images = Vec::new();
+        for b_img in img.chunk(img.dim(0)?, 0)? {
+            let flattened = b_img.squeeze(0)?.permute((1, 2, 0))?.flatten_all()?;
+            if c != 3 {
+                anyhow::bail!("Expected 3 channels in image output");
+            }
+            #[allow(clippy::cast_possible_truncation)]
+            images.push(DynamicImage::ImageRgb8(
+                RgbImage::from_raw(w as u32, h as u32, flattened.to_vec1::<u8>()?).ok_or(
+                    candle_core::Error::Msg("RgbImage has invalid capacity.".to_string()),
+                )?,
+            ));
+        }
+        Ok(images)
     }
 }

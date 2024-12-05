@@ -1,4 +1,4 @@
-use diffusersrs_core::{Pipeline, TokenSource};
+use diffusersrs_core::{DiffusionGenerationParams, Pipeline, TokenSource};
 
 fn main() -> anyhow::Result<()> {
     let pipeline = Pipeline::load(
@@ -7,6 +7,12 @@ fn main() -> anyhow::Result<()> {
         TokenSource::CacheToken,
         None,
     )?;
+
+    let images = pipeline.forward(
+        vec!["Draw a picture of a computer.".to_string()],
+        DiffusionGenerationParams::default(),
+    )?;
+    images[0].save("image.png")?;
 
     Ok(())
 }

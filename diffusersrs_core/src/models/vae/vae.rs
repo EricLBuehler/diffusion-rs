@@ -1,7 +1,9 @@
 #![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 
 use candle_core::{Result, Tensor, D};
-use candle_nn::{conv2d, group_norm, linear, Activation, Conv2d, GroupNorm, Linear, VarBuilder};
+use candle_nn::{
+    conv2d, group_norm, linear, Activation, Conv2d, Conv2dConfig, GroupNorm, VarBuilder,
+};
 use serde::Deserialize;
 
 fn default_act() -> Activation {
@@ -32,27 +34,53 @@ fn scaled_dot_product_attention(q: &Tensor, k: &Tensor, v: &Tensor) -> Result<Te
 
 #[derive(Debug, Clone)]
 struct AttnBlock {
-    q: Linear,
-    k: Linear,
-    v: Linear,
-    proj_out: Linear,
+    q: Conv2d,
+    k: Conv2d,
+    v: Conv2d,
+    out: Conv2d,
     norm: GroupNorm,
 }
 
 impl AttnBlock {
     fn new(in_c: usize, vb: VarBuilder, cfg: &VAEConfig) -> Result<Self> {
         let q = linear(in_c, in_c, vb.pp("to_q"))?;
+        let q = Conv2d::new(
+            q.weight()
+                .clone()
+                .unsqueeze(D::Minus1)?
+                .unsqueeze(D::Minus1)?,
+            q.bias().cloned(),
+            Conv2dConfig::default(),
+        );
         let k = linear(in_c, in_c, vb.pp("to_k"))?;
+        let k = Conv2d::new(
+            k.weight()
+                .clone()
+                .unsqueeze(D::Minus1)?
+                .unsqueeze(D::Minus1)?,
+            k.bias().cloned(),
+            Conv2dConfig::default(),
+        );
         let v = linear(in_c, in_c, vb.pp("to_v"))?;
-        let proj_out = linear(in_c, in_c, vb.pp("to_out.0"))?;
+        let v = Conv2d::new(
+            v.weight()
+                .clone()
+                .unsqueeze(D::Minus1)?
+                .unsqueeze(D::Minus1)?,
+            v.bias().cloned(),
+            Conv2dConfig::default(),
+        );
+        let out = linear(in_c, in_c, vb.pp("to_out.0"))?;
+        let out = Conv2d::new(
+            out.weight()
+                .clone()
+                .unsqueeze(D::Minus1)?
+                .unsqueeze(D::Minus1)?,
+            out.bias().cloned(),
+            Conv2dConfig::default(),
+        );
         let norm = group_norm(cfg.norm_num_groups, in_c, 1e-6, vb.pp("group_norm"))?;
-        Ok(Self {
-            q,
-            k,
-            v,
-            proj_out,
-            norm,
-        })
+        Ok(Self { q, k, v, out, norm })
     }
 }
 
@@ -69,7 +97,7 @@ impl candle_core::Module for AttnBlock {
         let v = v.flatten_from(2)?.t()?.unsqueeze(1)?;
         let xs = scaled_dot_product_attention(&q, &k, &v)?;
         let xs = xs.squeeze(1)?.t()?.reshape((b, c, h, w))?;
-        xs.apply(&self.proj_out)? + init_xs
+        xs.apply(&self.out)? + init_xs
     }
 }
 
