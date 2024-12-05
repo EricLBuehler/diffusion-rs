@@ -175,6 +175,7 @@ impl ModelPipeline for FluxPipeline {
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
     ) -> candle_core::Result<Tensor> {
+        dbg!(&prompts);
         let mut t5_input_ids = Tensor::new(
             self.t5_tokenizer
                 .encode_batch(prompts.clone(), true)
