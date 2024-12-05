@@ -1,0 +1,14 @@
+[package]
+name = "diffusersrs_examples"
+version = "0.1.0"
+edition = "2021"
+description = "Examples of diffusersrs"
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+homepage.workspace = true
+
+[dependencies]
+diffusersrs_core = { path = "../diffusersrs_core" }
+anyhow.workspace = true

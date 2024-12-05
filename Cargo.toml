@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "diffusersrs_core",
+    "diffusersrs_examples",
 ]
 resolver = "2"
 
@@ -20,3 +21,13 @@ candle-nn = { git = "https://github.com/EricLBuehler/candle.git", version = "0.8
 mistralrs-quant = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "f32cf27" }
 serde = "1.0.215"
 serde_json = "1.0.133"
+float8 = "0.1.1"
+serde_plain = "1.0.2"
+half = "2.4.1"
+hf-hub = "0.3.2"
+tokenizers = "0.21.0"
+anyhow = "1.0.94"
+tqdm = "0.7.0"
+indicatif = "0.17.9"
+thiserror = "2.0.4"
+dirs = "5.0.1"
