@@ -136,7 +136,7 @@ impl Pipeline {
                     .iter()
                     .filter(|file| file.ends_with(".safetensors"))
                 {
-                    safetensors.insert(file.clone(), api.get(&file)?);
+                    safetensors.insert(file.clone(), api.get(file)?);
                 }
                 ComponentElem::Model {
                     safetensors,
@@ -151,7 +151,7 @@ impl Pipeline {
                     .iter()
                     .filter(|file| file.ends_with(".json"))
                 {
-                    files.insert(file.clone(), api.get(&file)?);
+                    files.insert(file.clone(), api.get(file)?);
                 }
                 ComponentElem::Config { files }
             } else {

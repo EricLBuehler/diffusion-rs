@@ -26,7 +26,7 @@ struct SchedulerConfig {
     base_shift: f64,
     max_image_seq_len: usize,
     max_shift: f64,
-    shift: f64,
+    // shift: f64,
     use_dynamic_shifting: bool,
 }
 

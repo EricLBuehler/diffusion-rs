@@ -7,6 +7,11 @@
 Blazingly fast inference of diffusion models.
 </h3>
 
+## Roadmap
+- [x] Implement loading from the diffusers multifolder format, but converting to old Flux format
+- [ ] Implement loading from & running with diffusers format
+- [ ] Support loading quantized models
+
 ## Features
 - Quantization: using the [`mistralrs_quant`](https://github.com/EricLBuehler/mistral.rs/tree/master/mistralrs-quant) package, we support inference of models
   - With native accelerator support for every method on CUDA, Metal, and CPU
