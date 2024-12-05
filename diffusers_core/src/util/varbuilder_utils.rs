@@ -93,7 +93,7 @@ pub(crate) fn from_mmaped_safetensors<'a>(
         ws.extend(h.join().unwrap()?);
     }
 
-    let first_dtype = ws.values().next().unwrap().dtype();
+    let first_dtype = DType::BF16; //ws.values().next().unwrap().dtype();
     Ok(VarBuilder::from_tensors(
         ws,
         dtype.unwrap_or(first_dtype),

@@ -2,7 +2,8 @@ use diffusers_core::{DiffusionGenerationParams, ModelPaths, Pipeline, TokenSourc
 
 fn main() -> anyhow::Result<()> {
     let pipeline = Pipeline::load(
-        ModelPaths::from_model_id("black-forest-labs/FLUX.1-schnell"),
+        ModelPaths::from_model_id("black-forest-labs/FLUX.1-schnell")
+            .override_transformer_model_id("sayakpaul/flux.1-dev-nf4-with-bnb-integration"),
         false,
         TokenSource::CacheToken,
         None,

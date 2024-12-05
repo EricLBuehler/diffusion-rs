@@ -1537,14 +1537,16 @@ dependencies = [
 [[package]]
 name = "mistralrs-quant"
 version = "0.3.4"
-source = "git+https://github.com/EricLBuehler/mistral.rs.git?rev=f32cf27#f32cf279aec3d29ecb37f5fcc450aba8bf9c0792"
+source = "git+https://github.com/EricLBuehler/mistral.rs.git?rev=c2c500e85#c2c500e855672411f6714512aaf517c15dae4757"
 dependencies = [
+ "bindgen_cuda",
  "byteorder",
  "candle-core",
  "candle-nn",
  "float8",
  "half",
  "lazy_static",
+ "metal 0.27.0",
  "once_cell",
  "paste",
  "rayon",

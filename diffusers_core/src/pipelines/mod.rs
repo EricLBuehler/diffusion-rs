@@ -1,6 +1,6 @@
 mod flux;
 
-use std::{collections::HashMap, fs, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, fmt::Display, fs, path::PathBuf, sync::Arc};
 
 use anyhow::Result;
 use candle_core::{Device, Tensor};
@@ -49,11 +49,34 @@ pub(crate) enum ComponentElem {
     },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ComponentName {
+    Scheduler,
+    TextEncoder(usize),
+    Tokenizer(usize),
+    Transformer,
+    Vae,
+}
+
+impl Display for ComponentName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Scheduler => write!(f, "scheduler"),
+            Self::Transformer => write!(f, "transformer"),
+            Self::Vae => write!(f, "vae"),
+            Self::TextEncoder(1) => write!(f, "text_encoder"),
+            Self::TextEncoder(x) => write!(f, "text_encoder_{x}"),
+            Self::Tokenizer(1) => write!(f, "tokenizer"),
+            Self::Tokenizer(x) => write!(f, "tokenizer_{x}"),
+        }
+    }
+}
+
 pub(crate) trait Loader {
-    fn required_component_names(&self) -> Vec<&'static str>;
+    fn required_component_names(&self) -> Vec<ComponentName>;
     fn load_from_components(
         &self,
-        components: HashMap<String, ComponentElem>,
+        components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
     ) -> Result<Arc<dyn ModelPipeline>>;
 }
@@ -72,25 +95,53 @@ struct ModelIndex {
     name: String,
 }
 
+pub struct ModelPaths {
+    pub model_id: String,
+    pub transformer_model_id: Option<String>,
+}
+
+impl ModelPaths {
+    pub fn from_model_id<S: ToString>(model_id: S) -> Self {
+        Self {
+            model_id: model_id.to_string(),
+            transformer_model_id: None,
+        }
+    }
+    pub fn override_transformer_model_id<S: ToString>(mut self, model_id: S) -> Self {
+        self.transformer_model_id = Some(model_id.to_string());
+        self
+    }
+}
+
 pub struct Pipeline(Arc<dyn ModelPipeline>);
 
 impl Pipeline {
     pub fn load(
-        model_id: String,
+        model_paths: ModelPaths,
         silent: bool,
         token: TokenSource,
         revision: Option<String>,
     ) -> Result<Self> {
-        let api = ApiBuilder::new()
+        let api_builder = ApiBuilder::new()
             .with_progress(!silent)
             .with_token(get_token(&token)?)
             .build()?;
         let revision = revision.unwrap_or("main".to_string());
-        let api = api.repo(Repo::with_revision(
-            model_id,
+        let api = api_builder.repo(Repo::with_revision(
+            model_paths.model_id,
             RepoType::Model,
             revision.clone(),
         ));
+        let transformer_api = if let Some(transformer_model_id) = &model_paths.transformer_model_id
+        {
+            Some(api_builder.repo(Repo::with_revision(
+                transformer_model_id.clone(),
+                RepoType::Model,
+                revision.clone(),
+            )))
+        } else {
+            None
+        };
 
         let files = api
             .info()
@@ -101,7 +152,22 @@ impl Pipeline {
                     .collect::<Vec<String>>()
             })
             .map_err(|e| anyhow::Error::msg(e.to_string()))?;
-        dbg!(&files);
+
+        let transformer_files = if let Some(transformer_api) = &transformer_api {
+            Some(
+                transformer_api
+                    .info()
+                    .map(|repo| {
+                        repo.siblings
+                            .iter()
+                            .map(|x| x.rfilename.clone())
+                            .collect::<Vec<String>>()
+                    })
+                    .map_err(|e| anyhow::Error::msg(e.to_string()))?,
+            )
+        } else {
+            None
+        };
 
         if !files.contains(&"model_index.json".to_string()) {
             anyhow::bail!("Expected `model_index.json` file present.");
@@ -116,7 +182,16 @@ impl Pipeline {
         };
         let mut components = HashMap::new();
         for component in loader.required_component_names() {
-            let dir = format!("{component}/");
+            let (files, api_to_use, dir) =
+                if component == ComponentName::Transformer && transformer_files.is_some() {
+                    (
+                        transformer_files.clone().unwrap(),
+                        transformer_api.as_ref().unwrap(),
+                        "".to_string(),
+                    )
+                } else {
+                    (files.clone(), &api, format!("{component}/"))
+                };
             let files_for_component = files
                 .iter()
                 .filter(|file| file.starts_with(&dir))
@@ -136,11 +211,11 @@ impl Pipeline {
                     .iter()
                     .filter(|file| file.ends_with(".safetensors"))
                 {
-                    safetensors.insert(file.clone(), api.get(file)?);
+                    safetensors.insert(file.clone(), api_to_use.get(file)?);
                 }
                 ComponentElem::Model {
                     safetensors,
-                    config: api.get(&format!("{component}/config.json"))?,
+                    config: api_to_use.get(&format!("{dir}config.json"))?,
                 }
             } else if files_for_component
                 .iter()
@@ -151,17 +226,17 @@ impl Pipeline {
                     .iter()
                     .filter(|file| file.ends_with(".json"))
                 {
-                    files.insert(file.clone(), api.get(file)?);
+                    files.insert(file.clone(), api_to_use.get(file)?);
                 }
                 ComponentElem::Config { files }
             } else {
                 let mut files = HashMap::new();
                 for file in files_for_component {
-                    files.insert(file.clone(), api.get(&file)?);
+                    files.insert(file.clone(), api_to_use.get(&file)?);
                 }
                 ComponentElem::Other { files }
             };
-            components.insert(component.to_string(), component_elem);
+            components.insert(component, component_elem);
         }
 
         let device = Device::new_metal(0)?;

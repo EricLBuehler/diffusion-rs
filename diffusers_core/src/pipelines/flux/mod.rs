@@ -11,6 +11,7 @@ use crate::{
         dispatch_load_vae_model, ClipTextConfig, ClipTextTransformer, FluxConfig, FluxModel,
         T5Config, T5EncoderModel, VAEModel,
     },
+    pipelines::ComponentName,
     util::from_mmaped_safetensors,
 };
 
@@ -31,30 +32,30 @@ struct SchedulerConfig {
 }
 
 impl Loader for FluxLoader {
-    fn required_component_names(&self) -> Vec<&'static str> {
+    fn required_component_names(&self) -> Vec<ComponentName> {
         vec![
-            "scheduler",
-            "text_encoder",
-            "text_encoder_2",
-            "tokenizer",
-            "tokenizer_2",
-            "transformer",
-            "vae",
+            ComponentName::Scheduler,
+            ComponentName::TextEncoder(1),
+            ComponentName::TextEncoder(2),
+            ComponentName::Tokenizer(1),
+            ComponentName::Tokenizer(2),
+            ComponentName::Transformer,
+            ComponentName::Vae,
         ]
     }
 
     fn load_from_components(
         &self,
-        components: HashMap<String, ComponentElem>,
+        components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
     ) -> Result<Arc<dyn ModelPipeline>> {
-        let scheduler = components["scheduler"].clone();
-        let clip_component = components["text_encoder"].clone();
-        let t5_component = components["text_encoder_2"].clone();
-        let clip_tok_component = components["tokenizer"].clone();
-        let t5_tok_component = components["tokenizer_2"].clone();
-        let flux_component = components["transformer"].clone();
-        let vae_component = components["vae"].clone();
+        let scheduler = components[&ComponentName::Scheduler].clone();
+        let clip_component = components[&ComponentName::TextEncoder(1)].clone();
+        let t5_component = components[&ComponentName::TextEncoder(2)].clone();
+        let clip_tok_component = components[&ComponentName::Tokenizer(1)].clone();
+        let t5_tok_component = components[&ComponentName::Tokenizer(2)].clone();
+        let flux_component = components[&ComponentName::Transformer].clone();
+        let vae_component = components[&ComponentName::Vae].clone();
 
         let scheduler_config = if let ComponentElem::Config { files } = scheduler {
             serde_json::from_str::<SchedulerConfig>(&fs::read_to_string(

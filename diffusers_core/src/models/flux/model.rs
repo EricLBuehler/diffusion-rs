@@ -1,7 +1,10 @@
 #![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 
+use std::sync::Arc;
+
 use candle_core::{DType, Device, IndexOp, Result, Tensor, D};
-use candle_nn::{layer_norm::RmsNormNonQuantized, LayerNorm, Linear, RmsNorm, VarBuilder};
+use candle_nn::{layer_norm::RmsNormNonQuantized, LayerNorm, RmsNorm, VarBuilder};
+use mistralrs_quant::{QuantMethod, QuantizedConfig};
 use serde::Deserialize;
 
 const MLP_RATIO: f64 = 4.;
@@ -18,6 +21,7 @@ pub struct Config {
     pub num_layers: usize,
     pub num_single_layers: usize,
     pub guidance_embeds: bool,
+    pub quantization_config: Option<QuantizedConfig>,
 }
 
 fn layer_norm(dim: usize, vb: VarBuilder) -> Result<LayerNorm> {
@@ -136,14 +140,16 @@ impl candle_core::Module for EmbedNd {
 
 #[derive(Debug, Clone)]
 pub struct MlpEmbedder {
-    in_layer: Linear,
-    out_layer: Linear,
+    in_layer: Arc<dyn QuantMethod>,
+    out_layer: Arc<dyn QuantMethod>,
 }
 
 impl MlpEmbedder {
-    fn new(in_sz: usize, h_sz: usize, vb: VarBuilder) -> Result<Self> {
-        let in_layer = candle_nn::linear(in_sz, h_sz, vb.pp("linear_1"))?;
-        let out_layer = candle_nn::linear(h_sz, h_sz, vb.pp("linear_2"))?;
+    fn new(in_sz: usize, h_sz: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
+        let in_layer =
+            mistralrs_quant::linear(in_sz, h_sz, &cfg.quantization_config, vb.pp("linear_1"))?;
+        let out_layer =
+            mistralrs_quant::linear(h_sz, h_sz, &cfg.quantization_config, vb.pp("linear_2"))?;
         Ok(Self {
             in_layer,
             out_layer,
@@ -153,7 +159,8 @@ impl MlpEmbedder {
 
 impl candle_core::Module for MlpEmbedder {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        xs.apply(&self.in_layer)?.silu()?.apply(&self.out_layer)
+        self.out_layer
+            .forward_autocast(&self.in_layer.forward_autocast(xs)?.silu()?)
     }
 }
 
@@ -195,19 +202,19 @@ impl ModulationOut {
 
 #[derive(Debug, Clone)]
 struct Modulation1 {
-    lin: Linear,
+    lin: Arc<dyn QuantMethod>,
 }
 
 impl Modulation1 {
-    fn new(dim: usize, vb: VarBuilder) -> Result<Self> {
-        let lin = candle_nn::linear(dim, 3 * dim, vb.pp("linear"))?;
+    fn new(dim: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
+        let lin = mistralrs_quant::linear(dim, 3 * dim, &cfg.quantization_config, vb.pp("linear"))?;
         Ok(Self { lin })
     }
 
     fn forward(&self, vec_: &Tensor) -> Result<ModulationOut> {
-        let ys = vec_
-            .silu()?
-            .apply(&self.lin)?
+        let ys = self
+            .lin
+            .forward_autocast(&vec_.silu()?)?
             .unsqueeze(1)?
             .chunk(3, D::Minus1)?;
         if ys.len() != 3 {
@@ -223,19 +230,19 @@ impl Modulation1 {
 
 #[derive(Debug, Clone)]
 struct Modulation2 {
-    lin: Linear,
+    lin: Arc<dyn QuantMethod>,
 }
 
 impl Modulation2 {
-    fn new(dim: usize, vb: VarBuilder) -> Result<Self> {
-        let lin = candle_nn::linear(dim, 6 * dim, vb.pp("linear"))?;
+    fn new(dim: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
+        let lin = mistralrs_quant::linear(dim, 6 * dim, &cfg.quantization_config, vb.pp("linear"))?;
         Ok(Self { lin })
     }
 
     fn forward(&self, vec_: &Tensor) -> Result<(ModulationOut, ModulationOut)> {
-        let ys = vec_
-            .silu()?
-            .apply(&self.lin)?
+        let ys = self
+            .lin
+            .forward_autocast(&vec_.silu()?)?
             .unsqueeze(1)?
             .chunk(6, D::Minus1)?;
         if ys.len() != 6 {
@@ -257,11 +264,11 @@ impl Modulation2 {
 
 #[derive(Debug, Clone)]
 pub struct SelfAttention {
-    q: Linear,
-    k: Linear,
-    v: Linear,
+    q: Arc<dyn QuantMethod>,
+    k: Arc<dyn QuantMethod>,
+    v: Arc<dyn QuantMethod>,
     norm: QkNorm,
-    proj: Linear,
+    proj: Arc<dyn QuantMethod>,
     num_attention_heads: usize,
 }
 
@@ -270,24 +277,63 @@ impl SelfAttention {
         dim: usize,
         num_attention_heads: usize,
         qkv_bias: bool,
+        cfg: &Config,
         vb: VarBuilder,
         context: bool,
     ) -> Result<Self> {
         let head_dim = dim / num_attention_heads;
         let (q, k, v, norm, proj) = if !context {
-            let q = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_q"))?;
-            let k = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_k"))?;
-            let v = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_v"))?;
+            let q = mistralrs_quant::linear_b(
+                dim,
+                dim,
+                qkv_bias,
+                &cfg.quantization_config,
+                vb.pp("to_q"),
+            )?;
+            let k = mistralrs_quant::linear_b(
+                dim,
+                dim,
+                qkv_bias,
+                &cfg.quantization_config,
+                vb.pp("to_k"),
+            )?;
+            let v = mistralrs_quant::linear_b(
+                dim,
+                dim,
+                qkv_bias,
+                &cfg.quantization_config,
+                vb.pp("to_v"),
+            )?;
             let norm = QkNorm::new(head_dim, vb.pp("norm_q"), vb.pp("norm_k"))?;
-            let proj = candle_nn::linear(dim, dim, vb.pp("to_out.0"))?;
+            let proj =
+                mistralrs_quant::linear(dim, dim, &cfg.quantization_config, vb.pp("to_out.0"))?;
 
             (q, k, v, norm, proj)
         } else {
-            let q = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("add_q_proj"))?;
-            let k = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("add_k_proj"))?;
-            let v = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("add_v_proj"))?;
+            let q = mistralrs_quant::linear_b(
+                dim,
+                dim,
+                qkv_bias,
+                &cfg.quantization_config,
+                vb.pp("add_q_proj"),
+            )?;
+            let k = mistralrs_quant::linear_b(
+                dim,
+                dim,
+                qkv_bias,
+                &cfg.quantization_config,
+                vb.pp("add_k_proj"),
+            )?;
+            let v = mistralrs_quant::linear_b(
+                dim,
+                dim,
+                qkv_bias,
+                &cfg.quantization_config,
+                vb.pp("add_v_proj"),
+            )?;
             let norm = QkNorm::new(head_dim, vb.pp("norm_added_q"), vb.pp("norm_added_k"))?;
-            let proj = candle_nn::linear(dim, dim, vb.pp("to_add_out"))?;
+            let proj =
+                mistralrs_quant::linear(dim, dim, &cfg.quantization_config, vb.pp("to_add_out"))?;
 
             (q, k, v, norm, proj)
         };
@@ -302,9 +348,9 @@ impl SelfAttention {
     }
 
     fn qkv(&self, xs: &Tensor) -> Result<(Tensor, Tensor, Tensor)> {
-        let mut q = xs.apply(&self.q)?;
-        let mut k = xs.apply(&self.k)?;
-        let mut v = xs.apply(&self.v)?;
+        let mut q = self.q.forward_autocast(&xs)?;
+        let mut k = self.k.forward_autocast(&xs)?;
+        let mut v = self.v.forward_autocast(&xs)?;
         let (b, l, _khd) = q.dims3()?;
         q = q
             .reshape((b, l, self.num_attention_heads, ()))?
@@ -323,27 +369,29 @@ impl SelfAttention {
     #[allow(unused)]
     fn forward(&self, xs: &Tensor, pe: &Tensor) -> Result<Tensor> {
         let (q, k, v) = self.qkv(xs)?;
-        attention(&q, &k, &v, pe)?.apply(&self.proj)
+        self.proj.forward_autocast(&attention(&q, &k, &v, pe)?)
     }
 }
 
 #[derive(Debug, Clone)]
 struct Mlp {
-    lin1: Linear,
-    lin2: Linear,
+    lin1: Arc<dyn QuantMethod>,
+    lin2: Arc<dyn QuantMethod>,
 }
 
 impl Mlp {
-    fn new(in_sz: usize, mlp_sz: usize, vb: VarBuilder) -> Result<Self> {
-        let lin1 = candle_nn::linear(in_sz, mlp_sz, vb.pp("0.proj"))?;
-        let lin2 = candle_nn::linear(mlp_sz, in_sz, vb.pp("2"))?;
+    fn new(in_sz: usize, mlp_sz: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
+        let lin1 =
+            mistralrs_quant::linear(in_sz, mlp_sz, &cfg.quantization_config, vb.pp("0.proj"))?;
+        let lin2 = mistralrs_quant::linear(mlp_sz, in_sz, &cfg.quantization_config, vb.pp("2"))?;
         Ok(Self { lin1, lin2 })
     }
 }
 
 impl candle_core::Module for Mlp {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        xs.apply(&self.lin1)?.gelu()?.apply(&self.lin2)
+        self.lin2
+            .forward_autocast(&self.lin1.forward_autocast(xs)?.gelu()?)
     }
 }
 
@@ -365,19 +413,31 @@ impl DoubleStreamBlock {
     fn new(cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let h_sz = HIDDEN_SIZE;
         let mlp_sz = (h_sz as f64 * MLP_RATIO) as usize;
-        let img_mod = Modulation2::new(h_sz, vb.pp("norm1"))?;
+        let img_mod = Modulation2::new(h_sz, cfg, vb.pp("norm1"))?;
         let img_norm1 = layer_norm(h_sz, vb.pp("img_norm1"))?;
-        let img_attn =
-            SelfAttention::new(h_sz, cfg.num_attention_heads, true, vb.pp("attn"), false)?;
+        let img_attn = SelfAttention::new(
+            h_sz,
+            cfg.num_attention_heads,
+            true,
+            cfg,
+            vb.pp("attn"),
+            false,
+        )?;
         let img_norm2 = layer_norm(h_sz, vb.pp("img_norm2"))?;
-        let img_mlp = Mlp::new(h_sz, mlp_sz, vb.pp("ff.net"))?;
+        let img_mlp = Mlp::new(h_sz, mlp_sz, cfg, vb.pp("ff.net"))?;
 
-        let txt_mod = Modulation2::new(h_sz, vb.pp("norm1_context"))?;
+        let txt_mod = Modulation2::new(h_sz, cfg, vb.pp("norm1_context"))?;
         let txt_norm1 = layer_norm(h_sz, vb.pp("txt_norm1"))?;
-        let txt_attn =
-            SelfAttention::new(h_sz, cfg.num_attention_heads, true, vb.pp("attn"), true)?;
+        let txt_attn = SelfAttention::new(
+            h_sz,
+            cfg.num_attention_heads,
+            true,
+            cfg,
+            vb.pp("attn"),
+            true,
+        )?;
         let txt_norm2 = layer_norm(h_sz, vb.pp("txt_norm2"))?;
-        let txt_mlp = Mlp::new(h_sz, mlp_sz, vb.pp("ff_context.net"))?;
+        let txt_mlp = Mlp::new(h_sz, mlp_sz, cfg, vb.pp("ff_context.net"))?;
         Ok(Self {
             img_mod,
             img_norm1,
@@ -417,7 +477,7 @@ impl DoubleStreamBlock {
         let txt_attn = attn.narrow(1, 0, txt.dim(1)?)?;
         let img_attn = attn.narrow(1, txt.dim(1)?, attn.dim(1)? - txt.dim(1)?)?;
 
-        let img = (img + img_mod1.gate(&img_attn.apply(&self.img_attn.proj)?))?;
+        let img = (img + img_mod1.gate(&self.img_attn.proj.forward_autocast(&img_attn)?))?;
         let img = (&img
             + img_mod2.gate(
                 &img_mod2
@@ -425,7 +485,7 @@ impl DoubleStreamBlock {
                     .apply(&self.img_mlp)?,
             )?)?;
 
-        let txt = (txt + txt_mod1.gate(&txt_attn.apply(&self.txt_attn.proj)?))?;
+        let txt = (txt + txt_mod1.gate(&self.txt_attn.proj.forward_autocast(&txt_attn)?))?;
         let txt = (&txt
             + txt_mod2.gate(
                 &txt_mod2
@@ -439,11 +499,11 @@ impl DoubleStreamBlock {
 
 #[derive(Debug, Clone)]
 pub struct SingleStreamBlock {
-    q: Linear,
-    k: Linear,
-    v: Linear,
-    proj_mlp: Linear,
-    linear2: Linear,
+    q: Arc<dyn QuantMethod>,
+    k: Arc<dyn QuantMethod>,
+    v: Arc<dyn QuantMethod>,
+    proj_mlp: Arc<dyn QuantMethod>,
+    linear2: Arc<dyn QuantMethod>,
     norm: QkNorm,
     pre_norm: LayerNorm,
     modulation: Modulation1,
@@ -456,15 +516,44 @@ impl SingleStreamBlock {
         let mlp_sz = (h_sz as f64 * MLP_RATIO) as usize;
         let head_dim = h_sz / cfg.num_attention_heads;
 
-        let q = candle_nn::linear_b(h_sz, h_sz, true, vb.pp("attn.to_q"))?;
-        let k = candle_nn::linear_b(h_sz, h_sz, true, vb.pp("attn.to_k"))?;
-        let v = candle_nn::linear_b(h_sz, h_sz, true, vb.pp("attn.to_v"))?;
-        let proj_mlp: Linear = candle_nn::linear_b(h_sz, mlp_sz, true, vb.pp("proj_mlp"))?;
+        let q = mistralrs_quant::linear_b(
+            h_sz,
+            h_sz,
+            true,
+            &cfg.quantization_config,
+            vb.pp("attn.to_q"),
+        )?;
+        let k = mistralrs_quant::linear_b(
+            h_sz,
+            h_sz,
+            true,
+            &cfg.quantization_config,
+            vb.pp("attn.to_k"),
+        )?;
+        let v = mistralrs_quant::linear_b(
+            h_sz,
+            h_sz,
+            true,
+            &cfg.quantization_config,
+            vb.pp("attn.to_v"),
+        )?;
+        let proj_mlp = mistralrs_quant::linear_b(
+            h_sz,
+            mlp_sz,
+            true,
+            &cfg.quantization_config,
+            vb.pp("proj_mlp"),
+        )?;
 
-        let linear2 = candle_nn::linear(h_sz + mlp_sz, h_sz, vb.pp("proj_out"))?;
+        let linear2 = mistralrs_quant::linear(
+            h_sz + mlp_sz,
+            h_sz,
+            &cfg.quantization_config,
+            vb.pp("proj_out"),
+        )?;
         let norm = QkNorm::new(head_dim, vb.pp("attn.norm_q"), vb.pp("attn.norm_k"))?;
         let pre_norm = layer_norm(h_sz, vb.pp("pre_norm"))?;
-        let modulation = Modulation1::new(h_sz, vb.pp("norm"))?;
+        let modulation = Modulation1::new(h_sz, cfg, vb.pp("norm"))?;
         Ok(Self {
             q,
             k,
@@ -481,9 +570,9 @@ impl SingleStreamBlock {
     fn forward(&self, xs: &Tensor, vec_: &Tensor, pe: &Tensor) -> Result<Tensor> {
         let mod_ = self.modulation.forward(vec_)?;
         let x_mod = mod_.scale_shift(&xs.apply(&self.pre_norm)?)?;
-        let mut q = x_mod.apply(&self.q)?;
-        let mut k = x_mod.apply(&self.k)?;
-        let mut v = x_mod.apply(&self.v)?;
+        let mut q = self.q.forward_autocast(&x_mod)?;
+        let mut k = self.k.forward_autocast(&x_mod)?;
+        let mut v = self.v.forward_autocast(&x_mod)?;
         let (b, l, _khd) = q.dims3()?;
         q = q
             .reshape((b, l, self.num_attention_heads, ()))?
@@ -496,9 +585,11 @@ impl SingleStreamBlock {
             .transpose(1, 2)?;
         q = q.apply(&self.norm.query_norm)?;
         k = k.apply(&self.norm.key_norm)?;
-        let mlp = x_mod.apply(&self.proj_mlp)?;
+        let mlp = self.proj_mlp.forward_autocast(&x_mod)?;
         let attn = attention(&q, &k, &v, pe)?;
-        let output = Tensor::cat(&[attn, mlp.gelu()?], 2)?.apply(&self.linear2)?;
+        let output = self
+            .linear2
+            .forward_autocast(&Tensor::cat(&[attn, mlp.gelu()?], 2)?)?;
         xs + mod_.gate(&output)
     }
 }
@@ -506,15 +597,25 @@ impl SingleStreamBlock {
 #[derive(Debug, Clone)]
 pub struct LastLayer {
     norm_final: LayerNorm,
-    linear: Linear,
-    ada_ln_modulation: Linear,
+    linear: Arc<dyn QuantMethod>,
+    ada_ln_modulation: Arc<dyn QuantMethod>,
 }
 
 impl LastLayer {
-    fn new(h_sz: usize, p_sz: usize, out_c: usize, vb: VarBuilder) -> Result<Self> {
+    fn new(h_sz: usize, p_sz: usize, out_c: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let norm_final = layer_norm(h_sz, vb.pp("norm_final"))?;
-        let linear = candle_nn::linear(h_sz, p_sz * p_sz * out_c, vb.pp("proj_out"))?;
-        let ada_ln_modulation = candle_nn::linear(h_sz, 2 * h_sz, vb.pp("norm_out.linear"))?;
+        let linear = mistralrs_quant::linear(
+            h_sz,
+            p_sz * p_sz * out_c,
+            &cfg.quantization_config,
+            vb.pp("proj_out"),
+        )?;
+        let ada_ln_modulation = mistralrs_quant::linear(
+            h_sz,
+            2 * h_sz,
+            &cfg.quantization_config,
+            vb.pp("norm_out.linear"),
+        )?;
         Ok(Self {
             norm_final,
             linear,
@@ -523,20 +624,23 @@ impl LastLayer {
     }
 
     fn forward(&self, xs: &Tensor, vec: &Tensor) -> Result<Tensor> {
-        let chunks = vec.silu()?.apply(&self.ada_ln_modulation)?.chunk(2, 1)?;
+        let chunks = self
+            .ada_ln_modulation
+            .forward_autocast(&vec.silu()?)?
+            .chunk(2, 1)?;
         let (scale, shift) = (&chunks[0], &chunks[1]);
         let xs = xs
             .apply(&self.norm_final)?
             .broadcast_mul(&(scale.unsqueeze(1)? + 1.0)?)?
             .broadcast_add(&shift.unsqueeze(1)?)?;
-        xs.apply(&self.linear)
+        self.linear.forward_autocast(&xs)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Flux {
-    img_in: Linear,
-    txt_in: Linear,
+    img_in: Arc<dyn QuantMethod>,
+    txt_in: Arc<dyn QuantMethod>,
     time_in: MlpEmbedder,
     vector_in: MlpEmbedder,
     guidance_in: Option<MlpEmbedder>,
@@ -548,14 +652,16 @@ pub struct Flux {
 
 impl Flux {
     pub fn new(cfg: &Config, vb: VarBuilder, device: &Device) -> Result<Self> {
-        let img_in = candle_nn::linear(
+        let img_in = mistralrs_quant::linear(
             cfg.in_channels,
             HIDDEN_SIZE,
+            &cfg.quantization_config,
             vb.pp("x_embedder").set_device(device.clone()),
         )?;
-        let txt_in = candle_nn::linear(
+        let txt_in = mistralrs_quant::linear(
             cfg.joint_attention_dim,
             HIDDEN_SIZE,
+            &cfg.quantization_config,
             vb.pp("context_embedder").set_device(device.clone()),
         )?;
         let mut double_blocks = Vec::with_capacity(cfg.num_layers);
@@ -573,12 +679,14 @@ impl Flux {
         let time_in = MlpEmbedder::new(
             256,
             HIDDEN_SIZE,
+            cfg,
             vb.pp("time_text_embed.timestep_embedder")
                 .set_device(device.clone()),
         )?;
         let vector_in = MlpEmbedder::new(
             cfg.pooled_projection_dim,
             HIDDEN_SIZE,
+            cfg,
             vb.pp("time_text_embed.text_embedder")
                 .set_device(device.clone()),
         )?;
@@ -586,6 +694,7 @@ impl Flux {
             let mlp = MlpEmbedder::new(
                 256,
                 HIDDEN_SIZE,
+                cfg,
                 vb.pp("time_text_embed.guidance_embedder")
                     .set_device(device.clone()),
             )?;
@@ -597,6 +706,7 @@ impl Flux {
             HIDDEN_SIZE,
             1,
             cfg.in_channels,
+            cfg,
             vb.set_device(device.clone()),
         )?;
         let pe_dim = HIDDEN_SIZE / cfg.num_attention_heads;
@@ -636,8 +746,8 @@ impl Flux {
             let ids = Tensor::cat(&[txt_ids, img_ids], 1)?;
             ids.apply(&self.pe_embedder)?
         };
-        let mut txt = txt.apply(&self.txt_in)?;
-        let mut img = img.apply(&self.img_in)?;
+        let mut txt = self.txt_in.forward_autocast(&txt)?;
+        let mut img = self.img_in.forward_autocast(&img)?;
         let vec_ = timestep_embedding(timesteps, 256, dtype)?.apply(&self.time_in)?;
         let vec_ = match (self.guidance_in.as_ref(), guidance) {
             (Some(g_in), Some(guidance)) => {

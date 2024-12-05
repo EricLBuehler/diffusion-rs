@@ -18,7 +18,7 @@ license = "MIT"
 [workspace.dependencies]
 candle-core = { git = "https://github.com/EricLBuehler/candle.git", version = "0.8.0", rev = "a2ec8169" }
 candle-nn = { git = "https://github.com/EricLBuehler/candle.git", version = "0.8.0", rev = "a2ec8169" }
-mistralrs-quant = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "f32cf27" }
+mistralrs-quant = { git = "https://github.com/EricLBuehler/mistral.rs.git", rev = "c2c500e85" }
 serde = "1.0.215"
 serde_json = "1.0.133"
 float8 = "0.1.1"
