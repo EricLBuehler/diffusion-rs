@@ -9,7 +9,7 @@ Blazingly fast inference of diffusion models.
 
 ## Roadmap
 - [x] Implement loading from the diffusers multifolder format, but converting to old Flux format
-- [ ] Implement loading from & running with diffusers format
+- [x] Implement loading from & running with diffusers format
 - [ ] Support loading quantized models
 
 ## Features
