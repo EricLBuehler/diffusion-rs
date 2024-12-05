@@ -270,6 +270,7 @@ impl SelfAttention {
             let q = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_q"))?;
             let k = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_k"))?;
             let v = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_v"))?;
+            // https://github.com/huggingface/diffusers/blob/243d9a49864ebb4562de6304a5fb9b9ebb496c6e/scripts/convert_flux_to_diffusers.py
             let w_cat = Tensor::cat(&[q.weight(), k.weight(), v.weight()], 0)?;
             let b_cat = Tensor::cat(
                 &[q.bias().unwrap(), k.bias().unwrap(), v.bias().unwrap()],
@@ -284,6 +285,7 @@ impl SelfAttention {
             let q = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("add_q_proj"))?;
             let k = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("add_k_proj"))?;
             let v = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("add_v_proj"))?;
+            // https://github.com/huggingface/diffusers/blob/243d9a49864ebb4562de6304a5fb9b9ebb496c6e/scripts/convert_flux_to_diffusers.py
             let w_cat = Tensor::cat(&[q.weight(), k.weight(), v.weight()], 0)?;
             let b_cat = Tensor::cat(
                 &[q.bias().unwrap(), k.bias().unwrap(), v.bias().unwrap()],
@@ -529,6 +531,7 @@ impl SingleStreamBlock {
         let k = candle_nn::linear_b(h_sz, h_sz, true, vb.pp("attn.to_k"))?;
         let v = candle_nn::linear_b(h_sz, h_sz, true, vb.pp("attn.to_v"))?;
         let proj_mlp: Linear = candle_nn::linear_b(h_sz, mlp_sz, true, vb.pp("proj_mlp"))?;
+        // https://github.com/huggingface/diffusers/blob/243d9a49864ebb4562de6304a5fb9b9ebb496c6e/scripts/convert_flux_to_diffusers.py
         let w_cat = Tensor::cat(&[q.weight(), k.weight(), v.weight(), proj_mlp.weight()], 0)?;
         let b_cat = Tensor::cat(
             &[
