@@ -9,7 +9,7 @@ fn main() -> anyhow::Result<()> {
     )?;
 
     let images = pipeline.forward(
-        vec!["Draw a picture of a computer.".to_string()],
+        vec!["Draw a picture of a beautiful sunset in the winter in the mountains.".to_string()],
         DiffusionGenerationParams::default(),
     )?;
     images[0].save("image.png")?;

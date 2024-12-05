@@ -264,9 +264,15 @@ pub struct SelfAttention {
 }
 
 impl SelfAttention {
-    fn new(dim: usize, num_attention_heads: usize, qkv_bias: bool, vb: VarBuilder) -> Result<Self> {
+    fn new(
+        dim: usize,
+        num_attention_heads: usize,
+        qkv_bias: bool,
+        vb: VarBuilder,
+        context: bool,
+    ) -> Result<Self> {
         let head_dim = dim / num_attention_heads;
-        let (qkv, norm, proj) = if vb.contains_tensor("to_q.weight") {
+        let (qkv, norm, proj) = if !context {
             let q = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_q"))?;
             let k = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_k"))?;
             let v = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_v"))?;
@@ -364,12 +370,15 @@ impl DoubleStreamBlock {
         let mlp_sz = (h_sz as f64 * MLP_RATIO) as usize;
         let img_mod = Modulation2::new(h_sz, vb.pp("norm1"))?;
         let img_norm1 = layer_norm(h_sz, vb.pp("img_norm1"))?;
-        let img_attn = SelfAttention::new(h_sz, cfg.num_attention_heads, true, vb.pp("attn"))?;
+        let img_attn =
+            SelfAttention::new(h_sz, cfg.num_attention_heads, true, vb.pp("attn"), false)?;
         let img_norm2 = layer_norm(h_sz, vb.pp("img_norm2"))?;
         let img_mlp = Mlp::new(h_sz, mlp_sz, vb.pp("ff.net"))?;
+
         let txt_mod = Modulation2::new(h_sz, vb.pp("norm1_context"))?;
         let txt_norm1 = layer_norm(h_sz, vb.pp("txt_norm1"))?;
-        let txt_attn = SelfAttention::new(h_sz, cfg.num_attention_heads, true, vb.pp("attn"))?;
+        let txt_attn =
+            SelfAttention::new(h_sz, cfg.num_attention_heads, true, vb.pp("attn"), true)?;
         let txt_norm2 = layer_norm(h_sz, vb.pp("txt_norm2"))?;
         let txt_mlp = Mlp::new(h_sz, mlp_sz, vb.pp("ff_context.net"))?;
         Ok(Self {
@@ -508,11 +517,23 @@ pub struct LastLayer {
     ada_ln_modulation: Linear,
 }
 
+// diffusers swaps the scale and shift
+fn unswap_scale_shift(x: &Tensor) -> Result<Tensor> {
+    let mut shift_scale = x.chunk(2, 0)?;
+    assert_eq!(shift_scale.len(), 2);
+    shift_scale.reverse();
+    Tensor::cat(&shift_scale, 0)
+}
+
 impl LastLayer {
     fn new(h_sz: usize, p_sz: usize, out_c: usize, vb: VarBuilder) -> Result<Self> {
         let norm_final = layer_norm(h_sz, vb.pp("norm_final"))?;
         let linear = candle_nn::linear(h_sz, p_sz * p_sz * out_c, vb.pp("proj_out"))?;
         let ada_ln_modulation = candle_nn::linear(h_sz, 2 * h_sz, vb.pp("norm_out.linear"))?;
+        let ada_ln_modulation = Linear::new(
+            unswap_scale_shift(ada_ln_modulation.weight())?,
+            Some(unswap_scale_shift(ada_ln_modulation.bias().unwrap())?),
+        );
         Ok(Self {
             norm_final,
             linear,

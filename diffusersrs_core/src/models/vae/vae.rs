@@ -393,10 +393,9 @@ impl Decoder {
             let block = UpBlock { block, upsample };
             up.push(block)
         }
-        up.reverse();
 
-        let norm_out = group_norm(cfg.norm_num_groups, block_in, 1e-6, vb.pp("conv_norm_out"))?;
-        let conv_out = conv2d(block_in, cfg.out_channels, 3, conv_cfg, vb.pp("conv_out"))?;
+        let norm_out = group_norm(cfg.norm_num_groups, base_ch, 1e-6, vb.pp("conv_norm_out"))?;
+        let conv_out = conv2d(base_ch, cfg.out_channels, 3, conv_cfg, vb.pp("conv_out"))?;
         Ok(Self {
             conv_in,
             mid_block_1,
@@ -418,7 +417,7 @@ impl candle_nn::Module for Decoder {
             h = h.apply(attn)?;
         }
         h = h.apply(&self.mid_block_2)?;
-        for block in self.up.iter().rev() {
+        for block in self.up.iter() {
             for b in block.block.iter() {
                 h = h.apply(b)?
             }
