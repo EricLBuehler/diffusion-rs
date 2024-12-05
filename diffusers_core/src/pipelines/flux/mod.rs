@@ -185,7 +185,7 @@ impl ModelPipeline for FluxPipeline {
             self.t5_model.device(),
         )?;
 
-        if !self.scheduler_config.use_dynamic_shifting {
+        if !self.flux_model.is_guidance() {
             match t5_input_ids.dim(1)?.cmp(&256) {
                 Ordering::Greater => {
                     candle_core::bail!("T5 embedding length greater than 256, please shrink the prompt or use the -dev (with guidance distillation) version.")
@@ -219,7 +219,7 @@ impl ModelPipeline for FluxPipeline {
         .to_dtype(t5_embed.dtype())?;
 
         let state = sampling::State::new(&t5_embed, &clip_embed, &img)?;
-        let shift = if self.scheduler_config.use_dynamic_shifting {
+        let shift = if self.flux_model.is_guidance() {
             Some((
                 state.img.dims()[1],
                 self.scheduler_config.base_shift,
@@ -231,17 +231,13 @@ impl ModelPipeline for FluxPipeline {
         let timesteps = sampling::get_schedule(
             params
                 .num_steps
-                .unwrap_or(if self.scheduler_config.use_dynamic_shifting {
-                    50
-                } else {
-                    4
-                }),
+                .unwrap_or(if self.flux_model.is_guidance() { 50 } else { 4 }),
             shift,
             self.scheduler_config.base_image_seq_len,
             self.scheduler_config.max_image_seq_len,
         );
 
-        let img = if self.scheduler_config.use_dynamic_shifting {
+        let img = if self.flux_model.is_guidance() {
             sampling::denoise(
                 &self.flux_model,
                 &state.img,

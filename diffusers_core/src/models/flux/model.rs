@@ -769,4 +769,8 @@ impl Flux {
         let img = img.i((.., txt.dim(1)?..))?;
         self.final_layer.forward(&img, &vec_)
     }
+
+    pub fn is_guidance(&self) -> bool {
+        self.guidance_in.is_some()
+    }
 }
