@@ -544,7 +544,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "diffusersrs_core"
+name = "diffusers_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -566,11 +566,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "diffusersrs_examples"
+name = "diffusers_examples"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "diffusersrs_core",
+ "diffusers_core",
 ]
 
 [[package]]

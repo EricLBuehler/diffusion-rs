@@ -1,4 +1,4 @@
-use diffusersrs_core::{DiffusionGenerationParams, Pipeline, TokenSource};
+use diffusers_core::{DiffusionGenerationParams, Pipeline, TokenSource};
 
 fn main() -> anyhow::Result<()> {
     let pipeline = Pipeline::load(

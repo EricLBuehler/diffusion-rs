@@ -1,6 +1,6 @@
 <a name="top"></a>
 <h1 align="center">
-  diffusers-rs
+  diffuse-rs
 </h1>
 
 <h3 align="center">

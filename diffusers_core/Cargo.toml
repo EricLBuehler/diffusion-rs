@@ -1,8 +1,8 @@
 [package]
-name = "diffusersrs_core"
+name = "diffusers_core"
 version = "0.1.0"
 edition = "2021"
-description = "Core package of diffusersrs"
+description = "Core package of diffusers"
 repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
