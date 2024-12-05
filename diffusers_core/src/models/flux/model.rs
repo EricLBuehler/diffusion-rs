@@ -257,7 +257,9 @@ impl Modulation2 {
 
 #[derive(Debug, Clone)]
 pub struct SelfAttention {
-    qkv: Linear,
+    q: Linear,
+    k: Linear,
+    v: Linear,
     norm: QkNorm,
     proj: Linear,
     num_attention_heads: usize,
@@ -272,39 +274,27 @@ impl SelfAttention {
         context: bool,
     ) -> Result<Self> {
         let head_dim = dim / num_attention_heads;
-        let (qkv, norm, proj) = if !context {
+        let (q, k, v, norm, proj) = if !context {
             let q = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_q"))?;
             let k = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_k"))?;
             let v = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("to_v"))?;
-            // https://github.com/huggingface/diffusers/blob/243d9a49864ebb4562de6304a5fb9b9ebb496c6e/scripts/convert_flux_to_diffusers.py
-            let w_cat = Tensor::cat(&[q.weight(), k.weight(), v.weight()], 0)?;
-            let b_cat = Tensor::cat(
-                &[q.bias().unwrap(), k.bias().unwrap(), v.bias().unwrap()],
-                0,
-            )?;
-            let qkv = Linear::new(w_cat, Some(b_cat));
             let norm = QkNorm::new(head_dim, vb.pp("norm_q"), vb.pp("norm_k"))?;
             let proj = candle_nn::linear(dim, dim, vb.pp("to_out.0"))?;
 
-            (qkv, norm, proj)
+            (q, k, v, norm, proj)
         } else {
             let q = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("add_q_proj"))?;
             let k = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("add_k_proj"))?;
             let v = candle_nn::linear_b(dim, dim, qkv_bias, vb.pp("add_v_proj"))?;
-            // https://github.com/huggingface/diffusers/blob/243d9a49864ebb4562de6304a5fb9b9ebb496c6e/scripts/convert_flux_to_diffusers.py
-            let w_cat = Tensor::cat(&[q.weight(), k.weight(), v.weight()], 0)?;
-            let b_cat = Tensor::cat(
-                &[q.bias().unwrap(), k.bias().unwrap(), v.bias().unwrap()],
-                0,
-            )?;
-            let qkv = Linear::new(w_cat, Some(b_cat));
             let norm = QkNorm::new(head_dim, vb.pp("norm_added_q"), vb.pp("norm_added_k"))?;
             let proj = candle_nn::linear(dim, dim, vb.pp("to_add_out"))?;
 
-            (qkv, norm, proj)
+            (q, k, v, norm, proj)
         };
         Ok(Self {
-            qkv,
+            q,
+            k,
+            v,
             norm,
             proj,
             num_attention_heads,
@@ -312,14 +302,21 @@ impl SelfAttention {
     }
 
     fn qkv(&self, xs: &Tensor) -> Result<(Tensor, Tensor, Tensor)> {
-        let qkv = xs.apply(&self.qkv)?;
-        let (b, l, _khd) = qkv.dims3()?;
-        let qkv = qkv.reshape((b, l, 3, self.num_attention_heads, ()))?;
-        let q = qkv.i((.., .., 0))?.transpose(1, 2)?;
-        let k = qkv.i((.., .., 1))?.transpose(1, 2)?;
-        let v = qkv.i((.., .., 2))?.transpose(1, 2)?;
-        let q = q.apply(&self.norm.query_norm)?;
-        let k = k.apply(&self.norm.key_norm)?;
+        let mut q = xs.apply(&self.q)?;
+        let mut k = xs.apply(&self.k)?;
+        let mut v = xs.apply(&self.v)?;
+        let (b, l, _khd) = q.dims3()?;
+        q = q
+            .reshape((b, l, self.num_attention_heads, ()))?
+            .transpose(1, 2)?;
+        k = k
+            .reshape((b, l, self.num_attention_heads, ()))?
+            .transpose(1, 2)?;
+        v = v
+            .reshape((b, l, self.num_attention_heads, ()))?
+            .transpose(1, 2)?;
+        q = q.apply(&self.norm.query_norm)?;
+        k = k.apply(&self.norm.key_norm)?;
         Ok((q, k, v))
     }
 
@@ -442,13 +439,14 @@ impl DoubleStreamBlock {
 
 #[derive(Debug, Clone)]
 pub struct SingleStreamBlock {
-    linear1: Linear,
+    q: Linear,
+    k: Linear,
+    v: Linear,
+    proj_mlp: Linear,
     linear2: Linear,
     norm: QkNorm,
     pre_norm: LayerNorm,
     modulation: Modulation1,
-    h_sz: usize,
-    mlp_sz: usize,
     num_attention_heads: usize,
 }
 
@@ -462,31 +460,20 @@ impl SingleStreamBlock {
         let k = candle_nn::linear_b(h_sz, h_sz, true, vb.pp("attn.to_k"))?;
         let v = candle_nn::linear_b(h_sz, h_sz, true, vb.pp("attn.to_v"))?;
         let proj_mlp: Linear = candle_nn::linear_b(h_sz, mlp_sz, true, vb.pp("proj_mlp"))?;
-        // https://github.com/huggingface/diffusers/blob/243d9a49864ebb4562de6304a5fb9b9ebb496c6e/scripts/convert_flux_to_diffusers.py
-        let w_cat = Tensor::cat(&[q.weight(), k.weight(), v.weight(), proj_mlp.weight()], 0)?;
-        let b_cat = Tensor::cat(
-            &[
-                q.bias().unwrap(),
-                k.bias().unwrap(),
-                v.bias().unwrap(),
-                proj_mlp.bias().unwrap(),
-            ],
-            0,
-        )?;
-        let linear1 = Linear::new(w_cat, Some(b_cat));
 
         let linear2 = candle_nn::linear(h_sz + mlp_sz, h_sz, vb.pp("proj_out"))?;
         let norm = QkNorm::new(head_dim, vb.pp("attn.norm_q"), vb.pp("attn.norm_k"))?;
         let pre_norm = layer_norm(h_sz, vb.pp("pre_norm"))?;
         let modulation = Modulation1::new(h_sz, vb.pp("norm"))?;
         Ok(Self {
-            linear1,
+            q,
+            k,
+            v,
+            proj_mlp,
             linear2,
             norm,
             pre_norm,
             modulation,
-            h_sz,
-            mlp_sz,
             num_attention_heads: cfg.num_attention_heads,
         })
     }
@@ -494,16 +481,22 @@ impl SingleStreamBlock {
     fn forward(&self, xs: &Tensor, vec_: &Tensor, pe: &Tensor) -> Result<Tensor> {
         let mod_ = self.modulation.forward(vec_)?;
         let x_mod = mod_.scale_shift(&xs.apply(&self.pre_norm)?)?;
-        let x_mod = x_mod.apply(&self.linear1)?;
-        let qkv = x_mod.narrow(D::Minus1, 0, 3 * self.h_sz)?;
-        let (b, l, _khd) = qkv.dims3()?;
-        let qkv = qkv.reshape((b, l, 3, self.num_attention_heads, ()))?;
-        let q = qkv.i((.., .., 0))?.transpose(1, 2)?;
-        let k = qkv.i((.., .., 1))?.transpose(1, 2)?;
-        let v = qkv.i((.., .., 2))?.transpose(1, 2)?;
-        let mlp = x_mod.narrow(D::Minus1, 3 * self.h_sz, self.mlp_sz)?;
-        let q = q.apply(&self.norm.query_norm)?;
-        let k = k.apply(&self.norm.key_norm)?;
+        let mut q = x_mod.apply(&self.q)?;
+        let mut k = x_mod.apply(&self.k)?;
+        let mut v = x_mod.apply(&self.v)?;
+        let (b, l, _khd) = q.dims3()?;
+        q = q
+            .reshape((b, l, self.num_attention_heads, ()))?
+            .transpose(1, 2)?;
+        k = k
+            .reshape((b, l, self.num_attention_heads, ()))?
+            .transpose(1, 2)?;
+        v = v
+            .reshape((b, l, self.num_attention_heads, ()))?
+            .transpose(1, 2)?;
+        q = q.apply(&self.norm.query_norm)?;
+        k = k.apply(&self.norm.key_norm)?;
+        let mlp = x_mod.apply(&self.proj_mlp)?;
         let attn = attention(&q, &k, &v, pe)?;
         let output = Tensor::cat(&[attn, mlp.gelu()?], 2)?.apply(&self.linear2)?;
         xs + mod_.gate(&output)
@@ -517,23 +510,11 @@ pub struct LastLayer {
     ada_ln_modulation: Linear,
 }
 
-// diffusers swaps the scale and shift
-fn unswap_scale_shift(x: &Tensor) -> Result<Tensor> {
-    let mut shift_scale = x.chunk(2, 0)?;
-    assert_eq!(shift_scale.len(), 2);
-    shift_scale.reverse();
-    Tensor::cat(&shift_scale, 0)
-}
-
 impl LastLayer {
     fn new(h_sz: usize, p_sz: usize, out_c: usize, vb: VarBuilder) -> Result<Self> {
         let norm_final = layer_norm(h_sz, vb.pp("norm_final"))?;
         let linear = candle_nn::linear(h_sz, p_sz * p_sz * out_c, vb.pp("proj_out"))?;
         let ada_ln_modulation = candle_nn::linear(h_sz, 2 * h_sz, vb.pp("norm_out.linear"))?;
-        let ada_ln_modulation = Linear::new(
-            unswap_scale_shift(ada_ln_modulation.weight())?,
-            Some(unswap_scale_shift(ada_ln_modulation.bias().unwrap())?),
-        );
         Ok(Self {
             norm_final,
             linear,
@@ -543,7 +524,7 @@ impl LastLayer {
 
     fn forward(&self, xs: &Tensor, vec: &Tensor) -> Result<Tensor> {
         let chunks = vec.silu()?.apply(&self.ada_ln_modulation)?.chunk(2, 1)?;
-        let (shift, scale) = (&chunks[0], &chunks[1]);
+        let (scale, shift) = (&chunks[0], &chunks[1]);
         let xs = xs
             .apply(&self.norm_final)?
             .broadcast_mul(&(scale.unsqueeze(1)? + 1.0)?)?

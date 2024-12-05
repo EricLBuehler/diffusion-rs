@@ -145,9 +145,9 @@ impl Loader for FluxLoader {
         };
 
         let pipeline = FluxPipeline {
-            clip_tokenizer,
+            clip_tokenizer: Arc::new(clip_tokenizer),
             clip_model: clip_component,
-            t5_tokenizer,
+            t5_tokenizer: Arc::new(t5_tokenizer),
             t5_model: t5_component,
             vae_model: vae_component,
             flux_model: flux_component,
@@ -159,9 +159,9 @@ impl Loader for FluxLoader {
 }
 
 pub struct FluxPipeline {
-    clip_tokenizer: Tokenizer,
+    clip_tokenizer: Arc<Tokenizer>,
     clip_model: ClipTextTransformer,
-    t5_tokenizer: Tokenizer,
+    t5_tokenizer: Arc<Tokenizer>,
     t5_model: T5EncoderModel,
     vae_model: Arc<dyn VAEModel>,
     flux_model: FluxModel,

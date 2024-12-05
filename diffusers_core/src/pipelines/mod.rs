@@ -58,7 +58,7 @@ pub(crate) trait Loader {
     ) -> Result<Arc<dyn ModelPipeline>>;
 }
 
-pub trait ModelPipeline {
+pub trait ModelPipeline: Send + Sync {
     fn forward(
         &self,
         prompts: Vec<String>,

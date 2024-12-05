@@ -10,7 +10,7 @@ use crate::util::from_mmaped_safetensors;
 mod autoencoder_kl;
 mod vae;
 
-pub(crate) trait VAEModel {
+pub(crate) trait VAEModel: Send + Sync {
     #[allow(dead_code)]
     /// This function *does not* handle scaling the tensor! If you want to do this, apply the following to the output:
     /// `(x - vae.shift_factor())? * self.scale_factor()`
