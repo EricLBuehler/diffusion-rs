@@ -1537,7 +1537,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-quant"
 version = "0.3.4"
-source = "git+https://github.com/EricLBuehler/mistral.rs.git?rev=a87518f01#a87518f015e8202ea722f17401132f9bac8311fc"
+source = "git+https://github.com/EricLBuehler/mistral.rs.git?rev=1e44193f6#1e44193f67d3baabb785236178455223e4efebdf"
 dependencies = [
  "bindgen_cuda",
  "byteorder",

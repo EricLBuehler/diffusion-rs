@@ -2,7 +2,7 @@ use diffusers_core::{DiffusionGenerationParams, ModelPaths, Pipeline, TokenSourc
 
 fn main() -> anyhow::Result<()> {
     let pipeline = Pipeline::load(
-        ModelPaths::from_model_id("black-forest-labs/FLUX.1-schnell"),
+        ModelPaths::from_model_id("black-forest-labs/FLUX.1-dev"),
         false,
         TokenSource::CacheToken,
         None,
@@ -12,7 +12,7 @@ fn main() -> anyhow::Result<()> {
         vec!["Draw a picture of a beautiful sunset in the winter in the mountains, 4k, high quality.".to_string()],
         DiffusionGenerationParams::default(),
     )?;
-    images[0].save("image_schnell.png")?;
+    images[0].save("image_dev.png")?;
 
     Ok(())
 }

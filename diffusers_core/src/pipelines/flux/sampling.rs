@@ -2,7 +2,7 @@
 
 use candle_core::{Device, Result, Tensor};
 
-use crate::models::FluxModel;
+use crate::{models::FluxModel, util::NiceProgressBar};
 
 pub fn get_noise(
     num_samples: usize,
@@ -119,7 +119,7 @@ fn denoise_inner(
         None
     };
     let mut img = img.clone();
-    for window in timesteps.windows(2) {
+    for window in NiceProgressBar::<_, 'g'>(timesteps.windows(2), "Denoise loop") {
         let (t_curr, t_prev) = match window {
             [a, b] => (a, b),
             _ => continue,
