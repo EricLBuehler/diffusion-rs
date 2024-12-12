@@ -149,11 +149,11 @@ pub struct MlpEmbedder {
 impl MlpEmbedder {
     fn new(in_sz: usize, h_sz: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let in_layer =
-            mistralrs_quant::linear(in_sz, h_sz, &cfg.quantization_config, vb.pp("linear_1").set_device(Device::Cpu))?
-                /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+            mistralrs_quant::linear(in_sz, h_sz, &cfg.quantization_config, vb.pp("linear_1")/*.set_device(Device::Cpu)*/)?
+                /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         let out_layer =
-            mistralrs_quant::linear(h_sz, h_sz, &cfg.quantization_config, vb.pp("linear_2").set_device(Device::Cpu))?
-                /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+            mistralrs_quant::linear(h_sz, h_sz, &cfg.quantization_config, vb.pp("linear_2")/*.set_device(Device::Cpu)*/)?
+                /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         Ok(Self {
             in_layer,
             out_layer,
@@ -211,8 +211,8 @@ struct Modulation1 {
 
 impl Modulation1 {
     fn new(dim: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
-        let lin = mistralrs_quant::linear(dim, 3 * dim, &cfg.quantization_config, vb.pp("linear").set_device(Device::Cpu))?
-            /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+        let lin = mistralrs_quant::linear(dim, 3 * dim, &cfg.quantization_config, vb.pp("linear")/*.set_device(Device::Cpu)*/)?
+            /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         Ok(Self { lin })
     }
 
@@ -240,8 +240,8 @@ struct Modulation2 {
 
 impl Modulation2 {
     fn new(dim: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
-        let lin = mistralrs_quant::linear(dim, 6 * dim, &cfg.quantization_config, vb.pp("linear").set_device(Device::Cpu))?
-            /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+        let lin = mistralrs_quant::linear(dim, 6 * dim, &cfg.quantization_config, vb.pp("linear")/*.set_device(Device::Cpu)*/)?
+            /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         Ok(Self { lin })
     }
 
@@ -294,29 +294,29 @@ impl SelfAttention {
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
-                vb.pp("to_q").set_device(Device::Cpu),
+                vb.pp("to_q")/*.set_device(Device::Cpu)*/,
             )?
-            /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+            /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
             let k = mistralrs_quant::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
-                vb.pp("to_k").set_device(Device::Cpu),
+                vb.pp("to_k")/*.set_device(Device::Cpu)*/,
             )?
-            /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+            /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
             let v = mistralrs_quant::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
-                vb.pp("to_v").set_device(Device::Cpu),
+                vb.pp("to_v")/*.set_device(Device::Cpu)*/,
             )?
-            /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+            /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
             let norm = QkNorm::new(head_dim, vb.pp("norm_q"), vb.pp("norm_k"))?;
             let proj =
-                mistralrs_quant::linear(dim, dim, &cfg.quantization_config, vb.pp("to_out.0").set_device(Device::Cpu))?
-                    /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+                mistralrs_quant::linear(dim, dim, &cfg.quantization_config, vb.pp("to_out.0")/*.set_device(Device::Cpu)*/)?
+                    /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
 
             (q, k, v, norm, proj)
         } else {
@@ -325,29 +325,29 @@ impl SelfAttention {
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
-                vb.pp("add_q_proj").set_device(Device::Cpu),
+                vb.pp("add_q_proj")/*.set_device(Device::Cpu)*/,
             )?
-            /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+            /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
             let k = mistralrs_quant::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
-                vb.pp("add_k_proj").set_device(Device::Cpu),
+                vb.pp("add_k_proj")/*.set_device(Device::Cpu)*/,
             )?
-            /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+            /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
             let v = mistralrs_quant::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
-                vb.pp("add_v_proj").set_device(Device::Cpu),
+                vb.pp("add_v_proj")/*.set_device(Device::Cpu)*/,
             )?
-            /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+            /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
             let norm = QkNorm::new(head_dim, vb.pp("norm_added_q"), vb.pp("norm_added_k"))?;
             let proj =
-                mistralrs_quant::linear(dim, dim, &cfg.quantization_config, vb.pp("to_add_out").set_device(Device::Cpu))?
-                    /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+                mistralrs_quant::linear(dim, dim, &cfg.quantization_config, vb.pp("to_add_out")/*.set_device(Device::Cpu)*/)?
+                    /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
 
             (q, k, v, norm, proj)
         };
@@ -396,10 +396,10 @@ struct Mlp {
 impl Mlp {
     fn new(in_sz: usize, mlp_sz: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let lin1 =
-            mistralrs_quant::linear(in_sz, mlp_sz, &cfg.quantization_config, vb.pp("0.proj").set_device(Device::Cpu))?
-                /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
-        let lin2 = mistralrs_quant::linear(mlp_sz, in_sz, &cfg.quantization_config, vb.pp("2").set_device(Device::Cpu))?
-            /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+            mistralrs_quant::linear(in_sz, mlp_sz, &cfg.quantization_config, vb.pp("0.proj")/*.set_device(Device::Cpu)*/)?
+                /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
+        let lin2 = mistralrs_quant::linear(mlp_sz, in_sz, &cfg.quantization_config, vb.pp("2")/*.set_device(Device::Cpu)*/)?
+            /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         Ok(Self { lin1, lin2 })
     }
 }
@@ -537,41 +537,41 @@ impl SingleStreamBlock {
             h_sz,
             true,
             &cfg.quantization_config,
-            vb.pp("attn.to_q").set_device(Device::Cpu),
+            vb.pp("attn.to_q")/*.set_device(Device::Cpu)*/,
         )?
-        /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+        /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         let k = mistralrs_quant::linear_b(
             h_sz,
             h_sz,
             true,
             &cfg.quantization_config,
-            vb.pp("attn.to_k").set_device(Device::Cpu),
+            vb.pp("attn.to_k")/*.set_device(Device::Cpu)*/,
         )?
-        /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+        /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         let v = mistralrs_quant::linear_b(
             h_sz,
             h_sz,
             true,
             &cfg.quantization_config,
-            vb.pp("attn.to_v").set_device(Device::Cpu),
+            vb.pp("attn.to_v")/*.set_device(Device::Cpu)*/,
         )?
-        /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+        /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         let proj_mlp = mistralrs_quant::linear_b(
             h_sz,
             mlp_sz,
             true,
             &cfg.quantization_config,
-            vb.pp("proj_mlp").set_device(Device::Cpu),
+            vb.pp("proj_mlp")/*.set_device(Device::Cpu)*/,
         )?
-        /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+        /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
 
         let linear2 = mistralrs_quant::linear(
             h_sz + mlp_sz,
             h_sz,
             &cfg.quantization_config,
-            vb.pp("proj_out").set_device(Device::Cpu),
+            vb.pp("proj_out")/*.set_device(Device::Cpu)*/,
         )?
-        /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+        /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         let norm = QkNorm::new(head_dim, vb.pp("attn.norm_q"), vb.pp("attn.norm_k"))?;
         let pre_norm = layer_norm(h_sz, vb.pp("pre_norm"))?;
         let modulation = Modulation1::new(h_sz, cfg, vb.pp("norm"))?;
@@ -629,16 +629,16 @@ impl LastLayer {
             h_sz,
             p_sz * p_sz * out_c,
             &cfg.quantization_config,
-            vb.pp("proj_out").set_device(Device::Cpu),
+            vb.pp("proj_out")/*.set_device(Device::Cpu)*/,
         )?
-        /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+        /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         let ada_ln_modulation = mistralrs_quant::linear(
             h_sz,
             2 * h_sz,
             &cfg.quantization_config,
-            vb.pp("norm_out.linear").set_device(Device::Cpu),
+            vb.pp("norm_out.linear")/*.set_device(Device::Cpu)*/,
         )?
-        /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+        /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         Ok(Self {
             norm_final,
             linear,
@@ -679,16 +679,16 @@ impl Flux {
             cfg.in_channels,
             HIDDEN_SIZE,
             &cfg.quantization_config,
-            vb.pp("x_embedder").set_device(device.clone()).set_device(Device::Cpu),
+            vb.pp("x_embedder").set_device(device.clone())/*.set_device(Device::Cpu)*/,
         )?
-        /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+        /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         let txt_in = mistralrs_quant::linear(
             cfg.joint_attention_dim,
             HIDDEN_SIZE,
             &cfg.quantization_config,
-            vb.pp("context_embedder").set_device(device.clone()).set_device(Device::Cpu),
+            vb.pp("context_embedder").set_device(device.clone())/*.set_device(Device::Cpu)*/,
         )?
-        /*.maybe_to_gguf_quant()?*/.apply_isq(Some(IsqType::Q8_0), vb.device().clone(), &AtomicUsize::new(0), None)?;
+        /*.maybe_to_gguf_quant()?.apply_isq(Some(IsqType::Q3K), vb.device().clone(), &AtomicUsize::new(0), None)?*/;
         let mut double_blocks = Vec::with_capacity(cfg.num_layers);
         let vb_d = vb.pp("transformer_blocks");
         for idx in NiceProgressBar::<_, 'r'>(0..cfg.num_layers, "Loading double stream block") {
