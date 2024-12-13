@@ -1,39 +1,10 @@
 fn main() {
     #[cfg(feature = "cuda")]
     {
-        use std::{fs::read_to_string, path::PathBuf, process::Command, vec};
+        use std::path::PathBuf;
         const CUDA_NVCC_FLAGS: Option<&'static str> = option_env!("CUDA_NVCC_FLAGS");
 
         println!("cargo:rerun-if-changed=build.rs");
-
-        // Try CUDA_COMPUTE_CAP then nvidia-smi
-        let compute_cap = {
-            if let Ok(var) = std::env::var("CUDA_COMPUTE_CAP") {
-                var.parse::<usize>().unwrap() * 10
-            } else {
-                let mut cmd = Command::new("nvidia-smi");
-                match cmd
-                    .args(["--query-gpu=compute_cap", "--format=csv"])
-                    .output()
-                {
-                    Ok(out) => {
-                        let output = String::from_utf8(out.stdout)
-                            .expect("Output of nvidia-smi was not utf8.");
-                        (output
-                            .split('\n')
-                            .nth(1)
-                            .unwrap()
-                            .trim()
-                            .parse::<f32>()
-                            .unwrap()
-                            * 100.) as usize
-                    }
-                    Err(_) => {
-                        panic!("`CUDA_COMPUTE_CAP` env var not specified and `nvidia-smi` was not found.");
-                    }
-                }
-            }
-        };
 
         let build_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
         let lib_files = vec!["kernels/bitsandbytes/dequant.cu"];
