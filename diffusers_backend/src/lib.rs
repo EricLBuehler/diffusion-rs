@@ -76,7 +76,7 @@ pub enum QuantMethodConfig {
         b: Option<Tensor>,
     },
     Unquantized(Linear),
-    Bnb {
+    Bnb4bit {
         weight: Tensor,
         bias: Option<Tensor>,
         params: BnbQuantParmas,

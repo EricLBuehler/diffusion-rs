@@ -65,15 +65,51 @@ pub struct BnbQuantParmas {
 }
 
 #[derive(Debug)]
-pub struct BnbLinear {
-    weight: Tensor,
-    bias: Option<Tensor>,
-    params: BnbQuantParmas,
-    quant_ty: BnbQuantType,
+pub enum BnbLinear {
+    Fp4Nf4 {
+        weight: Tensor,
+        bias: Option<Tensor>,
+        params: BnbQuantParmas,
+        quant_ty: BnbQuantType,
+    },
+    Int8 {
+        weight: Tensor,
+        scb: Tensor,
+        bias: Option<Tensor>,
+    },
 }
 
 impl BnbLinear {
-    pub fn linear_b(_in_dim: usize, out_dim: usize, bias: bool, vb: VarBuilder) -> Result<Self> {
+    pub fn linear_b(in_dim: usize, out_dim: usize, bias: bool, vb: VarBuilder) -> Result<Self> {
+        if vb.contains_tensor("SCB") {
+            Self::linear_8bit(in_dim, out_dim, bias, vb)
+        } else if vb.contains_tensor("weight.quant_state.bitsandbytes__nf4")
+            || vb.contains_tensor("weight.quant_state.bitsandbytes__fp4")
+        {
+            Self::linear_4bit(in_dim, out_dim, bias, vb)
+        } else {
+            candle_core::bail!("`BnbLinear` expects fp4/nf4 or int8 layers.");
+        }
+    }
+
+    fn linear_8bit(_in_dim: usize, _out_dim: usize, _bias: bool, _vb: VarBuilder) -> Result<Self> {
+        // TODO: weight needs to be i8!
+
+        // let weight = vb.get_unchecked_dtype("weight", DType::F32)?;
+        // let scb = vb.get_unchecked_dtype("SCB", DType::F32)?;
+
+        // let bias = if bias {
+        //     Some(vb.get((out_dim,), "bias")?)
+        // } else {
+        //     None
+        // };
+
+        // Ok(Self::Int8 { weight, scb, bias })
+
+        candle_core::bail!("Int8 quantization is unsupported.");
+    }
+
+    fn linear_4bit(_in_dim: usize, out_dim: usize, bias: bool, vb: VarBuilder) -> Result<Self> {
         let weight = vb.get_unchecked_dtype("weight", DType::U8)?;
 
         let vb_w = vb.pp("weight");
@@ -81,7 +117,7 @@ impl BnbLinear {
         if !vb_w.contains_tensor("quant_state.bitsandbytes__nf4")
             && !vb_w.contains_tensor("quant_state.bitsandbytes__fp4")
         {
-            candle_core::bail!("`BnbLinear` expects either `...__nf4` or `...__fp4` tensors, this means the layer is not 4bit.");
+            candle_core::bail!("`BnbLinear` expects either `...__nf4` or `...__fp4` tensors, this means the layer is not 4bit or 8big.");
         }
 
         let quant_ty = if vb_w.contains_tensor("quant_state.bitsandbytes__nf4") {
@@ -150,7 +186,7 @@ impl BnbLinear {
             None
         };
 
-        Ok(Self {
+        Ok(Self::Fp4Nf4 {
             weight,
             bias,
             params,
@@ -203,12 +239,12 @@ impl QuantMethod for BnbLinear {
     {
         match method {
             QuantMethodConfig::Gguf { .. } | QuantMethodConfig::Unquantized(_) => unreachable!(),
-            QuantMethodConfig::Bnb {
+            QuantMethodConfig::Bnb4bit {
                 weight,
                 bias,
                 params,
                 quant_ty,
-            } => Ok(Self {
+            } => Ok(Self::Fp4Nf4 {
                 weight,
                 bias,
                 params,
@@ -218,15 +254,34 @@ impl QuantMethod for BnbLinear {
     }
 
     fn dequantize_w(&self) -> Result<Tensor> {
-        Self::dequantize(&self.weight, &self.params, self.quant_ty)
+        match self {
+            Self::Fp4Nf4 {
+                weight,
+                bias: _,
+                params,
+                quant_ty,
+            } => Self::dequantize(weight, params, *quant_ty),
+            Self::Int8 {
+                weight,
+                scb,
+                bias: _,
+            } => {
+                // https://huggingface.co/blog/hf-bitsandbytes-integration#hugging-face-transformers-integration-nuances
+                weight
+                    .to_dtype(scb.dtype())?
+                    .broadcast_div(&scb.unsqueeze(1)?)?
+                    / 127.
+            }
+        }
     }
 
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        let w = Self::dequantize(&self.weight, &self.params, self.quant_ty)?
-            .t()?
-            .to_dtype(xs.dtype())?;
+        let w = self.dequantize_w()?.t()?.to_dtype(xs.dtype())?;
         let res = xs.broadcast_matmul(&w)?;
-        if let Some(bias) = &self.bias {
+        let bias = match self {
+            Self::Fp4Nf4 { bias, .. } | Self::Int8 { bias, .. } => bias,
+        };
+        if let Some(bias) = bias {
             res.broadcast_add(&bias.to_dtype(res.dtype())?)
         } else {
             Ok(res)
@@ -238,25 +293,39 @@ impl QuantMethod for BnbLinear {
     }
 
     fn maybe_to_gguf_quant(self: Arc<Self>) -> Result<Arc<dyn QuantMethod>> {
-        let weight = Self::dequantize(&self.weight, &self.params, self.quant_ty)?;
-        let bias = self.bias.clone();
+        let weight = self.dequantize_w()?;
 
-        let last_dim = weight.dim(D::Minus1)?;
-        let dtype = match self.quant_ty {
-            BnbQuantType::Fp4 | BnbQuantType::Nf4 if last_dim % 256 == 0 => GgmlDType::Q4K,
-            BnbQuantType::Fp4 | BnbQuantType::Nf4 if last_dim % 64 == 0 && last_dim % 256 != 0 => {
-                GgmlDType::Q4_0
+        match &*self {
+            Self::Fp4Nf4 { bias, quant_ty, .. } => {
+                let last_dim = weight.dim(D::Minus1)?;
+                let dtype = match quant_ty {
+                    BnbQuantType::Fp4 | BnbQuantType::Nf4 if last_dim % 256 == 0 => GgmlDType::Q4K,
+                    BnbQuantType::Fp4 | BnbQuantType::Nf4
+                        if last_dim % 64 == 0 && last_dim % 256 != 0 =>
+                    {
+                        GgmlDType::Q4_0
+                    }
+                    BnbQuantType::Fp4 | BnbQuantType::Nf4
+                        if last_dim % 64 != 0 && last_dim % 256 != 0 =>
+                    {
+                        GgmlDType::F32
+                    }
+                    BnbQuantType::Int8 => GgmlDType::Q8_0,
+                    _ => unreachable!(),
+                };
+                let qmatmul = QTensor::quantize(&weight, dtype)?;
+                Ok(Arc::new(GgufMatMul::new(QuantMethodConfig::Gguf {
+                    q_weight: Arc::new(qmatmul),
+                    b: bias.clone(),
+                })?))
             }
-            BnbQuantType::Fp4 | BnbQuantType::Nf4 if last_dim % 64 != 0 && last_dim % 256 != 0 => {
-                GgmlDType::F32
+            Self::Int8 { bias, .. } => {
+                let qmatmul = QTensor::quantize(&weight, GgmlDType::Q8_0)?;
+                Ok(Arc::new(GgufMatMul::new(QuantMethodConfig::Gguf {
+                    q_weight: Arc::new(qmatmul),
+                    b: bias.clone(),
+                })?))
             }
-            BnbQuantType::Int8 => GgmlDType::Q8_0,
-            _ => unreachable!(),
-        };
-        let qmatmul = QTensor::quantize(&weight, dtype)?;
-        Ok(Arc::new(GgufMatMul::new(QuantMethodConfig::Gguf {
-            q_weight: Arc::new(qmatmul),
-            b: bias,
-        })?))
+        }
     }
 }

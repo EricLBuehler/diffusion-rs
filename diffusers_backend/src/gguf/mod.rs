@@ -21,7 +21,7 @@ impl QuantMethod for GgufMatMul {
                 w: QMatMul::from_arc(q_weight)?,
                 b,
             }),
-            QuantMethodConfig::Unquantized(_) | QuantMethodConfig::Bnb { .. } => unreachable!(),
+            QuantMethodConfig::Unquantized(_) | QuantMethodConfig::Bnb4bit { .. } => unreachable!(),
         }
     }
 

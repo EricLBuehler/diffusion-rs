@@ -9,7 +9,8 @@ Blazingly fast inference of diffusion models.
 
 ## Features
 - Quantization
-  - `bitsandbytes` format (int8, fp4, nf4)
+  - `bitsandbytes` format (fp4, nf4)
+    - 🚧 Int8 (https://arxiv.org/abs/2208.07339) support is coming soon!
   - `GGUF` (2-8 bit quantization)
 - Easy: Load models directly from the [🤗 diffusers](https://github.com/huggingface/diffusers) multifolder format
 

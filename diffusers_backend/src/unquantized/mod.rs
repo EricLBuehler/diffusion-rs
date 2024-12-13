@@ -19,7 +19,7 @@ impl QuantMethod for UnquantLinear {
         Self: Sized,
     {
         match method {
-            QuantMethodConfig::Gguf { .. } | QuantMethodConfig::Bnb { .. } => unreachable!(),
+            QuantMethodConfig::Gguf { .. } | QuantMethodConfig::Bnb4bit { .. } => unreachable!(),
             QuantMethodConfig::Unquantized(l) => Ok(Self {
                 w: l.weight().clone(),
                 b: l.bias().cloned(),
