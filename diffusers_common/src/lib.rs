@@ -1,9 +1,12 @@
+mod model_source;
 mod nn;
 mod progress;
+mod safetensors;
 mod tokens;
 mod varbuilder;
 mod varbuilder_loading;
 
+pub use model_source::*;
 pub use nn::*;
 pub use progress::NiceProgressBar;
 pub use tokens::get_token;

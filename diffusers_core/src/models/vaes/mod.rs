@@ -1,10 +1,10 @@
-use std::{fs, path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use autoencoder_kl::{AutencoderKlConfig, AutoEncoderKl};
 use candle_core::{Device, Result, Tensor};
 use serde::Deserialize;
 
-use diffusers_common::{from_mmaped_safetensors, VarBuilder};
+use diffusers_common::{from_mmaped_safetensors, FileData, VarBuilder};
 
 mod autoencoder_kl;
 mod vae;
@@ -30,19 +30,19 @@ struct VaeConfigShim {
     name: String,
 }
 
-fn load_autoencoder_kl(cfg_json: &PathBuf, vb: VarBuilder) -> anyhow::Result<Arc<dyn VAEModel>> {
-    let cfg: AutencoderKlConfig = serde_json::from_str(&fs::read_to_string(cfg_json)?)?;
+fn load_autoencoder_kl(cfg_json: &FileData, vb: VarBuilder) -> anyhow::Result<Arc<dyn VAEModel>> {
+    let cfg: AutencoderKlConfig = serde_json::from_str(&cfg_json.read_to_string()?)?;
     Ok(Arc::new(AutoEncoderKl::new(&cfg, vb)?))
 }
 
 pub(crate) fn dispatch_load_vae_model(
-    cfg_json: &PathBuf,
-    safetensor_files: Vec<PathBuf>,
+    cfg_json: &FileData,
+    safetensor_files: Vec<FileData>,
     device: &Device,
 ) -> anyhow::Result<Arc<dyn VAEModel>> {
     let vb = from_mmaped_safetensors(safetensor_files, None, device, false)?;
 
-    let VaeConfigShim { name } = serde_json::from_str(&fs::read_to_string(cfg_json)?)?;
+    let VaeConfigShim { name } = serde_json::from_str(&cfg_json.read_to_string()?)?;
     match name.as_str() {
         "AutoencoderKL" => load_autoencoder_kl(cfg_json, vb),
         other => anyhow::bail!("Unexpected VAE type `{other:?}`."),

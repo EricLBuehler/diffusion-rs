@@ -2,17 +2,15 @@
 
 use std::{
     collections::HashMap,
-    path::PathBuf,
     thread::{self, JoinHandle},
 };
 
 use crate::{
+    safetensors::BytesSafetensors,
     varbuilder::{SimpleBackend, VarBuilderArgs},
-    VarBuilder,
+    FileData, VarBuilder,
 };
-use candle_core::{
-    pickle::PthTensors, safetensors::MmapedSafetensors, DType, Device, Result, Tensor,
-};
+use candle_core::{safetensors::MmapedSafetensors, DType, Device, Result, Tensor};
 
 use super::progress::IterWithProgress;
 
@@ -41,20 +39,18 @@ impl TensorLoaderBackend for SafetensorBackend {
     }
 }
 
-struct PickleBackend(PthTensors);
+struct BytesSafetensorBackend<'a>(BytesSafetensors<'a>);
 
-impl TensorLoaderBackend for PickleBackend {
+impl<'a> TensorLoaderBackend for BytesSafetensorBackend<'a> {
     fn get_names(&self) -> Vec<String> {
-        self.0.tensor_infos().keys().cloned().collect::<Vec<_>>()
+        self.0
+            .tensors()
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect::<Vec<_>>()
     }
     fn load_name(&self, name: &str, device: &Device, dtype: Option<DType>) -> Result<Tensor> {
-        let t = self
-            .0
-            .get(name)?
-            .ok_or(candle_core::Error::Msg(format!(
-                "Could not load tensor {name}"
-            )))?
-            .to_device(device)?;
+        let t = self.0.load(name, device)?;
         if let Some(dtype) = dtype {
             t.to_dtype(dtype)
         } else {
@@ -70,7 +66,7 @@ impl TensorLoaderBackend for PickleBackend {
 /// - If `regexes` is specified, this will be used in `make_dummy_predicate` based on `.any`
 /// - Otherwise, only include keys for which predicate evaluates to true.
 pub fn from_mmaped_safetensors<'a>(
-    paths: Vec<PathBuf>,
+    paths: Vec<FileData>,
     dtype: Option<DType>,
     device: &Device,
     silent: bool,
@@ -104,7 +100,7 @@ pub fn from_mmaped_safetensors<'a>(
 trait LoadTensors {
     fn load_tensors_from_path(
         &self,
-        path: &PathBuf,
+        path: &FileData,
         device: &Device,
         dtype: Option<DType>,
         silent: bool,
@@ -115,12 +111,14 @@ trait LoadTensors {
             .to_str()
             .expect("Expected to convert")
         {
-            "safetensors" => Box::new(SafetensorBackend(unsafe {
-                candle_core::safetensors::MmapedSafetensors::new(path)?
-            })),
-            "pth" | "pt" | "bin" => Box::new(PickleBackend(
-                candle_core::pickle::PthTensors::new(path, None)?
-            )),
+            "safetensors" => match path {
+                FileData::Dduf { name: _, data } => {
+                    Box::new(BytesSafetensorBackend(BytesSafetensors::new(data)?))
+                }
+                FileData::Path(path) => {Box::new(SafetensorBackend(unsafe {
+                    candle_core::safetensors::MmapedSafetensors::new(path)?
+                }))}
+            },
             other => candle_core::bail!("Unexpected extension `{other}`, this should have been handles by `get_model_paths`."),
         };
 
