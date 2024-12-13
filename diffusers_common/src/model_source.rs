@@ -2,7 +2,7 @@ use std::{
     ffi::OsStr,
     fmt::Debug,
     fs::{self, File},
-    io::Read,
+    io::Cursor,
     path::PathBuf,
 };
 
@@ -11,6 +11,7 @@ use hf_hub::{
     api::sync::{ApiBuilder, ApiRepo},
     Repo, RepoType,
 };
+use memmap2::Mmap;
 use zip::ZipArchive;
 
 pub enum ModelSource {
@@ -49,7 +50,7 @@ impl ModelSource {
 pub enum FileLoader {
     Api(ApiRepo),
     ApiWithTransformer { base: ApiRepo, transformer: ApiRepo },
-    Dduf(ZipArchive<File>),
+    Dduf(ZipArchive<Cursor<Mmap>>),
 }
 
 impl FileLoader {
@@ -74,7 +75,11 @@ impl FileLoader {
 
                 Ok(Self::Api(api))
             }
-            ModelSource::Dduf { file } => Ok(Self::Dduf(ZipArchive::new(file)?)),
+            ModelSource::Dduf { file } => {
+                let mmap = unsafe { Mmap::map(&file)? };
+                let cursor = Cursor::new(mmap);
+                Ok(Self::Dduf(ZipArchive::new(cursor)?))
+            }
             ModelSource::ModelIdWithTransformer {
                 model_id,
                 transformer_model_id,
@@ -177,11 +182,11 @@ impl FileLoader {
             )),
             (Self::Api(_), true) => anyhow::bail!("This model source has no transformer files."),
             (Self::Dduf(dduf), _) => {
-                let file = dduf.by_name(name)?;
-                Ok(FileData::Dduf {
-                    name: PathBuf::from(file.name().to_string()),
-                    data: file.bytes().collect::<std::io::Result<Vec<_>>>()?,
-                })
+                let mut file = dduf.by_name(name)?;
+                let mut data = Vec::new();
+                std::io::copy(&mut file, &mut data)?;
+                let name = PathBuf::from(file.name().to_string());
+                Ok(FileData::Dduf { name, data })
             }
         }
     }

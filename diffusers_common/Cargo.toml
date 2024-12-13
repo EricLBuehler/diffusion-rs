@@ -22,3 +22,4 @@ tqdm.workspace = true
 safetensors.workspace = true
 hf-hub.workspace = true
 zip.workspace = true
+memmap2.workspace = true

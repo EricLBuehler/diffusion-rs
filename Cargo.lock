@@ -655,6 +655,7 @@ dependencies = [
  "dirs",
  "hf-hub",
  "indicatif",
+ "memmap2",
  "safetensors",
  "thiserror 2.0.4",
  "tqdm",
