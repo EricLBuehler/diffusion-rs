@@ -54,7 +54,7 @@ impl QuantMethod for UnquantLinear {
                     {
                         cublaslt
                             .batch_matmul(
-                                &a,
+                                a,
                                 &w,
                                 Some(&b.t()?.contiguous()?),
                                 None,

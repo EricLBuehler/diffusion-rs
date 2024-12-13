@@ -1,8 +1,8 @@
-use diffusers_core::{DiffusionGenerationParams, ModelPaths, Pipeline, TokenSource};
+use diffusers_core::{DiffusionGenerationParams, ModelSource, Pipeline, TokenSource};
 
 fn main() -> anyhow::Result<()> {
     let pipeline = Pipeline::load(
-        ModelPaths::from_model_id("black-forest-labs/FLUX.1-dev"),
+        ModelSource::from_model_id("black-forest-labs/FLUX.1-dev"),
         false,
         TokenSource::CacheToken,
         None,

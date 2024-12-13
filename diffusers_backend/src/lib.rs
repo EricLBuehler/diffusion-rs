@@ -189,26 +189,33 @@ impl Module for dyn QuantMethod {
     }
 }
 
+fn vb_contains_quant(vb: &VarBuilder) -> bool {
+    vb.contains_tensor("weight.absmax")
+}
+
 pub fn linear_no_bias(
     in_dim: usize,
     out_dim: usize,
     config: &Option<QuantizedConfig>,
     vb: VarBuilder,
 ) -> Result<Arc<dyn QuantMethod>> {
-    let layer = if let Some(quant_conf) = &config {
-        match quant_conf.quant_method {
-            QuantMethodType::Bitsandbytes => {
-                Arc::new(BnbLinear::linear_b(in_dim, out_dim, false, vb)?) as Arc<_>
-            }
-            QuantMethodType::Unreachable => unreachable!(),
+    if vb_contains_quant(&vb) {
+        if let Some(quant_conf) = &config {
+            let layer = match quant_conf.quant_method {
+                QuantMethodType::Bitsandbytes => {
+                    Arc::new(BnbLinear::linear_b(in_dim, out_dim, false, vb)?) as Arc<_>
+                }
+                QuantMethodType::Unreachable => unreachable!(),
+            };
+            return Ok(layer);
         }
-    } else {
-        let ws = vb.get((out_dim, in_dim), "weight")?;
-        let layer = Linear::new(ws, None);
+    }
 
-        let layer = <UnquantLinear as QuantMethod>::new(QuantMethodConfig::Unquantized(layer))?;
-        Arc::new(layer) as Arc<dyn QuantMethod>
-    };
+    let ws = vb.get((out_dim, in_dim), "weight")?;
+    let layer = Linear::new(ws, None);
+
+    let layer = <UnquantLinear as QuantMethod>::new(QuantMethodConfig::Unquantized(layer))?;
+    let layer = Arc::new(layer) as Arc<dyn QuantMethod>;
     Ok(layer)
 }
 
@@ -218,21 +225,24 @@ pub fn linear(
     config: &Option<QuantizedConfig>,
     vb: VarBuilder,
 ) -> Result<Arc<dyn QuantMethod>> {
-    let layer = if let Some(quant_conf) = &config {
-        match quant_conf.quant_method {
-            QuantMethodType::Bitsandbytes => {
-                Arc::new(BnbLinear::linear_b(in_dim, out_dim, true, vb)?) as Arc<_>
-            }
-            QuantMethodType::Unreachable => unreachable!(),
+    if vb_contains_quant(&vb) {
+        if let Some(quant_conf) = &config {
+            let layer = match quant_conf.quant_method {
+                QuantMethodType::Bitsandbytes => {
+                    Arc::new(BnbLinear::linear_b(in_dim, out_dim, true, vb)?) as Arc<_>
+                }
+                QuantMethodType::Unreachable => unreachable!(),
+            };
+            return Ok(layer);
         }
-    } else {
-        let ws = vb.get((out_dim, in_dim), "weight")?;
-        let bs = vb.get(out_dim, "bias")?;
-        let layer = Linear::new(ws, Some(bs));
+    }
 
-        let layer = <UnquantLinear as QuantMethod>::new(QuantMethodConfig::Unquantized(layer))?;
-        Arc::new(layer) as Arc<dyn QuantMethod>
-    };
+    let ws = vb.get((out_dim, in_dim), "weight")?;
+    let bs = vb.get(out_dim, "bias")?;
+    let layer = Linear::new(ws, Some(bs));
+
+    let layer = <UnquantLinear as QuantMethod>::new(QuantMethodConfig::Unquantized(layer))?;
+    let layer = Arc::new(layer) as Arc<dyn QuantMethod>;
     Ok(layer)
 }
 

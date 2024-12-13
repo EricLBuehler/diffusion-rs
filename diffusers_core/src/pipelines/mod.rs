@@ -1,15 +1,14 @@
 mod flux;
 
-use std::{collections::HashMap, fmt::Display, fs, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, fmt::Display, sync::Arc};
 
 use anyhow::Result;
 use candle_core::{Device, Tensor};
 use flux::FluxLoader;
-use hf_hub::{api::sync::ApiBuilder, Repo, RepoType};
 use image::{DynamicImage, RgbImage};
 use serde::Deserialize;
 
-use diffusers_common::{get_token, TokenSource};
+use diffusers_common::{FileData, FileLoader, ModelSource, TokenSource};
 
 #[derive(Debug, Clone)]
 pub struct DiffusionGenerationParams {
@@ -35,17 +34,17 @@ impl Default for DiffusionGenerationParams {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) enum ComponentElem {
     Model {
-        safetensors: HashMap<String, PathBuf>,
-        config: PathBuf,
+        safetensors: HashMap<String, FileData>,
+        config: FileData,
     },
     Config {
-        files: HashMap<String, PathBuf>,
+        files: HashMap<String, FileData>,
     },
     Other {
-        files: HashMap<String, PathBuf>,
+        files: HashMap<String, FileData>,
     },
 }
 
@@ -95,103 +94,41 @@ struct ModelIndex {
     name: String,
 }
 
-pub struct ModelPaths {
-    pub model_id: String,
-    pub transformer_model_id: Option<String>,
-}
-
-impl ModelPaths {
-    pub fn from_model_id<S: ToString>(model_id: S) -> Self {
-        Self {
-            model_id: model_id.to_string(),
-            transformer_model_id: None,
-        }
-    }
-    pub fn override_transformer_model_id<S: ToString>(mut self, model_id: S) -> Self {
-        self.transformer_model_id = Some(model_id.to_string());
-        self
-    }
-}
-
 pub struct Pipeline(Arc<dyn ModelPipeline>);
 
 impl Pipeline {
     pub fn load(
-        model_paths: ModelPaths,
+        source: ModelSource,
         silent: bool,
         token: TokenSource,
         revision: Option<String>,
     ) -> Result<Self> {
-        let api_builder = ApiBuilder::new()
-            .with_progress(!silent)
-            .with_token(get_token(&token)?)
-            .build()?;
-        let revision = revision.unwrap_or("main".to_string());
-        let api = api_builder.repo(Repo::with_revision(
-            model_paths.model_id,
-            RepoType::Model,
-            revision.clone(),
-        ));
-        let transformer_api =
-            model_paths
-                .transformer_model_id
-                .as_ref()
-                .map(|transformer_model_id| {
-                    api_builder.repo(Repo::with_revision(
-                        transformer_model_id.clone(),
-                        RepoType::Model,
-                        revision.clone(),
-                    ))
-                });
-
-        let files = api
-            .info()
-            .map(|repo| {
-                repo.siblings
-                    .iter()
-                    .map(|x| x.rfilename.clone())
-                    .collect::<Vec<String>>()
-            })
-            .map_err(|e| anyhow::Error::msg(e.to_string()))?;
-
-        let transformer_files = if let Some(transformer_api) = &transformer_api {
-            Some(
-                transformer_api
-                    .info()
-                    .map(|repo| {
-                        repo.siblings
-                            .iter()
-                            .map(|x| x.rfilename.clone())
-                            .collect::<Vec<String>>()
-                    })
-                    .map_err(|e| anyhow::Error::msg(e.to_string()))?,
-            )
-        } else {
-            None
-        };
+        let mut loader = FileLoader::from_model_source(source, silent, token, revision)?;
+        let files = loader.list_files()?;
+        let transformer_files = loader.list_transformer_files()?;
 
         if !files.contains(&"model_index.json".to_string()) {
             anyhow::bail!("Expected `model_index.json` file present.");
         }
 
-        let ModelIndex { name } =
-            serde_json::from_str(&fs::read_to_string(api.get("model_index.json")?)?)?;
+        let ModelIndex { name } = serde_json::from_str(
+            &loader
+                .read_file("model_index.json", false)?
+                .read_to_string()?,
+        )?;
 
-        let loader = match name.as_str() {
+        let model_loader = match name.as_str() {
             "FluxPipeline" => Box::new(FluxLoader),
             other => anyhow::bail!("Unexpected loader type `{other:?}`."),
         };
         let mut components = HashMap::new();
-        for component in loader.required_component_names() {
-            let (files, api_to_use, dir) =
+        for component in model_loader.required_component_names() {
+            dbg!(&component);
+            let (files, from_transformer, dir) =
                 if component == ComponentName::Transformer && transformer_files.is_some() {
-                    (
-                        transformer_files.clone().unwrap(),
-                        transformer_api.as_ref().unwrap(),
-                        "".to_string(),
-                    )
+                    (transformer_files.clone().unwrap(), true, "".to_string())
                 } else {
-                    (files.clone(), &api, format!("{component}/"))
+                    (files.clone(), false, format!("{component}/"))
                 };
             let files_for_component = files
                 .iter()
@@ -212,11 +149,11 @@ impl Pipeline {
                     .iter()
                     .filter(|file| file.ends_with(".safetensors"))
                 {
-                    safetensors.insert(file.clone(), api_to_use.get(file)?);
+                    safetensors.insert(file.clone(), loader.read_file(file, from_transformer)?);
                 }
                 ComponentElem::Model {
                     safetensors,
-                    config: api_to_use.get(&format!("{dir}config.json"))?,
+                    config: loader.read_file(&format!("{dir}config.json"), from_transformer)?,
                 }
             } else if files_for_component
                 .iter()
@@ -227,13 +164,13 @@ impl Pipeline {
                     .iter()
                     .filter(|file| file.ends_with(".json"))
                 {
-                    files.insert(file.clone(), api_to_use.get(file)?);
+                    files.insert(file.clone(), loader.read_file(file, from_transformer)?);
                 }
                 ComponentElem::Config { files }
             } else {
                 let mut files = HashMap::new();
                 for file in files_for_component {
-                    files.insert(file.clone(), api_to_use.get(&file)?);
+                    files.insert(file.clone(), loader.read_file(&file, from_transformer)?);
                 }
                 ComponentElem::Other { files }
             };
@@ -245,7 +182,7 @@ impl Pipeline {
         #[cfg(feature = "metal")]
         let device = Device::new_metal(0)?;
 
-        let model = loader.load_from_components(components, &device)?;
+        let model = model_loader.load_from_components(components, &device)?;
 
         Ok(Self(model))
     }

@@ -2,7 +2,7 @@ use diffusers_core::{DiffusionGenerationParams, ModelSource, Pipeline, TokenSour
 
 fn main() -> anyhow::Result<()> {
     let pipeline = Pipeline::load(
-        ModelSource::from_model_id("black-forest-labs/FLUX.1-schnell"),
+        ModelSource::dduf("FLUX.1-dev-Q4-bnb.dduf")?,
         false,
         TokenSource::CacheToken,
         None,

@@ -1,9 +1,9 @@
-use diffusers_core::{DiffusionGenerationParams, ModelPaths, Pipeline, TokenSource};
+use diffusers_core::{DiffusionGenerationParams, ModelSource, Pipeline, TokenSource};
 
 fn main() -> anyhow::Result<()> {
     let pipeline = Pipeline::load(
-        ModelPaths::from_model_id("black-forest-labs/FLUX.1-dev")
-            .override_transformer_model_id("sayakpaul/flux.1-dev-nf4-with-bnb-integration"),
+        ModelSource::from_model_id("black-forest-labs/FLUX.1-dev")
+            .override_transformer_model_id("sayakpaul/flux.1-dev-nf4-with-bnb-integration")?,
         false,
         TokenSource::CacheToken,
         None,
