@@ -132,16 +132,17 @@ impl Pipeline {
             RepoType::Model,
             revision.clone(),
         ));
-        let transformer_api = if let Some(transformer_model_id) = &model_paths.transformer_model_id
-        {
-            Some(api_builder.repo(Repo::with_revision(
-                transformer_model_id.clone(),
-                RepoType::Model,
-                revision.clone(),
-            )))
-        } else {
-            None
-        };
+        let transformer_api =
+            model_paths
+                .transformer_model_id
+                .as_ref()
+                .map(|transformer_model_id| {
+                    api_builder.repo(Repo::with_revision(
+                        transformer_model_id.clone(),
+                        RepoType::Model,
+                        revision.clone(),
+                    ))
+                });
 
         let files = api
             .info()

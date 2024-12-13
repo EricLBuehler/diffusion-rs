@@ -363,9 +363,9 @@ impl SelfAttention {
     }
 
     fn qkv(&self, xs: &Tensor) -> Result<(Tensor, Tensor, Tensor)> {
-        let mut q = self.q.forward_autocast(&xs)?;
-        let mut k = self.k.forward_autocast(&xs)?;
-        let mut v = self.v.forward_autocast(&xs)?;
+        let mut q = self.q.forward_autocast(xs)?;
+        let mut k = self.k.forward_autocast(xs)?;
+        let mut v = self.v.forward_autocast(xs)?;
         let (b, l, _khd) = q.dims3()?;
         q = q
             .reshape((b, l, self.num_attention_heads, ()))?
@@ -766,8 +766,8 @@ impl Flux {
             let ids = Tensor::cat(&[txt_ids, img_ids], 1)?;
             ids.apply(&self.pe_embedder)?
         };
-        let mut txt = self.txt_in.forward_autocast(&txt)?;
-        let mut img = self.img_in.forward_autocast(&img)?;
+        let mut txt = self.txt_in.forward_autocast(txt)?;
+        let mut img = self.img_in.forward_autocast(img)?;
         let vec_ = timestep_embedding(timesteps, 256, dtype)?.apply(&self.time_in)?;
         let vec_ = match (self.guidance_in.as_ref(), guidance) {
             (Some(g_in), Some(guidance)) => {
