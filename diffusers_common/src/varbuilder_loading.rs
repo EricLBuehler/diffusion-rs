@@ -90,6 +90,7 @@ pub fn from_mmaped_safetensors<'a>(
     }
 
     let first_dtype = DType::BF16; //ws.values().next().unwrap().dtype();
+    dbg!(&ws.keys().collect::<Vec<_>>());
     Ok(VarBuilder::from_tensors(
         ws,
         dtype.unwrap_or(first_dtype),

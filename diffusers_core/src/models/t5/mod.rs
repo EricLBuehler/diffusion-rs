@@ -4,8 +4,9 @@
 // https://github.com/huggingface/transformers/blob/main/src/transformers/models/t5/modeling_t5.py
 
 use candle_core::{DType, Device, Module, Result, Tensor, D};
-use candle_nn::{Activation, Embedding, Linear};
-use diffusers_common::{embedding, linear_no_bias, VarBuilder};
+use candle_nn::{Activation, Embedding};
+use diffusers_backend::{linear_no_bias, QuantMethod, QuantizedConfig};
+use diffusers_common::{embedding, VarBuilder};
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -18,10 +19,6 @@ fn default_is_decoder() -> bool {
 }
 
 fn default_use_cache() -> bool {
-    true
-}
-
-fn default_tie_word_embeddings() -> bool {
     true
 }
 
@@ -70,63 +67,25 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct T5Config {
     pub vocab_size: usize,
     pub d_model: usize,
     pub d_kv: usize,
     pub d_ff: usize,
     pub num_layers: usize,
-    pub num_decoder_layers: Option<usize>,
     pub num_heads: usize,
     pub relative_attention_num_buckets: usize,
     #[serde(default = "default_relative_attention_max_distance")]
     pub relative_attention_max_distance: usize,
-    pub dropout_rate: f64,
     pub layer_norm_epsilon: f64,
-    pub initializer_factor: f64,
     #[serde(default, deserialize_with = "deserialize_feed_forward_proj_activation")]
     pub feed_forward_proj: ActivationWithOptionalGating,
-    #[serde(default = "default_tie_word_embeddings")]
-    pub tie_word_embeddings: bool,
     #[serde(default = "default_is_decoder")]
     pub is_decoder: bool,
-    pub is_encoder_decoder: bool,
     #[serde(default = "default_use_cache")]
     pub use_cache: bool,
-    pub pad_token_id: usize,
-    pub eos_token_id: usize,
-    pub decoder_start_token_id: Option<usize>,
-}
-
-impl Default for T5Config {
-    fn default() -> Self {
-        Self {
-            vocab_size: 32128,
-            d_model: 512,
-            d_kv: 64,
-            d_ff: 2048,
-            num_layers: 6,
-            num_decoder_layers: None,
-            num_heads: 8,
-            relative_attention_num_buckets: 32,
-            relative_attention_max_distance: 128,
-            dropout_rate: 0.1,
-            layer_norm_epsilon: 1e-6,
-            initializer_factor: 1.0,
-            feed_forward_proj: ActivationWithOptionalGating {
-                gated: false,
-                activation: Activation::Relu,
-            },
-            tie_word_embeddings: true,
-            is_decoder: false,
-            is_encoder_decoder: true,
-            use_cache: true,
-            pad_token_id: 0,
-            eos_token_id: 1,
-            decoder_start_token_id: Some(0),
-        }
-    }
+    pub quantization_config: Option<QuantizedConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -160,15 +119,25 @@ impl Module for T5LayerNorm {
 
 #[derive(Debug, Clone)]
 struct T5DenseActDense {
-    wi: Linear,
-    wo: Linear,
+    wi: Arc<dyn QuantMethod>,
+    wo: Arc<dyn QuantMethod>,
     act: Activation,
 }
 
 impl T5DenseActDense {
     fn load(vb: VarBuilder, cfg: &T5Config) -> Result<Self> {
-        let wi = linear_no_bias(cfg.d_model, cfg.d_ff, vb.pp("wi"))?;
-        let wo = linear_no_bias(cfg.d_ff, cfg.d_model, vb.pp("wo"))?;
+        let wi = linear_no_bias(
+            cfg.d_model,
+            cfg.d_ff,
+            &&cfg.quantization_config,
+            vb.pp("wi"),
+        )?;
+        let wo = linear_no_bias(
+            cfg.d_ff,
+            cfg.d_model,
+            &&cfg.quantization_config,
+            vb.pp("wo"),
+        )?;
         Ok(Self {
             wi,
             wo,
@@ -179,26 +148,41 @@ impl T5DenseActDense {
 
 impl Module for T5DenseActDense {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        let xs = self.wi.forward(xs)?;
+        let xs = self.wi.forward_autocast(xs)?;
         let xs = self.act.forward(&xs)?;
-        let xs = self.wo.forward(&xs)?;
+        let xs = self.wo.forward_autocast(&xs)?;
         Ok(xs)
     }
 }
 
 #[derive(Debug, Clone)]
 struct T5DenseGatedActDense {
-    wi_0: Linear,
-    wi_1: Linear,
-    wo: Linear,
+    wi_0: Arc<dyn QuantMethod>,
+    wi_1: Arc<dyn QuantMethod>,
+    wo: Arc<dyn QuantMethod>,
     act: Activation,
 }
 
 impl T5DenseGatedActDense {
     fn load(vb: VarBuilder, cfg: &T5Config) -> Result<Self> {
-        let wi_0 = linear_no_bias(cfg.d_model, cfg.d_ff, vb.pp("wi_0"))?;
-        let wi_1 = linear_no_bias(cfg.d_model, cfg.d_ff, vb.pp("wi_1"))?;
-        let wo = linear_no_bias(cfg.d_ff, cfg.d_model, vb.pp("wo"))?;
+        let wi_0 = linear_no_bias(
+            cfg.d_model,
+            cfg.d_ff,
+            &&cfg.quantization_config,
+            vb.pp("wi_0"),
+        )?;
+        let wi_1 = linear_no_bias(
+            cfg.d_model,
+            cfg.d_ff,
+            &&cfg.quantization_config,
+            vb.pp("wi_1"),
+        )?;
+        let wo = linear_no_bias(
+            cfg.d_ff,
+            cfg.d_model,
+            &&cfg.quantization_config,
+            vb.pp("wo"),
+        )?;
         Ok(Self {
             wi_0,
             wi_1,
@@ -210,10 +194,10 @@ impl T5DenseGatedActDense {
 
 impl Module for T5DenseGatedActDense {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        let hidden_gelu = self.act.forward(&self.wi_0.forward(xs)?)?;
-        let hidden_linear = self.wi_1.forward(xs)?;
+        let hidden_gelu = self.act.forward(&self.wi_0.forward_autocast(xs)?)?;
+        let hidden_linear = self.wi_1.forward_autocast(xs)?;
         let xs = hidden_gelu.broadcast_mul(&hidden_linear)?;
-        let xs = self.wo.forward(&xs)?;
+        let xs = self.wo.forward_autocast(&xs)?;
         Ok(xs)
     }
 }
@@ -262,10 +246,10 @@ impl Module for T5LayerFF {
 
 #[derive(Debug, Clone)]
 struct T5Attention {
-    q: Linear,
-    k: Linear,
-    v: Linear,
-    o: Linear,
+    q: Arc<dyn QuantMethod>,
+    k: Arc<dyn QuantMethod>,
+    v: Arc<dyn QuantMethod>,
+    o: Arc<dyn QuantMethod>,
     n_heads: usize,
     d_kv: usize,
     relative_attention_bias: Option<Embedding>,
@@ -283,10 +267,30 @@ impl T5Attention {
         cfg: &T5Config,
     ) -> Result<Self> {
         let inner_dim = cfg.num_heads * cfg.d_kv;
-        let q = linear_no_bias(cfg.d_model, inner_dim, vb.pp("q"))?;
-        let k = linear_no_bias(cfg.d_model, inner_dim, vb.pp("k"))?;
-        let v = linear_no_bias(cfg.d_model, inner_dim, vb.pp("v"))?;
-        let o = linear_no_bias(inner_dim, cfg.d_model, vb.pp("o"))?;
+        let q = linear_no_bias(
+            cfg.d_model,
+            inner_dim,
+            &&cfg.quantization_config,
+            vb.pp("q"),
+        )?;
+        let k = linear_no_bias(
+            cfg.d_model,
+            inner_dim,
+            &&cfg.quantization_config,
+            vb.pp("k"),
+        )?;
+        let v = linear_no_bias(
+            cfg.d_model,
+            inner_dim,
+            &&cfg.quantization_config,
+            vb.pp("v"),
+        )?;
+        let o = linear_no_bias(
+            inner_dim,
+            cfg.d_model,
+            &&cfg.quantization_config,
+            vb.pp("o"),
+        )?;
         let relative_attention_bias = if has_relative_attention_bias {
             let emb = embedding(
                 cfg.relative_attention_num_buckets,
@@ -327,9 +331,9 @@ impl T5Attention {
         };
         let (b_sz, q_len) = (xs.dim(0)?, xs.dim(1)?);
         let kv_len = kv_input.dim(1)?;
-        let q = self.q.forward(xs)?;
-        let k = self.k.forward(kv_input)?;
-        let v = self.v.forward(kv_input)?;
+        let q = self.q.forward_autocast(xs)?;
+        let k = self.k.forward_autocast(kv_input)?;
+        let v = self.v.forward_autocast(kv_input)?;
         let q = q
             .reshape((b_sz, q_len, self.n_heads, self.d_kv))?
             .transpose(1, 2)?
@@ -421,7 +425,7 @@ impl T5Attention {
         let attn_output = attn_output
             .transpose(1, 2)?
             .reshape((b_sz, q_len, self.inner_dim))?;
-        let attn_output = self.o.forward(&attn_output)?;
+        let attn_output = self.o.forward_autocast(&attn_output)?;
         Ok((attn_output, position_bias))
     }
 }
