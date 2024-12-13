@@ -41,7 +41,7 @@ impl TensorLoaderBackend for SafetensorBackend {
 
 struct BytesSafetensorBackend<'a>(BytesSafetensors<'a>);
 
-impl<'a> TensorLoaderBackend for BytesSafetensorBackend<'a> {
+impl TensorLoaderBackend for BytesSafetensorBackend<'_> {
     fn get_names(&self) -> Vec<String> {
         self.0
             .tensors()

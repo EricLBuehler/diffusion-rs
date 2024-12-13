@@ -48,8 +48,11 @@ impl ModelSource {
 }
 
 pub enum FileLoader {
-    Api(ApiRepo),
-    ApiWithTransformer { base: ApiRepo, transformer: ApiRepo },
+    Api(Box<ApiRepo>),
+    ApiWithTransformer {
+        base: Box<ApiRepo>,
+        transformer: Box<ApiRepo>,
+    },
     Dduf(ZipArchive<Cursor<Mmap>>),
 }
 
@@ -73,7 +76,7 @@ impl FileLoader {
                     revision.clone(),
                 ));
 
-                Ok(Self::Api(api))
+                Ok(Self::Api(Box::new(api)))
             }
             ModelSource::Dduf { file } => {
                 let mmap = unsafe { Mmap::map(&file)? };
@@ -101,8 +104,8 @@ impl FileLoader {
                 ));
 
                 Ok(Self::ApiWithTransformer {
-                    base: api,
-                    transformer: transformer_api,
+                    base: Box::new(api),
+                    transformer: Box::new(transformer_api),
                 })
             }
         }

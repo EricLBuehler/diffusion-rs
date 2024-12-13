@@ -126,18 +126,8 @@ struct T5DenseActDense {
 
 impl T5DenseActDense {
     fn load(vb: VarBuilder, cfg: &T5Config) -> Result<Self> {
-        let wi = linear_no_bias(
-            cfg.d_model,
-            cfg.d_ff,
-            &&cfg.quantization_config,
-            vb.pp("wi"),
-        )?;
-        let wo = linear_no_bias(
-            cfg.d_ff,
-            cfg.d_model,
-            &&cfg.quantization_config,
-            vb.pp("wo"),
-        )?;
+        let wi = linear_no_bias(cfg.d_model, cfg.d_ff, &cfg.quantization_config, vb.pp("wi"))?;
+        let wo = linear_no_bias(cfg.d_ff, cfg.d_model, &cfg.quantization_config, vb.pp("wo"))?;
         Ok(Self {
             wi,
             wo,
@@ -168,21 +158,16 @@ impl T5DenseGatedActDense {
         let wi_0 = linear_no_bias(
             cfg.d_model,
             cfg.d_ff,
-            &&cfg.quantization_config,
+            &cfg.quantization_config,
             vb.pp("wi_0"),
         )?;
         let wi_1 = linear_no_bias(
             cfg.d_model,
             cfg.d_ff,
-            &&cfg.quantization_config,
+            &cfg.quantization_config,
             vb.pp("wi_1"),
         )?;
-        let wo = linear_no_bias(
-            cfg.d_ff,
-            cfg.d_model,
-            &&cfg.quantization_config,
-            vb.pp("wo"),
-        )?;
+        let wo = linear_no_bias(cfg.d_ff, cfg.d_model, &cfg.quantization_config, vb.pp("wo"))?;
         Ok(Self {
             wi_0,
             wi_1,
@@ -267,30 +252,10 @@ impl T5Attention {
         cfg: &T5Config,
     ) -> Result<Self> {
         let inner_dim = cfg.num_heads * cfg.d_kv;
-        let q = linear_no_bias(
-            cfg.d_model,
-            inner_dim,
-            &&cfg.quantization_config,
-            vb.pp("q"),
-        )?;
-        let k = linear_no_bias(
-            cfg.d_model,
-            inner_dim,
-            &&cfg.quantization_config,
-            vb.pp("k"),
-        )?;
-        let v = linear_no_bias(
-            cfg.d_model,
-            inner_dim,
-            &&cfg.quantization_config,
-            vb.pp("v"),
-        )?;
-        let o = linear_no_bias(
-            inner_dim,
-            cfg.d_model,
-            &&cfg.quantization_config,
-            vb.pp("o"),
-        )?;
+        let q = linear_no_bias(cfg.d_model, inner_dim, &cfg.quantization_config, vb.pp("q"))?;
+        let k = linear_no_bias(cfg.d_model, inner_dim, &cfg.quantization_config, vb.pp("k"))?;
+        let v = linear_no_bias(cfg.d_model, inner_dim, &cfg.quantization_config, vb.pp("v"))?;
+        let o = linear_no_bias(inner_dim, cfg.d_model, &cfg.quantization_config, vb.pp("o"))?;
         let relative_attention_bias = if has_relative_attention_bias {
             let emb = embedding(
                 cfg.relative_attention_num_buckets,

@@ -9,7 +9,7 @@ pub struct BytesSafetensors<'a> {
 
 impl<'a> BytesSafetensors<'a> {
     pub fn new(bytes: &'a [u8]) -> Result<BytesSafetensors<'a>> {
-        let st = safetensors::SafeTensors::deserialize(bytes).map_err(|e| Error::from(e))?;
+        let st = safetensors::SafeTensors::deserialize(bytes).map_err(Error::from)?;
         Ok(Self { safetensors: st })
     }
 
