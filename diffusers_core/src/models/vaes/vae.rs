@@ -1,9 +1,8 @@
 #![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 
 use candle_core::{Result, Tensor, D};
-use candle_nn::{
-    conv2d, group_norm, linear, Activation, Conv2d, Conv2dConfig, GroupNorm, VarBuilder,
-};
+use candle_nn::{Activation, Conv2d, Conv2dConfig, GroupNorm};
+use diffusers_common::{conv2d, group_norm, linear, VarBuilder};
 use serde::Deserialize;
 
 fn default_act() -> Activation {

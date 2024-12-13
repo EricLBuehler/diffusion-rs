@@ -219,15 +219,15 @@ checksum = "8f1fe948ff07f4bd06c30984e69f5b4899c516a3ef74f34df92a2df2ab535495"
 
 [[package]]
 name = "candle-core"
-version = "0.8.0"
-source = "git+https://github.com/EricLBuehler/candle.git?rev=a2ec8169#a2ec8169bf2a05f9b6bfd938b45292351055c186"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1e306c8a4276ba57ce9fac76d823cc8c8a7fca14bf222ac20ad8b12c4273152"
 dependencies = [
  "accelerate-src",
  "byteorder",
  "candle-kernels",
  "candle-metal-kernels",
  "cudarc",
- "float8",
  "gemm",
  "half",
  "intel-mkl-src",
@@ -250,16 +250,18 @@ dependencies = [
 
 [[package]]
 name = "candle-kernels"
-version = "0.8.0"
-source = "git+https://github.com/EricLBuehler/candle.git?rev=a2ec8169#a2ec8169bf2a05f9b6bfd938b45292351055c186"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbd8ea6588f3c6286ea89a52dad3365f0536fd0b71e729fa998cc2347f1df3b6"
 dependencies = [
  "bindgen_cuda",
 ]
 
 [[package]]
 name = "candle-metal-kernels"
-version = "0.8.0"
-source = "git+https://github.com/EricLBuehler/candle.git?rev=a2ec8169#a2ec8169bf2a05f9b6bfd938b45292351055c186"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbc6621c7e2202f4f129bcc3185c2c6d4fa2fc6b8f3f2b07eaf7c06042910c83"
 dependencies = [
  "metal 0.27.0",
  "once_cell",
@@ -269,8 +271,9 @@ dependencies = [
 
 [[package]]
 name = "candle-nn"
-version = "0.8.0"
-source = "git+https://github.com/EricLBuehler/candle.git?rev=a2ec8169#a2ec8169bf2a05f9b6bfd938b45292351055c186"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39d417059c44d719fd03a0f711ccfe148d341469c9273d4b5731ebe965b2c97e"
 dependencies = [
  "accelerate-src",
  "candle-core",
@@ -544,19 +547,33 @@ dependencies = [
 ]
 
 [[package]]
-name = "diffusers_core"
+name = "diffusers_common"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "candle-core",
  "candle-nn",
  "dirs",
+ "indicatif",
+ "safetensors",
+ "thiserror 2.0.4",
+ "tqdm",
+]
+
+[[package]]
+name = "diffusers_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "candle-core",
+ "candle-nn",
+ "diffusers_common",
+ "diffusers_quant",
  "float8",
  "half",
  "hf-hub",
  "image",
  "indicatif",
- "mistralrs-quant",
  "serde",
  "serde_json",
  "serde_plain",
@@ -571,6 +588,27 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "diffusers_core",
+]
+
+[[package]]
+name = "diffusers_quant"
+version = "0.1.0"
+dependencies = [
+ "bindgen_cuda",
+ "byteorder",
+ "candle-core",
+ "candle-nn",
+ "diffusers_common",
+ "float8",
+ "half",
+ "lazy_static",
+ "metal 0.27.0",
+ "once_cell",
+ "paste",
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -741,11 +779,7 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7c3475274d374d263c4c40c43ad854c5bdf733c7db775bbd3c1ca2ad7427978"
 dependencies = [
- "cudarc",
  "half",
- "num-traits",
- "rand",
- "rand_distr",
 ]
 
 [[package]]
@@ -1532,28 +1566,6 @@ dependencies = [
  "log",
  "wasi",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "mistralrs-quant"
-version = "0.3.4"
-source = "git+https://github.com/EricLBuehler/mistral.rs.git?rev=9f47091c8#9f47091c876fb5544d9bca99e50537aa2762e9d5"
-dependencies = [
- "bindgen_cuda",
- "byteorder",
- "candle-core",
- "candle-nn",
- "float8",
- "half",
- "lazy_static",
- "metal 0.27.0",
- "once_cell",
- "paste",
- "rayon",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tracing",
 ]
 
 [[package]]

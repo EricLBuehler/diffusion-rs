@@ -2,10 +2,9 @@ use std::{fs, path::PathBuf, sync::Arc};
 
 use autoencoder_kl::{AutencoderKlConfig, AutoEncoderKl};
 use candle_core::{Device, Result, Tensor};
-use candle_nn::VarBuilder;
 use serde::Deserialize;
 
-use crate::util::from_mmaped_safetensors;
+use diffusers_common::{from_mmaped_safetensors, VarBuilder};
 
 mod autoencoder_kl;
 mod vae;

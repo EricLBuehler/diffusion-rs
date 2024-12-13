@@ -9,7 +9,7 @@ use hf_hub::{api::sync::ApiBuilder, Repo, RepoType};
 use image::{DynamicImage, RgbImage};
 use serde::Deserialize;
 
-use crate::util::{get_token, TokenSource};
+use diffusers_common::{get_token, TokenSource};
 
 #[derive(Debug, Clone)]
 pub struct DiffusionGenerationParams {
@@ -239,6 +239,9 @@ impl Pipeline {
             components.insert(component, component_elem);
         }
 
+        #[cfg(not(feature = "metal"))]
+        let device = Device::cuda_if_available(0)?;
+        #[cfg(feature = "metal")]
         let device = Device::new_metal(0)?;
 
         let model = loader.load_from_components(components, &device)?;

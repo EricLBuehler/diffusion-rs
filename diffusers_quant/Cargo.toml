@@ -1,0 +1,35 @@
+[package]
+name = "diffusers_quant"
+readme = "README.md"
+authors = ["Eric Buehler"]
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+homepage.workspace = true
+
+[dependencies]
+candle-core.workspace = true
+candle-nn.workspace = true
+half.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rayon.workspace = true
+float8.workspace = true
+once_cell.workspace = true
+metal = { workspace = true, optional = true }
+thiserror.workspace = true
+lazy_static.workspace = true
+paste.workspace = true
+byteorder.workspace = true
+diffusers_common = { path = "../diffusers_common" }
+
+[features]
+cuda = ["candle-core/cuda", "candle-nn/cuda", "dep:bindgen_cuda"]
+metal = ["candle-core/metal", "candle-nn/metal", "dep:metal"]
+
+[build-dependencies]
+bindgen_cuda = { version = "0.1.5", optional = true }

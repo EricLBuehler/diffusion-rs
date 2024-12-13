@@ -1,5 +1,6 @@
 use candle_core::{Result, Tensor};
-use candle_nn::{Activation, Conv2d, Conv2dConfig, VarBuilder};
+use candle_nn::{Activation, Conv2d, Conv2dConfig};
+use diffusers_common::VarBuilder;
 use serde::Deserialize;
 
 use super::{
@@ -64,7 +65,7 @@ impl AutoEncoderKl {
         let decoder = Decoder::new(&cfg.clone().into(), vb.pp("decoder"))?;
         let reg = DiagonalGaussian::new(true, 1)?;
         let quant_conv = if cfg.use_quant_conv {
-            Some(candle_nn::conv2d(
+            Some(diffusers_common::conv2d(
                 2 * cfg.latent_channels,
                 2 * cfg.latent_channels,
                 1,
@@ -75,7 +76,7 @@ impl AutoEncoderKl {
             None
         };
         let post_quant_conv = if cfg.use_post_quant_conv {
-            Some(candle_nn::conv2d(
+            Some(diffusers_common::conv2d(
                 cfg.latent_channels,
                 cfg.latent_channels,
                 1,

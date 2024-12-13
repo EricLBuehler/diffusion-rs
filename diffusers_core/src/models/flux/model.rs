@@ -2,12 +2,13 @@
 
 use std::sync::Arc;
 
-use candle_core::{DType, Device, IndexOp, Result, Tensor, D};
-use candle_nn::{layer_norm::RmsNormNonQuantized, LayerNorm, RmsNorm, VarBuilder};
-use mistralrs_quant::{QuantMethod, QuantizedConfig};
+use candle_core::{DType, IndexOp, Result, Tensor, D};
+use candle_nn::{LayerNorm, RmsNorm};
+use diffusers_common::VarBuilder;
+use diffusers_quant::{QuantMethod, QuantizedConfig};
 use serde::Deserialize;
 
-use crate::util::NiceProgressBar;
+use diffusers_common::NiceProgressBar;
 
 const MLP_RATIO: f64 = 4.;
 const HIDDEN_SIZE: usize = 3072;
@@ -149,9 +150,11 @@ pub struct MlpEmbedder {
 impl MlpEmbedder {
     fn new(in_sz: usize, h_sz: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let in_layer =
-            mistralrs_quant::linear(in_sz, h_sz, &cfg.quantization_config, vb.pp("linear_1"))?;
+            diffusers_quant::linear(in_sz, h_sz, &cfg.quantization_config, vb.pp("linear_1"))?
+                .maybe_to_gguf_quant()?;
         let out_layer =
-            mistralrs_quant::linear(h_sz, h_sz, &cfg.quantization_config, vb.pp("linear_2"))?;
+            diffusers_quant::linear(h_sz, h_sz, &cfg.quantization_config, vb.pp("linear_2"))?
+                .maybe_to_gguf_quant()?;
         Ok(Self {
             in_layer,
             out_layer,
@@ -168,16 +171,16 @@ impl candle_core::Module for MlpEmbedder {
 
 #[derive(Debug, Clone)]
 pub struct QkNorm {
-    query_norm: RmsNorm<RmsNormNonQuantized>,
-    key_norm: RmsNorm<RmsNormNonQuantized>,
+    query_norm: RmsNorm,
+    key_norm: RmsNorm,
 }
 
 impl QkNorm {
     fn new(dim: usize, vb_q: VarBuilder, vb_k: VarBuilder) -> Result<Self> {
         let query_norm = vb_q.get(dim, "weight")?;
-        let query_norm = RmsNorm::<RmsNormNonQuantized>::new(query_norm, 1e-6);
+        let query_norm = RmsNorm::new(query_norm, 1e-6);
         let key_norm = vb_k.get(dim, "weight")?;
-        let key_norm = RmsNorm::<RmsNormNonQuantized>::new(key_norm, 1e-6);
+        let key_norm = RmsNorm::new(key_norm, 1e-6);
         Ok(Self {
             query_norm,
             key_norm,
@@ -209,7 +212,8 @@ struct Modulation1 {
 
 impl Modulation1 {
     fn new(dim: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
-        let lin = mistralrs_quant::linear(dim, 3 * dim, &cfg.quantization_config, vb.pp("linear"))?;
+        let lin = diffusers_quant::linear(dim, 3 * dim, &cfg.quantization_config, vb.pp("linear"))?
+            .maybe_to_gguf_quant()?;
         Ok(Self { lin })
     }
 
@@ -237,7 +241,8 @@ struct Modulation2 {
 
 impl Modulation2 {
     fn new(dim: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
-        let lin = mistralrs_quant::linear(dim, 6 * dim, &cfg.quantization_config, vb.pp("linear"))?;
+        let lin = diffusers_quant::linear(dim, 6 * dim, &cfg.quantization_config, vb.pp("linear"))?
+            .maybe_to_gguf_quant()?;
         Ok(Self { lin })
     }
 
@@ -285,57 +290,65 @@ impl SelfAttention {
     ) -> Result<Self> {
         let head_dim = dim / num_attention_heads;
         let (q, k, v, norm, proj) = if !context {
-            let q = mistralrs_quant::linear_b(
+            let q = diffusers_quant::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("to_q"),
-            )?;
-            let k = mistralrs_quant::linear_b(
+            )?
+            .maybe_to_gguf_quant()?;
+            let k = diffusers_quant::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("to_k"),
-            )?;
-            let v = mistralrs_quant::linear_b(
+            )?
+            .maybe_to_gguf_quant()?;
+            let v = diffusers_quant::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("to_v"),
-            )?;
+            )?
+            .maybe_to_gguf_quant()?;
             let norm = QkNorm::new(head_dim, vb.pp("norm_q"), vb.pp("norm_k"))?;
             let proj =
-                mistralrs_quant::linear(dim, dim, &cfg.quantization_config, vb.pp("to_out.0"))?;
+                diffusers_quant::linear(dim, dim, &cfg.quantization_config, vb.pp("to_out.0"))?
+                    .maybe_to_gguf_quant()?;
 
             (q, k, v, norm, proj)
         } else {
-            let q = mistralrs_quant::linear_b(
+            let q = diffusers_quant::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("add_q_proj"),
-            )?;
-            let k = mistralrs_quant::linear_b(
+            )?
+            .maybe_to_gguf_quant()?;
+            let k = diffusers_quant::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("add_k_proj"),
-            )?;
-            let v = mistralrs_quant::linear_b(
+            )?
+            .maybe_to_gguf_quant()?;
+            let v = diffusers_quant::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("add_v_proj"),
-            )?;
+            )?
+            .maybe_to_gguf_quant()?;
             let norm = QkNorm::new(head_dim, vb.pp("norm_added_q"), vb.pp("norm_added_k"))?;
             let proj =
-                mistralrs_quant::linear(dim, dim, &cfg.quantization_config, vb.pp("to_add_out"))?;
+                diffusers_quant::linear(dim, dim, &cfg.quantization_config, vb.pp("to_add_out"))?
+                    .maybe_to_gguf_quant()?;
 
             (q, k, v, norm, proj)
         };
@@ -384,8 +397,10 @@ struct Mlp {
 impl Mlp {
     fn new(in_sz: usize, mlp_sz: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let lin1 =
-            mistralrs_quant::linear(in_sz, mlp_sz, &cfg.quantization_config, vb.pp("0.proj"))?;
-        let lin2 = mistralrs_quant::linear(mlp_sz, in_sz, &cfg.quantization_config, vb.pp("2"))?;
+            diffusers_quant::linear(in_sz, mlp_sz, &cfg.quantization_config, vb.pp("0.proj"))?
+                .maybe_to_gguf_quant()?;
+        let lin2 = diffusers_quant::linear(mlp_sz, in_sz, &cfg.quantization_config, vb.pp("2"))?
+            .maybe_to_gguf_quant()?;
         Ok(Self { lin1, lin2 })
     }
 }
@@ -518,41 +533,46 @@ impl SingleStreamBlock {
         let mlp_sz = (h_sz as f64 * MLP_RATIO) as usize;
         let head_dim = h_sz / cfg.num_attention_heads;
 
-        let q = mistralrs_quant::linear_b(
+        let q = diffusers_quant::linear_b(
             h_sz,
             h_sz,
             true,
             &cfg.quantization_config,
             vb.pp("attn.to_q"),
-        )?;
-        let k = mistralrs_quant::linear_b(
+        )?
+        .maybe_to_gguf_quant()?;
+        let k = diffusers_quant::linear_b(
             h_sz,
             h_sz,
             true,
             &cfg.quantization_config,
             vb.pp("attn.to_k"),
-        )?;
-        let v = mistralrs_quant::linear_b(
+        )?
+        .maybe_to_gguf_quant()?;
+        let v = diffusers_quant::linear_b(
             h_sz,
             h_sz,
             true,
             &cfg.quantization_config,
             vb.pp("attn.to_v"),
-        )?;
-        let proj_mlp = mistralrs_quant::linear_b(
+        )?
+        .maybe_to_gguf_quant()?;
+        let proj_mlp = diffusers_quant::linear_b(
             h_sz,
             mlp_sz,
             true,
             &cfg.quantization_config,
             vb.pp("proj_mlp"),
-        )?;
+        )?
+        .maybe_to_gguf_quant()?;
 
-        let linear2 = mistralrs_quant::linear(
+        let linear2 = diffusers_quant::linear(
             h_sz + mlp_sz,
             h_sz,
             &cfg.quantization_config,
             vb.pp("proj_out"),
-        )?;
+        )?
+        .maybe_to_gguf_quant()?;
         let norm = QkNorm::new(head_dim, vb.pp("attn.norm_q"), vb.pp("attn.norm_k"))?;
         let pre_norm = layer_norm(h_sz, vb.pp("pre_norm"))?;
         let modulation = Modulation1::new(h_sz, cfg, vb.pp("norm"))?;
@@ -606,18 +626,20 @@ pub struct LastLayer {
 impl LastLayer {
     fn new(h_sz: usize, p_sz: usize, out_c: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let norm_final = layer_norm(h_sz, vb.pp("norm_final"))?;
-        let linear = mistralrs_quant::linear(
+        let linear = diffusers_quant::linear(
             h_sz,
             p_sz * p_sz * out_c,
             &cfg.quantization_config,
             vb.pp("proj_out"),
-        )?;
-        let ada_ln_modulation = mistralrs_quant::linear(
+        )?
+        .maybe_to_gguf_quant()?;
+        let ada_ln_modulation = diffusers_quant::linear(
             h_sz,
             2 * h_sz,
             &cfg.quantization_config,
             vb.pp("norm_out.linear"),
-        )?;
+        )?
+        .maybe_to_gguf_quant()?;
         Ok(Self {
             norm_final,
             linear,
@@ -653,19 +675,21 @@ pub struct Flux {
 }
 
 impl Flux {
-    pub fn new(cfg: &Config, vb: VarBuilder, device: &Device) -> Result<Self> {
-        let img_in = mistralrs_quant::linear(
+    pub fn new(cfg: &Config, vb: VarBuilder) -> Result<Self> {
+        let img_in = diffusers_quant::linear(
             cfg.in_channels,
             HIDDEN_SIZE,
             &cfg.quantization_config,
-            vb.pp("x_embedder").set_device(device.clone()),
-        )?;
-        let txt_in = mistralrs_quant::linear(
+            vb.pp("x_embedder"),
+        )?
+        .maybe_to_gguf_quant()?;
+        let txt_in = diffusers_quant::linear(
             cfg.joint_attention_dim,
             HIDDEN_SIZE,
             &cfg.quantization_config,
-            vb.pp("context_embedder").set_device(device.clone()),
-        )?;
+            vb.pp("context_embedder"),
+        )?
+        .maybe_to_gguf_quant()?;
         let mut double_blocks = Vec::with_capacity(cfg.num_layers);
         let vb_d = vb.pp("transformer_blocks");
         for idx in NiceProgressBar::<_, 'r'>(0..cfg.num_layers, "Loading double stream block") {
@@ -684,41 +708,29 @@ impl Flux {
             256,
             HIDDEN_SIZE,
             cfg,
-            vb.pp("time_text_embed.timestep_embedder")
-                .set_device(device.clone()),
+            vb.pp("time_text_embed.timestep_embedder"),
         )?;
         let vector_in = MlpEmbedder::new(
             cfg.pooled_projection_dim,
             HIDDEN_SIZE,
             cfg,
-            vb.pp("time_text_embed.text_embedder")
-                .set_device(device.clone()),
+            vb.pp("time_text_embed.text_embedder"),
         )?;
         let guidance_in = if cfg.guidance_embeds {
             let mlp = MlpEmbedder::new(
                 256,
                 HIDDEN_SIZE,
                 cfg,
-                vb.pp("time_text_embed.guidance_embedder")
-                    .set_device(device.clone()),
+                vb.pp("time_text_embed.guidance_embedder"),
             )?;
             Some(mlp)
         } else {
             None
         };
-        let final_layer = LastLayer::new(
-            HIDDEN_SIZE,
-            1,
-            cfg.in_channels,
-            cfg,
-            vb.set_device(device.clone()),
-        )?;
+        let final_layer = LastLayer::new(HIDDEN_SIZE, 1, cfg.in_channels, cfg, vb)?;
         let pe_dim = HIDDEN_SIZE / cfg.num_attention_heads;
         let pe_embedder = EmbedNd::new(pe_dim, THETA, AXES_DIM.to_vec());
 
-        let x = txt_in.dequantize_w()?;
-        x.to_dtype(DType::F32)?.write_npy("unq_txt_in.npy")?;
-        panic!("done!");
         Ok(Self {
             img_in,
             txt_in,

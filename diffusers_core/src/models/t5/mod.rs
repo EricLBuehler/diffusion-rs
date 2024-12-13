@@ -4,8 +4,8 @@
 // https://github.com/huggingface/transformers/blob/main/src/transformers/models/t5/modeling_t5.py
 
 use candle_core::{DType, Device, Module, Result, Tensor, D};
-use candle_nn::{embedding, linear_no_bias, Activation, Embedding, Linear, VarBuilder};
-use float8::F8E4M3;
+use candle_nn::{Activation, Embedding, Linear};
+use diffusers_common::{embedding, linear_no_bias, VarBuilder};
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -510,14 +510,11 @@ impl TensorInfExtend for Tensor {
         match self.dtype() {
             DType::U8 => Ok(sum.to_scalar::<u8>()? == 0),
             DType::U32 => Ok(sum.to_scalar::<u32>()? == 0),
-            DType::I16 => Ok(sum.to_scalar::<i16>()? == 0),
-            DType::I32 => Ok(sum.to_scalar::<i32>()? == 0),
             DType::I64 => Ok(sum.to_scalar::<i64>()? == 0),
             DType::F16 => Ok(sum.to_scalar::<half::f16>()? == half::f16::from_f32_const(0.)),
             DType::BF16 => Ok(sum.to_scalar::<half::bf16>()? == half::bf16::from_f32_const(0.)),
             DType::F32 => Ok(sum.to_scalar::<f32>()? == 0.),
             DType::F64 => Ok(sum.to_scalar::<f64>()? == 0.),
-            DType::F8E4M3 => Ok(sum.to_scalar::<F8E4M3>()? == F8E4M3::ZERO),
         }
     }
 }
@@ -526,14 +523,11 @@ fn clamp_for_f16(xs: &Tensor) -> Result<Tensor> {
     let mut max = match xs.dtype() {
         DType::U8 => u8::MAX as f64 - 1000.,
         DType::U32 => u32::MAX as f64 - 1000.,
-        DType::I16 => i16::MAX as f64 - 1000.,
-        DType::I32 => i32::MAX as f64 - 1000.,
         DType::I64 => i64::MAX as f64 - 1000.,
         DType::F16 => half::f16::MAX.to_f64_const() - 1000.,
         DType::BF16 => half::bf16::MAX.to_f64_const() - 1000.,
         DType::F32 => f32::MAX as f64 - 1000.,
         DType::F64 => f64::MAX - 1000.,
-        DType::F8E4M3 => F8E4M3::MAX.to_f64() - 1000.,
     };
     if xs.is_inf()?.any()? {
         max -= 1000.;
@@ -635,7 +629,7 @@ impl T5Stack {
         let final_layer_norm = T5LayerNorm::load(
             cfg.d_model,
             cfg.layer_norm_epsilon,
-            vb.pp("final_layer_norm").set_device(device.clone()),
+            vb.pp("final_layer_norm"),
         )?;
         Ok(Self {
             block,
@@ -678,11 +672,7 @@ impl T5EncoderModel {
         } else {
             vb.pp("encoder").pp("embed_tokens")
         };
-        let shared = embedding(
-            cfg.vocab_size,
-            cfg.d_model,
-            shared_vb.set_device(device.clone()),
-        )?;
+        let shared = embedding(cfg.vocab_size, cfg.d_model, shared_vb)?;
         let shared = Arc::new(shared);
         let encoder = T5Stack::load(false, vb.pp("encoder"), &shared, cfg, device)?;
         Ok(Self { encoder })

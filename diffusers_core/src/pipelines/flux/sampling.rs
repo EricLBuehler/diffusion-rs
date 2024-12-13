@@ -2,7 +2,8 @@
 
 use candle_core::{Device, Result, Tensor};
 
-use crate::{models::FluxModel, util::NiceProgressBar};
+use crate::models::FluxModel;
+use diffusers_common::NiceProgressBar;
 
 pub fn get_noise(
     num_samples: usize,

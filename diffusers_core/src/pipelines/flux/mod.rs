@@ -12,8 +12,8 @@ use crate::{
         T5Config, T5EncoderModel, VAEModel,
     },
     pipelines::ComponentName,
-    util::from_mmaped_safetensors,
 };
+use diffusers_common::from_mmaped_safetensors;
 
 use super::{ComponentElem, DiffusionGenerationParams, Loader, ModelPipeline};
 
@@ -140,7 +140,7 @@ impl Loader for FluxLoader {
                 device,
                 false,
             )?;
-            FluxModel::new(&cfg, vb, device)?
+            FluxModel::new(&cfg, vb)?
         } else {
             anyhow::bail!("incorrect storage of flux model")
         };
