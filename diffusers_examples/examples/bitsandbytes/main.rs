@@ -13,7 +13,7 @@ fn main() -> anyhow::Result<()> {
         vec!["Draw a picture of a beautiful sunset in the winter in the mountains.".to_string()],
         DiffusionGenerationParams::default(),
     )?;
-    images[0].save("image.png")?;
+    images[0].save("image_dev.png")?;
 
     Ok(())
 }

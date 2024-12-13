@@ -2,7 +2,7 @@
 members = [
     "diffusers_core",
     "diffusers_examples",
-    "diffusers_quant",
+    "diffusers_backend",
     "diffusers_common",
 ]
 resolver = "2"

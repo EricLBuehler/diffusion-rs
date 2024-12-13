@@ -1,5 +1,5 @@
 [package]
-name = "diffusers_quant"
+name = "diffusers_backend"
 readme = "README.md"
 authors = ["Eric Buehler"]
 version.workspace = true

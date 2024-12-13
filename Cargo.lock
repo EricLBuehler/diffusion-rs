@@ -547,6 +547,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "diffusers_backend"
+version = "0.1.0"
+dependencies = [
+ "bindgen_cuda",
+ "byteorder",
+ "candle-core",
+ "candle-nn",
+ "diffusers_common",
+ "float8",
+ "half",
+ "lazy_static",
+ "metal 0.27.0",
+ "once_cell",
+ "paste",
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.4",
+]
+
+[[package]]
 name = "diffusers_common"
 version = "0.1.0"
 dependencies = [
@@ -567,8 +588,8 @@ dependencies = [
  "anyhow",
  "candle-core",
  "candle-nn",
+ "diffusers_backend",
  "diffusers_common",
- "diffusers_quant",
  "float8",
  "half",
  "hf-hub",
@@ -588,27 +609,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "diffusers_core",
-]
-
-[[package]]
-name = "diffusers_quant"
-version = "0.1.0"
-dependencies = [
- "bindgen_cuda",
- "byteorder",
- "candle-core",
- "candle-nn",
- "diffusers_common",
- "float8",
- "half",
- "lazy_static",
- "metal 0.27.0",
- "once_cell",
- "paste",
- "rayon",
- "serde",
- "serde_json",
- "thiserror 2.0.4",
 ]
 
 [[package]]
