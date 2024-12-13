@@ -49,12 +49,12 @@ impl QuantMethod for UnquantLinear {
             match a.device().location() {
                 DeviceLocation::Cuda { .. } => {
                     // Try to use cublaslt, otherwise fallback to gemm
-                    if let (Device::Cuda(_), Some(cublaslt)) =
-                        (a.device(), *CUBLASLT_HANDLE.lock().unwrap())
+                    if let (Device::Cuda(_), Some(cublaslt), true) =
+                        (a.device(), *CUBLASLT_HANDLE.lock().unwrap(), a.rank() == 3)
                     {
                         cublaslt
                             .batch_matmul(
-                                a,
+                                &a,
                                 &w,
                                 Some(&b.t()?.contiguous()?),
                                 None,
