@@ -210,7 +210,7 @@ impl ModelPipeline for FluxPipeline {
         )?;
         let clip_embed = self.clip_model.forward(&clip_input_ids)?;
 
-        let img: Tensor = sampling::get_noise(
+        let mut img = sampling::get_noise(
             t5_embed.dim(0)?,
             params.height,
             params.width,
@@ -237,7 +237,7 @@ impl ModelPipeline for FluxPipeline {
             self.scheduler_config.max_image_seq_len,
         );
 
-        let img = if self.flux_model.is_guidance() {
+        img = if self.flux_model.is_guidance() {
             sampling::denoise(
                 &self.flux_model,
                 &state.img,
@@ -260,14 +260,13 @@ impl ModelPipeline for FluxPipeline {
             )?
         };
 
-        let latent_img = sampling::unpack(&img, params.height, params.width)?;
+        img = sampling::unpack(&img, params.height, params.width)?;
 
-        let latent_img =
-            ((latent_img / self.vae_model.scale_factor())? + self.vae_model.shift_factor())?;
-        let img = self.vae_model.decode(&latent_img)?;
+        img = ((img / self.vae_model.scale_factor())? + self.vae_model.shift_factor())?;
+        img = self.vae_model.decode(&img)?;
 
-        let normalized_img = ((img.clamp(-1f32, 1f32)? + 1.0)? * 127.5)?.to_dtype(DType::U8)?;
+        img = ((img.clamp(-1f32, 1f32)? + 1.0)? * 127.5)?.to_dtype(DType::U8)?;
 
-        Ok(normalized_img)
+        Ok(img)
     }
 }
