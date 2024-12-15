@@ -22,6 +22,7 @@ license = "MIT"
 # candle-nn = { git = "https://github.com/EricLBuehler/candle.git", version = "0.8.0", rev = "6800496" }
 candle-core = "0.8.0"
 candle-nn = "0.8.0"
+clap = { version = "4.5.23", features = ["derive"] }
 serde = "1.0.215"
 serde_json = "1.0.133"
 float8 = "0.1.1"

@@ -12,3 +12,4 @@ homepage.workspace = true
 [dependencies]
 diffusers_core = { path = "../diffusers_core" }
 anyhow.workspace = true
+clap.workspace = true

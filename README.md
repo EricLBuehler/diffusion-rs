@@ -14,5 +14,8 @@ Blazingly fast inference of diffusion models.
   - `GGUF` (2-8 bit quantization)
 - Easy: Load models directly from the [🤗 diffusers](https://github.com/huggingface/diffusers) multifolder format
 
+## Examples
+- Examples with the Rust crate: [here](diffusers_examples/examples).
+
 ## Support matrix
 - FLUX.1 dev and FLUX.1 schnell
