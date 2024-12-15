@@ -694,14 +694,14 @@ impl Flux {
         .maybe_to_gguf_quant()?;
         let mut double_blocks = Vec::with_capacity(cfg.num_layers);
         let vb_d = vb.pp("transformer_blocks");
-        for idx in NiceProgressBar::<_, 'r'>(0..cfg.num_layers, "Loading double stream block") {
+        for idx in NiceProgressBar::<_, 'r'>(0..cfg.num_layers, "Loading double stream blocks") {
             let db = DoubleStreamBlock::new(cfg, vb_d.pp(idx))?;
             double_blocks.push(db)
         }
         let mut single_blocks = Vec::with_capacity(cfg.num_single_layers);
         let vb_s = vb.pp("single_transformer_blocks");
         for idx in
-            NiceProgressBar::<_, 'r'>(0..cfg.num_single_layers, "Loading double stream block")
+            NiceProgressBar::<_, 'r'>(0..cfg.num_single_layers, "Loading single stream blocks")
         {
             let sb = SingleStreamBlock::new(cfg, vb_s.pp(idx))?;
             single_blocks.push(sb)

@@ -8,7 +8,7 @@ use flux::FluxLoader;
 use image::{DynamicImage, RgbImage};
 use serde::Deserialize;
 
-use diffusers_common::{FileData, FileLoader, ModelSource, TokenSource};
+use diffusers_common::{FileData, FileLoader, ModelSource, NiceProgressBar, TokenSource};
 
 #[derive(Debug, Clone)]
 pub struct DiffusionGenerationParams {
@@ -122,7 +122,10 @@ impl Pipeline {
             other => anyhow::bail!("Unexpected loader type `{other:?}`."),
         };
         let mut components = HashMap::new();
-        for component in model_loader.required_component_names() {
+        for component in NiceProgressBar::<_, 'g'>(
+            model_loader.required_component_names().into_iter(),
+            "Loading components",
+        ) {
             let (files, from_transformer, dir) =
                 if component == ComponentName::Transformer && transformer_files.is_some() {
                     (transformer_files.clone().unwrap(), true, "".to_string())
