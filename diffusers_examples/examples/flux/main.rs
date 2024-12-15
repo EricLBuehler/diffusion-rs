@@ -18,7 +18,7 @@ struct Args {
 
     /// Prompt to use
     #[arg(short, long)]
-    prompt: String
+    prompt: String,
 }
 
 fn main() -> anyhow::Result<()> {
