@@ -13,9 +13,12 @@ Blazingly fast inference of diffusion models.
     - 🚧 Int8 (https://arxiv.org/abs/2208.07339) support is coming soon!
   - `GGUF` (2-8 bit quantization)
 - Easy: Load models directly from the [🤗 diffusers](https://github.com/huggingface/diffusers) multifolder format
+- Many devices: NVIDIA GPUs (CUDA), Apple M-series GPUs (Metal)
 
 ## Examples
 - Examples with the Rust crate: [here](diffusers_examples/examples).
 
 ## Support matrix
-- FLUX.1 dev and FLUX.1 schnell
+| Model | Supports quantization |
+| -- | -- |
+| FLUX.1 Dev/Schnell | ✅ |
