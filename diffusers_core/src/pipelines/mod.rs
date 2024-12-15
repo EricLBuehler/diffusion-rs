@@ -135,6 +135,7 @@ impl Pipeline {
             let files_for_component = files
                 .iter()
                 .filter(|file| file.starts_with(&dir))
+                .filter(|file| !file.ends_with('/'))
                 .cloned()
                 .collect::<Vec<_>>();
 
