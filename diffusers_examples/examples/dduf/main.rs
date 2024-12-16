@@ -9,7 +9,7 @@ struct Args {
 
     /// Prompt to use
     #[arg(short, long)]
-    prompt: String
+    prompt: String,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -22,10 +22,7 @@ fn main() -> anyhow::Result<()> {
         None,
     )?;
 
-    let images = pipeline.forward(
-        vec![args.prompt],
-        DiffusionGenerationParams::default(),
-    )?;
+    let images = pipeline.forward(vec![args.prompt], DiffusionGenerationParams::default())?;
     images[0].save("image.png")?;
 
     Ok(())

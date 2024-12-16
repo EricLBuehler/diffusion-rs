@@ -14,6 +14,7 @@ mod metal_kernels;
 mod bitsandbytes;
 mod cublaslt;
 mod gguf;
+pub mod ops;
 mod unquantized;
 
 pub use bitsandbytes::{BnbLinear, BnbQuantParmas, BnbQuantType};
