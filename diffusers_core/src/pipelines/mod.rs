@@ -15,23 +15,11 @@ pub struct DiffusionGenerationParams {
     pub height: usize,
     pub width: usize,
     /// The number of denoising steps. More denoising steps usually lead to a higher quality image at the
-    /// expense of slower inference. Defaults to 50.
-    pub num_steps: Option<usize>,
+    /// expense of slower inference but depends on the model being used.
+    pub num_steps: usize,
     /// Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
     /// usually at the expense of lower image quality. Defaults to 3.5.
     pub guidance_scale: f64,
-}
-
-impl Default for DiffusionGenerationParams {
-    /// Image dimensions will be 720x1280. Default steps for the model will be used.
-    fn default() -> Self {
-        Self {
-            height: 720,
-            width: 1280,
-            num_steps: None,
-            guidance_scale: 3.5,
-        }
-    }
 }
 
 #[derive(Debug)]

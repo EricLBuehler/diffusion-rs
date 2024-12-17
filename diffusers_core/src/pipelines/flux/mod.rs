@@ -218,9 +218,7 @@ impl ModelPipeline for FluxPipeline {
             None
         };
         let timesteps = sampling::get_schedule(
-            params
-                .num_steps
-                .unwrap_or(if self.flux_model.is_guidance() { 50 } else { 4 }),
+            params.num_steps,
             shift,
             self.scheduler_config.base_image_seq_len,
             self.scheduler_config.max_image_seq_len,

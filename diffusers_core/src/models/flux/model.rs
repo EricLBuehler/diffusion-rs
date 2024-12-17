@@ -376,9 +376,19 @@ impl SelfAttention {
     }
 
     fn qkv(&self, xs: &Tensor) -> Result<(Tensor, Tensor, Tensor)> {
-        let mut q = self.q.forward_autocast(xs)?;
-        let mut k = self.k.forward_autocast(xs)?;
-        let mut v = self.v.forward_autocast(xs)?;
+        let original_dtype = xs.dtype();
+        let mut xs = xs.clone();
+        if let Some(t) = self.q.quantized_act_type() {
+            xs = xs.to_dtype(t)?;
+        }
+        let mut q = self.q.forward(&xs)?;
+        let mut k = self.k.forward(&xs)?;
+        let mut v = self.v.forward(&xs)?;
+        if self.q.quantized_act_type().is_some() {
+            q = q.to_dtype(original_dtype)?;
+            k = k.to_dtype(original_dtype)?;
+            v = v.to_dtype(original_dtype)?;
+        }
         let (b, l, _khd) = q.dims3()?;
         q = q
             .reshape((b, l, self.num_attention_heads, ()))?

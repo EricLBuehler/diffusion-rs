@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use diffusers_core::{DiffusionGenerationParams, ModelSource, Pipeline, TokenSource};
 
 use clap::{Parser, ValueEnum};
@@ -35,11 +37,30 @@ fn main() -> anyhow::Result<()> {
         TokenSource::CacheToken,
         None,
     )?;
+    let num_steps = match args.which {
+        Which::Dev => 50,
+        Which::Schnell => 4,
+    };
+    let guidance_scale = match args.which {
+        Which::Dev => 3.5,
+        Which::Schnell => 0.0,
+    };
+
+    let start = Instant::now();
 
     let images = pipeline.forward(
-        vec![args.prompt.to_string()],
-        DiffusionGenerationParams::default(),
+        vec![args.prompt],
+        DiffusionGenerationParams {
+            height: 720,
+            width: 1280,
+            num_steps,
+            guidance_scale,
+        },
     )?;
+
+    let end = Instant::now();
+    println!("Took: {:.2}s", end.duration_since(start).as_secs_f32());
+
     images[0].save("image.png")?;
 
     Ok(())
