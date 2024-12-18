@@ -108,7 +108,10 @@ fn main() -> anyhow::Result<()> {
         )?;
 
         let end = Instant::now();
-        println!("Image generation took: {:.2}s", end.duration_since(start).as_secs_f32());
+        println!(
+            "Image generation took: {:.2}s",
+            end.duration_since(start).as_secs_f32()
+        );
 
         let out_file: String = input("Save image to:")
             .validate(|input: &String| {
