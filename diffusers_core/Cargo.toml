@@ -26,6 +26,7 @@ tqdm.workspace = true
 indicatif.workspace = true
 thiserror.workspace = true
 image.workspace = true
+tracing.workspace = true
 
 [features]
 cuda = ["candle-core/cuda", "candle-nn/cuda", "diffusers_backend/cuda"]

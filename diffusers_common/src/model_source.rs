@@ -1,6 +1,6 @@
 use std::{
     ffi::OsStr,
-    fmt::Debug,
+    fmt::{Debug, Display},
     fs::{self, File},
     io::Cursor,
     path::PathBuf,
@@ -22,7 +22,24 @@ pub enum ModelSource {
     },
     Dduf {
         file: File,
+        name: String,
     },
+}
+
+impl Display for ModelSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Dduf { file: _, name } => write!(f, "dduf file: {name}"),
+            Self::ModelId(model_id) => write!(f, "model id: {model_id}"),
+            Self::ModelIdWithTransformer {
+                model_id,
+                transformer_model_id,
+            } => write!(
+                f,
+                "model id: {model_id}, transformer override: {transformer_model_id}"
+            ),
+        }
+    }
 }
 
 impl ModelSource {
@@ -43,6 +60,7 @@ impl ModelSource {
     pub fn dduf<S: ToString>(filename: S) -> anyhow::Result<Self> {
         Ok(Self::Dduf {
             file: File::open(filename.to_string())?,
+            name: filename.to_string(),
         })
     }
 }
@@ -78,7 +96,7 @@ impl FileLoader {
 
                 Ok(Self::Api(Box::new(api)))
             }
-            ModelSource::Dduf { file } => {
+            ModelSource::Dduf { file, name: _ } => {
                 let mmap = unsafe { Mmap::map(&file)? };
                 let cursor = Cursor::new(mmap);
                 Ok(Self::Dduf(ZipArchive::new(cursor)?))

@@ -9,6 +9,7 @@ use diffusers_common::VarBuilder;
 use serde::Deserialize;
 
 use diffusers_common::NiceProgressBar;
+use tracing::{span, Span};
 
 const MLP_RATIO: f64 = 4.;
 const HIDDEN_SIZE: usize = 3072;
@@ -219,6 +220,7 @@ impl ModulationOut {
 #[derive(Debug, Clone)]
 struct Modulation1 {
     lin: Arc<dyn QuantMethod>,
+    mod1: Span,
 }
 
 impl Modulation1 {
@@ -226,10 +228,14 @@ impl Modulation1 {
         let lin =
             diffusers_backend::linear(dim, 3 * dim, &cfg.quantization_config, vb.pp("linear"))?
                 .maybe_to_gguf_quant()?;
-        Ok(Self { lin })
+        Ok(Self {
+            lin,
+            mod1: span!(tracing::Level::TRACE, "flux-mod1"),
+        })
     }
 
     fn forward(&self, vec_: &Tensor) -> Result<ModulationOut> {
+        let _span = self.mod1.enter();
         let ys = self
             .lin
             .forward_autocast(&vec_.silu()?)?
@@ -249,6 +255,7 @@ impl Modulation1 {
 #[derive(Debug, Clone)]
 struct Modulation2 {
     lin: Arc<dyn QuantMethod>,
+    mod2: Span,
 }
 
 impl Modulation2 {
@@ -256,10 +263,14 @@ impl Modulation2 {
         let lin =
             diffusers_backend::linear(dim, 6 * dim, &cfg.quantization_config, vb.pp("linear"))?
                 .maybe_to_gguf_quant()?;
-        Ok(Self { lin })
+        Ok(Self {
+            lin,
+            mod2: span!(tracing::Level::TRACE, "flux-mod2"),
+        })
     }
 
     fn forward(&self, vec_: &Tensor) -> Result<(ModulationOut, ModulationOut)> {
+        let _span = self.mod2.enter();
         let ys = self
             .lin
             .forward_autocast(&vec_.silu()?)?
@@ -290,6 +301,8 @@ pub struct SelfAttention {
     norm: QkNorm,
     proj: Arc<dyn QuantMethod>,
     num_attention_heads: usize,
+    qkv: Span,
+    fwd: Span,
 }
 
 impl SelfAttention {
@@ -372,13 +385,26 @@ impl SelfAttention {
             norm,
             proj,
             num_attention_heads,
+            qkv: span!(tracing::Level::TRACE, "flux-selfattn-qkv"),
+            fwd: span!(tracing::Level::TRACE, "flux-selfattn-fwd"),
         })
     }
 
     fn qkv(&self, xs: &Tensor) -> Result<(Tensor, Tensor, Tensor)> {
-        let mut q = self.q.forward_autocast(xs)?;
-        let mut k = self.k.forward_autocast(xs)?;
-        let mut v = self.v.forward_autocast(xs)?;
+        let _span = self.qkv.enter();
+        let original_dtype = xs.dtype();
+        let mut xs = xs.clone();
+        if let Some(t) = self.q.quantized_act_type() {
+            xs = xs.to_dtype(t)?;
+        }
+        let mut q = self.q.forward(&xs)?;
+        let mut k = self.k.forward(&xs)?;
+        let mut v = self.v.forward(&xs)?;
+        if self.q.quantized_act_type().is_some() {
+            q = q.to_dtype(original_dtype)?;
+            k = k.to_dtype(original_dtype)?;
+            v = v.to_dtype(original_dtype)?;
+        }
         let (b, l, _khd) = q.dims3()?;
         q = q
             .reshape((b, l, self.num_attention_heads, ()))?
@@ -396,6 +422,7 @@ impl SelfAttention {
 
     #[allow(unused)]
     fn forward(&self, xs: &Tensor, pe: &Tensor) -> Result<Tensor> {
+        let _span = self.fwd.enter();
         let (q, k, v) = self.qkv(xs)?;
         self.proj.forward_autocast(&attention(&q, &k, &v, pe)?)
     }
@@ -405,6 +432,7 @@ impl SelfAttention {
 struct Mlp {
     lin1: Arc<dyn QuantMethod>,
     lin2: Arc<dyn QuantMethod>,
+    mlp: Span,
 }
 
 impl Mlp {
@@ -414,12 +442,17 @@ impl Mlp {
                 .maybe_to_gguf_quant()?;
         let lin2 = diffusers_backend::linear(mlp_sz, in_sz, &cfg.quantization_config, vb.pp("2"))?
             .maybe_to_gguf_quant()?;
-        Ok(Self { lin1, lin2 })
+        Ok(Self {
+            lin1,
+            lin2,
+            mlp: span!(tracing::Level::TRACE, "flux-mlp"),
+        })
     }
 }
 
 impl candle_core::Module for Mlp {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let _span = self.mlp.enter();
         self.lin2
             .forward_autocast(&self.lin1.forward_autocast(xs)?.gelu()?)
     }

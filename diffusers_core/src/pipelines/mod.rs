@@ -9,29 +9,18 @@ use image::{DynamicImage, RgbImage};
 use serde::Deserialize;
 
 use diffusers_common::{FileData, FileLoader, ModelSource, NiceProgressBar, TokenSource};
+use tracing::info;
 
 #[derive(Debug, Clone)]
 pub struct DiffusionGenerationParams {
     pub height: usize,
     pub width: usize,
     /// The number of denoising steps. More denoising steps usually lead to a higher quality image at the
-    /// expense of slower inference. Defaults to 50.
-    pub num_steps: Option<usize>,
+    /// expense of slower inference but depends on the model being used.
+    pub num_steps: usize,
     /// Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
     /// usually at the expense of lower image quality. Defaults to 3.5.
     pub guidance_scale: f64,
-}
-
-impl Default for DiffusionGenerationParams {
-    /// Image dimensions will be 720x1280. Default steps for the model will be used.
-    fn default() -> Self {
-        Self {
-            height: 720,
-            width: 1280,
-            num_steps: None,
-            guidance_scale: 3.5,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -72,6 +61,7 @@ impl Display for ComponentName {
 }
 
 pub(crate) trait Loader {
+    fn name(&self) -> &'static str;
     fn required_component_names(&self) -> Vec<ComponentName>;
     fn load_from_components(
         &self,
@@ -103,6 +93,8 @@ impl Pipeline {
         token: TokenSource,
         revision: Option<String>,
     ) -> Result<Self> {
+        info!("loading from source: {source}.");
+
         let mut loader = FileLoader::from_model_source(source, silent, token, revision)?;
         let files = loader.list_files()?;
         let transformer_files = loader.list_transformer_files()?;
@@ -117,10 +109,13 @@ impl Pipeline {
                 .read_to_string()?,
         )?;
 
-        let model_loader = match name.as_str() {
+        let model_loader: Box<dyn Loader> = match name.as_str() {
             "FluxPipeline" => Box::new(FluxLoader),
             other => anyhow::bail!("Unexpected loader type `{other:?}`."),
         };
+
+        info!("model architecture is: {}", model_loader.name());
+
         let mut components = HashMap::new();
         for component in NiceProgressBar::<_, 'g'>(
             model_loader.required_component_names().into_iter(),
