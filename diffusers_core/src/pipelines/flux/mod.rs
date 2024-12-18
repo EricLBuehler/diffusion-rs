@@ -143,7 +143,10 @@ impl Loader for FluxLoader {
             anyhow::bail!("incorrect storage of flux model")
         };
 
-        info!("FLUX pipeline using a guidance-distilled model: {}", flux_component.is_guidance());
+        info!(
+            "FLUX pipeline using a guidance-distilled model: {}",
+            flux_component.is_guidance()
+        );
 
         let pipeline = FluxPipeline {
             clip_tokenizer: Arc::new(clip_tokenizer),

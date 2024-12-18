@@ -4,6 +4,7 @@ use candle_core::{Result, Tensor, D};
 use candle_nn::{Activation, Conv2d, Conv2dConfig, GroupNorm};
 use diffusers_common::{conv2d, group_norm, linear, VarBuilder};
 use serde::Deserialize;
+use tracing::{span, Span};
 
 fn default_act() -> Activation {
     Activation::Silu
@@ -38,6 +39,7 @@ struct AttnBlock {
     v: Conv2d,
     out: Conv2d,
     norm: GroupNorm,
+    attn: Span,
 }
 
 impl AttnBlock {
@@ -79,12 +81,20 @@ impl AttnBlock {
             Conv2dConfig::default(),
         );
         let norm = group_norm(cfg.norm_num_groups, in_c, 1e-6, vb.pp("group_norm"))?;
-        Ok(Self { q, k, v, out, norm })
+        Ok(Self {
+            q,
+            k,
+            v,
+            out,
+            norm,
+            attn: span!(tracing::Level::TRACE, "vae-attn"),
+        })
     }
 }
 
 impl candle_core::Module for AttnBlock {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let _span = self.attn.enter();
         let init_xs = xs;
         let xs = xs.apply(&self.norm)?;
         let q = xs.apply(&self.q)?;
@@ -108,6 +118,7 @@ struct ResnetBlock {
     conv2: Conv2d,
     nin_shortcut: Option<Conv2d>,
     act_fn: Activation,
+    resnet: Span,
 }
 
 impl ResnetBlock {
@@ -138,12 +149,14 @@ impl ResnetBlock {
             conv2,
             nin_shortcut,
             act_fn: cfg.act_fn,
+            resnet: span!(tracing::Level::TRACE, "vae-resnet"),
         })
     }
 }
 
 impl candle_core::Module for ResnetBlock {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let _span = self.resnet.enter();
         let h = xs
             .apply(&self.norm1)?
             .apply(&self.act_fn)?
@@ -161,6 +174,7 @@ impl candle_core::Module for ResnetBlock {
 #[derive(Debug, Clone)]
 struct Downsample {
     conv: Conv2d,
+    downsample: Span,
 }
 
 impl Downsample {
@@ -170,12 +184,16 @@ impl Downsample {
             ..Default::default()
         };
         let conv = conv2d(in_c, in_c, 3, conv_cfg, vb.pp("conv"))?;
-        Ok(Self { conv })
+        Ok(Self {
+            conv,
+            downsample: span!(tracing::Level::TRACE, "vae-downsample"),
+        })
     }
 }
 
 impl candle_core::Module for Downsample {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let _span = self.downsample.enter();
         let xs = xs.pad_with_zeros(D::Minus1, 0, 1)?;
         let xs = xs.pad_with_zeros(D::Minus2, 0, 1)?;
         xs.apply(&self.conv)
@@ -185,6 +203,7 @@ impl candle_core::Module for Downsample {
 #[derive(Debug, Clone)]
 struct Upsample {
     conv: Conv2d,
+    upsample: Span,
 }
 
 impl Upsample {
@@ -194,12 +213,16 @@ impl Upsample {
             ..Default::default()
         };
         let conv = conv2d(in_c, in_c, 3, conv_cfg, vb.pp("conv"))?;
-        Ok(Self { conv })
+        Ok(Self {
+            conv,
+            upsample: span!(tracing::Level::TRACE, "vae-upsample"),
+        })
     }
 }
 
 impl candle_core::Module for Upsample {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
+        let _ = self.upsample.enter();
         let (_, _, h, w) = xs.dims4()?;
         xs.upsample_nearest2d(h * 2, w * 2)?.apply(&self.conv)
     }
