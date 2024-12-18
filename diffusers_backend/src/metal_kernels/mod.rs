@@ -32,7 +32,7 @@ pub enum MetalKernelError {
     FailedToCreatePipeline(String),
     #[error("dtype mismatch, got {got:?}, expected {expected:?}")]
     DTypeMismatch { expected: Vec<DType>, got: DType },
-    #[error("Sdpa {variation} head size was {got}, expectd {expected:?}")]
+    #[error("Sdpa {variation} head size was {got}, expected {expected:?}")]
     SdpaHeadSizeMismatch {
         variation: &'static str,
         got: usize,
