@@ -58,36 +58,37 @@ fn main() -> anyhow::Result<()> {
     };
     let token = args
         .token
-        .map(|t| TokenSource::Literal(t))
+        .map(TokenSource::Literal)
         .unwrap_or(TokenSource::CacheToken);
 
     let pipeline = Pipeline::load(source, false, token, None)?;
+
+    let height: usize = input("Height:")
+        .default_input("720")
+        .validate(|input: &String| {
+            if input.parse::<usize>().map_err(|e| e.to_string())? == 0 {
+                Err("Nonzero value is required!".to_string())
+            } else {
+                Ok(())
+            }
+        })
+        .interact()?;
+    let width: usize = input("Width:")
+        .default_input("1280")
+        .validate(|input: &String| {
+            if input.parse::<usize>().map_err(|e| e.to_string())? == 0 {
+                Err("Nonzero value is required!".to_string())
+            } else {
+                Ok(())
+            }
+        })
+        .interact()?;
 
     loop {
         let prompt: String = input("Prompt:")
             .validate(|input: &String| {
                 if input.is_empty() {
                     Err("Prompt is required!")
-                } else {
-                    Ok(())
-                }
-            })
-            .interact()?;
-        let height: usize = input("Height:")
-            .default_input("720")
-            .validate(|input: &String| {
-                if input.parse::<usize>().map_err(|e| e.to_string())? == 0 {
-                    Err("Nonzero value is required!".to_string())
-                } else {
-                    Ok(())
-                }
-            })
-            .interact()?;
-        let width: usize = input("Width:")
-            .default_input("1280")
-            .validate(|input: &String| {
-                if input.parse::<usize>().map_err(|e| e.to_string())? == 0 {
-                    Err("Nonzero value is required!".to_string())
                 } else {
                     Ok(())
                 }
@@ -107,9 +108,12 @@ fn main() -> anyhow::Result<()> {
         )?;
 
         let end = Instant::now();
-        println!("Took: {:.2}s", end.duration_since(start).as_secs_f32());
+        println!(
+            "Image generation took: {:.2}s",
+            end.duration_since(start).as_secs_f32()
+        );
 
-        let out_file: String = input("Output file:")
+        let out_file: String = input("Save image to:")
             .validate(|input: &String| {
                 if input.is_empty() {
                     Err("Prompt is required!")
