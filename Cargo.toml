@@ -45,3 +45,5 @@ byteorder = "1.5.0"
 safetensors = "0.4.1"
 zip = "2.2.1"
 memmap2 = "0.9.5"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

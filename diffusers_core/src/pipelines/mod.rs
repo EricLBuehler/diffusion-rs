@@ -9,6 +9,7 @@ use image::{DynamicImage, RgbImage};
 use serde::Deserialize;
 
 use diffusers_common::{FileData, FileLoader, ModelSource, NiceProgressBar, TokenSource};
+use tracing::info;
 
 #[derive(Debug, Clone)]
 pub struct DiffusionGenerationParams {
@@ -60,6 +61,7 @@ impl Display for ComponentName {
 }
 
 pub(crate) trait Loader {
+    fn name(&self) -> &'static str;
     fn required_component_names(&self) -> Vec<ComponentName>;
     fn load_from_components(
         &self,
@@ -91,6 +93,8 @@ impl Pipeline {
         token: TokenSource,
         revision: Option<String>,
     ) -> Result<Self> {
+        info!("loading from source: {source}.");
+
         let mut loader = FileLoader::from_model_source(source, silent, token, revision)?;
         let files = loader.list_files()?;
         let transformer_files = loader.list_transformer_files()?;
@@ -105,10 +109,13 @@ impl Pipeline {
                 .read_to_string()?,
         )?;
 
-        let model_loader = match name.as_str() {
+        let model_loader: Box<dyn Loader> = match name.as_str() {
             "FluxPipeline" => Box::new(FluxLoader),
             other => anyhow::bail!("Unexpected loader type `{other:?}`."),
         };
+
+        info!("model architecture is: {}", model_loader.name());
+
         let mut components = HashMap::new();
         for component in NiceProgressBar::<_, 'g'>(
             model_loader.required_component_names().into_iter(),

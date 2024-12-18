@@ -3,6 +3,8 @@ use std::time::Instant;
 use diffusers_core::{DiffusionGenerationParams, ModelSource, Pipeline, TokenSource};
 
 use clap::{Parser, ValueEnum};
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::EnvFilter;
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum)]
 enum Which {
@@ -25,6 +27,11 @@ struct Args {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+
+    let filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env_lossy();
+    tracing_subscriber::fmt().with_env_filter(filter).init();
 
     let model_id = match args.which {
         Which::Dev => "black-forest-labs/FLUX.1-dev",

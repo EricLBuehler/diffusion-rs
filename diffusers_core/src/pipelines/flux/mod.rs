@@ -5,6 +5,7 @@ use candle_core::{DType, Device, Tensor, D};
 use candle_nn::Module;
 use serde::Deserialize;
 use tokenizers::{models::bpe::BPE, ModelWrapper, Tokenizer};
+use tracing::info;
 
 use crate::{
     models::{
@@ -32,6 +33,10 @@ struct SchedulerConfig {
 }
 
 impl Loader for FluxLoader {
+    fn name(&self) -> &'static str {
+        "flux"
+    }
+
     fn required_component_names(&self) -> Vec<ComponentName> {
         vec![
             ComponentName::Scheduler,
@@ -87,6 +92,7 @@ impl Loader for FluxLoader {
         } else {
             anyhow::bail!("incorrect storage of t5 tokenizer")
         };
+        info!("loading CLIP model");
         let clip_component = if let ComponentElem::Model {
             safetensors,
             config,
@@ -100,6 +106,7 @@ impl Loader for FluxLoader {
         } else {
             anyhow::bail!("incorrect storage of clip model")
         };
+        info!("loading T5 model");
         let t5_component = if let ComponentElem::Model {
             safetensors,
             config,
@@ -112,6 +119,7 @@ impl Loader for FluxLoader {
         } else {
             anyhow::bail!("incorrect storage of t5 model")
         };
+        info!("loading VAE model");
         let vae_component = if let ComponentElem::Model {
             safetensors,
             config,
@@ -121,6 +129,7 @@ impl Loader for FluxLoader {
         } else {
             anyhow::bail!("incorrect storage of vae model")
         };
+        info!("loading FLUX model");
         let flux_component = if let ComponentElem::Model {
             safetensors,
             config,
@@ -133,6 +142,8 @@ impl Loader for FluxLoader {
         } else {
             anyhow::bail!("incorrect storage of flux model")
         };
+
+        info!("FLUX pipeline using a guidance-distilled model: {}", flux_component.is_guidance());
 
         let pipeline = FluxPipeline {
             clip_tokenizer: Arc::new(clip_tokenizer),

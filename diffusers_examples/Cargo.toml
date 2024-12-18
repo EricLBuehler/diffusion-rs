@@ -13,3 +13,5 @@ homepage.workspace = true
 diffusers_core = { path = "../diffusers_core" }
 anyhow.workspace = true
 clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
