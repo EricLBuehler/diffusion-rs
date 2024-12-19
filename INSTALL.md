@@ -25,7 +25,7 @@ cd diffuse-rs
 4) Install the `diffuse_rs_cli` CLI
 
 > [!NOTE]
-> Replace the `...` with [feature flags](FEATURE_FLAGS.md) below to build for Nvidia GPUs (CUDA) or Apple Silicon GPUs (Metal)
+> Replace the `...` below with [feature flags](FEATURE_FLAGS.md) to build for Nvidia GPUs (CUDA) or Apple Silicon GPUs (Metal)
 
 ```
 cargo install --path diffuse_rs_cli --release --features ...
@@ -64,7 +64,7 @@ pip install maturin
 5) Install the Python bindings
 
 > [!NOTE]
-> Replace the `...` with [feature flags](FEATURE_FLAGS.md) below to build for Nvidia GPUs (CUDA) or Apple Silicon GPUs (Metal)
+> Replace the `...` below with [feature flags](FEATURE_FLAGS.md) to build for Nvidia GPUs (CUDA) or Apple Silicon GPUs (Metal)
 
 ```
 maturin develop -m diffuse_rs_py/Cargo.toml --release --features ...
@@ -93,7 +93,7 @@ image.show()
 ```
 
 ## Rust crate
-1) Installing diffuse-rs via the CLI requires a few prerequisites:
+1) Installing diffuse-rs for usage as a Rust crate requires a few prerequisites:
     - Install the Rust programming language
         - Follow the instructions on this site: https://rustup.rs/
     - (*Linux/Mac only*) Install OpenSSL (*Ubuntu:* `sudo apt install libssl-dev`, *Brew:* `brew install openssl`)

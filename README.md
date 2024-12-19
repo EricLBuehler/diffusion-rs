@@ -48,9 +48,10 @@ image.show()
 ```
 
 **Rust crate:**
+
 Examples with the Rust crate: [here](diffusers_examples/examples).
 
 ## Support matrix
 | Model | Supports DDUF | Supports quantized DDUF |
-| -- | -- |
+| -- | -- | -- |
 | FLUX.1 Dev/Schnell | ✅ | ✅ |
