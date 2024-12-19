@@ -162,11 +162,9 @@ pub struct MlpEmbedder {
 impl MlpEmbedder {
     fn new(in_sz: usize, h_sz: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let in_layer =
-            diffuse_rs_backend::linear(in_sz, h_sz, &cfg.quantization_config, vb.pp("linear_1"))?
-                .maybe_to_gguf_quant()?;
+            diffuse_rs_backend::linear(in_sz, h_sz, &cfg.quantization_config, vb.pp("linear_1"))?;
         let out_layer =
-            diffuse_rs_backend::linear(h_sz, h_sz, &cfg.quantization_config, vb.pp("linear_2"))?
-                .maybe_to_gguf_quant()?;
+            diffuse_rs_backend::linear(h_sz, h_sz, &cfg.quantization_config, vb.pp("linear_2"))?;
         Ok(Self {
             in_layer,
             out_layer,
@@ -226,8 +224,7 @@ struct Modulation1 {
 impl Modulation1 {
     fn new(dim: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let lin =
-            diffuse_rs_backend::linear(dim, 3 * dim, &cfg.quantization_config, vb.pp("linear"))?
-                .maybe_to_gguf_quant()?;
+            diffuse_rs_backend::linear(dim, 3 * dim, &cfg.quantization_config, vb.pp("linear"))?;
         Ok(Self {
             lin,
             mod1: span!(tracing::Level::TRACE, "flux-mod1"),
@@ -261,8 +258,7 @@ struct Modulation2 {
 impl Modulation2 {
     fn new(dim: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let lin =
-            diffuse_rs_backend::linear(dim, 6 * dim, &cfg.quantization_config, vb.pp("linear"))?
-                .maybe_to_gguf_quant()?;
+            diffuse_rs_backend::linear(dim, 6 * dim, &cfg.quantization_config, vb.pp("linear"))?;
         Ok(Self {
             lin,
             mod2: span!(tracing::Level::TRACE, "flux-mod2"),
@@ -322,28 +318,24 @@ impl SelfAttention {
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("to_q"),
-            )?
-            .maybe_to_gguf_quant()?;
+            )?;
             let k = diffuse_rs_backend::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("to_k"),
-            )?
-            .maybe_to_gguf_quant()?;
+            )?;
             let v = diffuse_rs_backend::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("to_v"),
-            )?
-            .maybe_to_gguf_quant()?;
+            )?;
             let norm = QkNorm::new(head_dim, vb.pp("norm_q"), vb.pp("norm_k"))?;
             let proj =
-                diffuse_rs_backend::linear(dim, dim, &cfg.quantization_config, vb.pp("to_out.0"))?
-                    .maybe_to_gguf_quant()?;
+                diffuse_rs_backend::linear(dim, dim, &cfg.quantization_config, vb.pp("to_out.0"))?;
 
             (q, k, v, norm, proj)
         } else {
@@ -353,32 +345,28 @@ impl SelfAttention {
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("add_q_proj"),
-            )?
-            .maybe_to_gguf_quant()?;
+            )?;
             let k = diffuse_rs_backend::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("add_k_proj"),
-            )?
-            .maybe_to_gguf_quant()?;
+            )?;
             let v = diffuse_rs_backend::linear_b(
                 dim,
                 dim,
                 qkv_bias,
                 &cfg.quantization_config,
                 vb.pp("add_v_proj"),
-            )?
-            .maybe_to_gguf_quant()?;
+            )?;
             let norm = QkNorm::new(head_dim, vb.pp("norm_added_q"), vb.pp("norm_added_k"))?;
             let proj = diffuse_rs_backend::linear(
                 dim,
                 dim,
                 &cfg.quantization_config,
                 vb.pp("to_add_out"),
-            )?
-            .maybe_to_gguf_quant()?;
+            )?;
 
             (q, k, v, norm, proj)
         };
@@ -442,10 +430,8 @@ struct Mlp {
 impl Mlp {
     fn new(in_sz: usize, mlp_sz: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let lin1 =
-            diffuse_rs_backend::linear(in_sz, mlp_sz, &cfg.quantization_config, vb.pp("0.proj"))?
-                .maybe_to_gguf_quant()?;
-        let lin2 = diffuse_rs_backend::linear(mlp_sz, in_sz, &cfg.quantization_config, vb.pp("2"))?
-            .maybe_to_gguf_quant()?;
+            diffuse_rs_backend::linear(in_sz, mlp_sz, &cfg.quantization_config, vb.pp("0.proj"))?;
+        let lin2 = diffuse_rs_backend::linear(mlp_sz, in_sz, &cfg.quantization_config, vb.pp("2"))?;
         Ok(Self {
             lin1,
             lin2,
@@ -589,40 +575,35 @@ impl SingleStreamBlock {
             true,
             &cfg.quantization_config,
             vb.pp("attn.to_q"),
-        )?
-        .maybe_to_gguf_quant()?;
+        )?;
         let k = diffuse_rs_backend::linear_b(
             h_sz,
             h_sz,
             true,
             &cfg.quantization_config,
             vb.pp("attn.to_k"),
-        )?
-        .maybe_to_gguf_quant()?;
+        )?;
         let v = diffuse_rs_backend::linear_b(
             h_sz,
             h_sz,
             true,
             &cfg.quantization_config,
             vb.pp("attn.to_v"),
-        )?
-        .maybe_to_gguf_quant()?;
+        )?;
         let proj_mlp = diffuse_rs_backend::linear_b(
             h_sz,
             mlp_sz,
             true,
             &cfg.quantization_config,
             vb.pp("proj_mlp"),
-        )?
-        .maybe_to_gguf_quant()?;
+        )?;
 
         let linear2 = diffuse_rs_backend::linear(
             h_sz + mlp_sz,
             h_sz,
             &cfg.quantization_config,
             vb.pp("proj_out"),
-        )?
-        .maybe_to_gguf_quant()?;
+        )?;
         let norm = QkNorm::new(head_dim, vb.pp("attn.norm_q"), vb.pp("attn.norm_k"))?;
         let pre_norm = layer_norm(h_sz, vb.pp("pre_norm"))?;
         let modulation = Modulation1::new(h_sz, cfg, vb.pp("norm"))?;
@@ -681,15 +662,13 @@ impl LastLayer {
             p_sz * p_sz * out_c,
             &cfg.quantization_config,
             vb.pp("proj_out"),
-        )?
-        .maybe_to_gguf_quant()?;
+        )?;
         let ada_ln_modulation = diffuse_rs_backend::linear(
             h_sz,
             2 * h_sz,
             &cfg.quantization_config,
             vb.pp("norm_out.linear"),
-        )?
-        .maybe_to_gguf_quant()?;
+        )?;
         Ok(Self {
             norm_final,
             linear,
@@ -731,15 +710,13 @@ impl Flux {
             HIDDEN_SIZE,
             &cfg.quantization_config,
             vb.pp("x_embedder"),
-        )?
-        .maybe_to_gguf_quant()?;
+        )?;
         let txt_in = diffuse_rs_backend::linear(
             cfg.joint_attention_dim,
             HIDDEN_SIZE,
             &cfg.quantization_config,
             vb.pp("context_embedder"),
-        )?
-        .maybe_to_gguf_quant()?;
+        )?;
         let mut double_blocks = Vec::with_capacity(cfg.num_layers);
         let vb_d = vb.pp("transformer_blocks");
         for idx in NiceProgressBar::<_, 'r'>(0..cfg.num_layers, "Loading double stream blocks") {
