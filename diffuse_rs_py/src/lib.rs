@@ -10,25 +10,12 @@ fn wrap_anyhow_error(e: anyhow::Error) -> pyo3::PyErr {
     pyo3::exceptions::PyValueError::new_err(e.to_string())
 }
 
-macro_rules! generate_repr {
-    ($t:ident) => {
-        #[pymethods]
-        impl $t {
-            fn __repr__(&self) -> String {
-                format!("{self:#?}")
-            }
-        }
-    };
-}
-
 #[pyclass]
 #[derive(Clone, Debug)]
 pub enum ModelSource {
     ModelId(String),
     DdufFile(String),
 }
-
-generate_repr!(ModelSource);
 
 #[pyclass]
 #[pyo3(get_all)]
@@ -40,7 +27,37 @@ pub struct DiffusionGenerationParams {
     pub guidance_scale: f64,
 }
 
-generate_repr!(DiffusionGenerationParams);
+#[pymethods]
+impl DiffusionGenerationParams {
+    #[new]
+    #[pyo3(signature = (
+        height,
+        width,
+        num_steps,
+        guidance_scale,
+    ))]
+    pub fn new(
+        height: usize,
+        width: usize,
+        num_steps: usize,
+        guidance_scale: f64,
+    ) -> PyResult<Self> {
+        Ok(Self {
+            height,
+            width,
+            num_steps,
+            guidance_scale,
+        })
+    }
+
+    pub fn __repr__(&self) -> String {
+        format!("DiffusionGenerationParams(height = {}, width = {}, num_steps = {}, guidance_scale = {})", self.height,self.width,self.num_steps,self.guidance_scale)
+    }
+
+    pub fn __str__(&self) -> String {
+        self.__repr__()
+    }
+}
 
 #[pyclass]
 pub struct Pipeline(diffuse_rs_core::Pipeline);
