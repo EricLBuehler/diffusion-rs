@@ -25,7 +25,7 @@ After [installing](#installation), you can try out these examples!
 
 **CLI:**
 ```bash
-> diffusers_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
+> diffuse_rs_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
 ```
 
 ## Support matrix

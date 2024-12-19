@@ -1,10 +1,11 @@
 [workspace]
 members = [
-    "diffusers_core",
-    "diffusers_examples",
-    "diffusers_backend",
-    "diffusers_common",
-    "diffusers_cli",
+    "diffuse_rs_core",
+    "diffuse_rs_examples",
+    "diffuse_rs_backend",
+    "diffuse_rs_common",
+    "diffuse_rs_cli",
+    "diffuse_rs_py",
 ]
 resolver = "2"
 
@@ -19,10 +20,10 @@ categories = ["science"]
 license = "MIT"
 
 [workspace.dependencies]
-# candle-core = { git = "https://github.com/EricLBuehler/candle.git", version = "0.8.0", rev = "6800496" }
-# candle-nn = { git = "https://github.com/EricLBuehler/candle.git", version = "0.8.0", rev = "6800496" }
-candle-core = "0.8.0"
-candle-nn = "0.8.0"
+candle-core = { git = "https://github.com/EricLBuehler/candle.git", version = "0.8.0", rev = "6800496" }
+candle-nn = { git = "https://github.com/EricLBuehler/candle.git", version = "0.8.0", rev = "6800496" }
+# candle-core = "0.8.0"
+# candle-nn = "0.8.0"
 clap = { version = "4.5.23", features = ["derive"] }
 serde = "1.0.215"
 serde_json = "1.0.133"
@@ -50,3 +51,4 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 cliclack = "0.3.5"
 objc = "0.2.7"
+pyo3 = { version = "0.23.3", features = ["extension-module"] }
