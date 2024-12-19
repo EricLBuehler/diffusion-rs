@@ -29,6 +29,6 @@ After [installing](#installation), you can try out these examples!
 ```
 
 ## Support matrix
-| Model | Supports quantization |
+| Model | Supports DDUF | Supports quantized DDUF |
 | -- | -- |
-| FLUX.1 Dev/Schnell | ✅ |
+| FLUX.1 Dev/Schnell | ✅ | ✅ |
