@@ -190,6 +190,9 @@ impl Pipeline {
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
     ) -> anyhow::Result<Vec<DynamicImage>> {
+        #[cfg(feature = "metal")]
+        let img = objc::rc::autoreleasepool(|| self.0.forward(prompts, params))?;
+        #[cfg(not(feature = "metal"))]
         let img = self.0.forward(prompts, params)?;
 
         let (_b, c, h, w) = img.dims4()?;
