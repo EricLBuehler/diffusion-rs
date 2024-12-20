@@ -4,6 +4,7 @@ members = [
     "diffusers_examples",
     "diffusers_backend",
     "diffusers_common",
+    "diffusers_cuda_graph"
 ]
 resolver = "2"
 

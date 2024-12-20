@@ -590,6 +590,7 @@ dependencies = [
  "candle-nn",
  "diffusers_backend",
  "diffusers_common",
+ "diffusers_cuda_graph",
  "float8",
  "half",
  "hf-hub",
@@ -601,6 +602,17 @@ dependencies = [
  "thiserror 2.0.4",
  "tokenizers",
  "tqdm",
+]
+
+[[package]]
+name = "diffusers_cuda_graph"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bindgen_cuda",
+ "candle-core",
+ "candle-nn",
+ "half",
 ]
 
 [[package]]
