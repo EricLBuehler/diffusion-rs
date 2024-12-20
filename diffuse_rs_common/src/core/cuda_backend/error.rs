@@ -1,4 +1,4 @@
-use crate::{DType, Layout};
+use crate::core::{DType, Layout};
 
 /// cudarc related errors
 #[derive(thiserror::Error, Debug)]
@@ -45,18 +45,18 @@ pub enum CudaError {
     },
 }
 
-impl From<CudaError> for crate::Error {
+impl From<CudaError> for crate::core::Error {
     fn from(val: CudaError) -> Self {
-        crate::Error::Cuda(Box::new(val)).bt()
+        crate::core::Error::Cuda(Box::new(val)).bt()
     }
 }
 
 pub trait WrapErr<O> {
-    fn w(self) -> std::result::Result<O, crate::Error>;
+    fn w(self) -> std::result::Result<O, crate::core::Error>;
 }
 
 impl<O, E: Into<CudaError>> WrapErr<O> for std::result::Result<O, E> {
-    fn w(self) -> std::result::Result<O, crate::Error> {
-        self.map_err(|e| crate::Error::Cuda(Box::new(e.into())).bt())
+    fn w(self) -> std::result::Result<O, crate::core::Error> {
+        self.map_err(|e| crate::core::Error::Cuda(Box::new(e.into())).bt())
     }
 }

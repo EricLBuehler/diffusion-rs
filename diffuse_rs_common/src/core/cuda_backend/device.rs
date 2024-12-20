@@ -1,5 +1,5 @@
-use crate::backend::BackendDevice;
-use crate::{CpuStorage, CpuStorageRef, DType, Layout, Result, Shape};
+use crate::core::backend::BackendDevice;
+use crate::core::{CpuStorage, CpuStorageRef, DType, Layout, Result, Shape};
 pub use candle_kernels as kernels;
 pub use cudarc;
 use cudarc::driver::{CudaFunction, LaunchAsync, LaunchConfig};
@@ -239,8 +239,8 @@ impl BackendDevice for CudaDevice {
         Ok(*self.seed_value.read().unwrap())
     }
 
-    fn location(&self) -> crate::DeviceLocation {
-        crate::DeviceLocation::Cuda {
+    fn location(&self) -> crate::core::DeviceLocation {
+        crate::core::DeviceLocation::Cuda {
             gpu_id: self.device.ordinal(),
         }
     }
@@ -440,7 +440,7 @@ impl BackendDevice for CudaDevice {
         })
     }
 
-    fn storage_from_slice<T: crate::WithDType>(&self, s: &[T]) -> Result<Self::Storage> {
+    fn storage_from_slice<T: crate::core::WithDType>(&self, s: &[T]) -> Result<Self::Storage> {
         let slice = match T::cpu_storage_ref(s) {
             CpuStorageRef::U8(storage) => {
                 let data = self.htod_sync_copy(storage).w()?;
@@ -588,7 +588,7 @@ impl BackendDevice for CudaDevice {
     }
 
     fn synchronize(&self) -> Result<()> {
-        self.device.synchronize().map_err(crate::Error::wrap)?;
+        self.device.synchronize().map_err(crate::core::Error::wrap)?;
         Ok(())
     }
 }

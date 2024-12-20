@@ -1,5 +1,5 @@
 /// Helper functions to plug cuda kernels in candle.
-use crate::{Layout, Result, Shape, WithDType};
+use crate::core::{Layout, Result, Shape, WithDType};
 pub use cudarc;
 use cudarc::driver::{CudaSlice, DeviceRepr, ValidAsZeroBits};
 

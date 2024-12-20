@@ -1,4 +1,4 @@
-use crate::WithDType;
+use crate::core::WithDType;
 use cudarc;
 use cudarc::cudnn::safe::{ConvForward, Cudnn};
 use cudarc::driver::{CudaSlice, CudaView, DeviceRepr, ValidAsZeroBits};
@@ -9,18 +9,18 @@ use std::sync::Arc;
 // The cudnn handles are stored per thread here rather than on the CudaDevice as they are neither
 // send nor sync.
 thread_local! {
-    static CUDNN: RefCell<HashMap<crate::cuda_backend::DeviceId, Arc<Cudnn>>> = HashMap::new().into();
+    static CUDNN: RefCell<HashMap<crate::core::cuda_backend::DeviceId, Arc<Cudnn>>> = HashMap::new().into();
 }
 
-impl From<cudarc::cudnn::CudnnError> for crate::Error {
+impl From<cudarc::cudnn::CudnnError> for crate::core::Error {
     fn from(err: cudarc::cudnn::CudnnError) -> Self {
-        crate::Error::wrap(err)
+        crate::core::Error::wrap(err)
     }
 }
 
-impl From<cudarc::driver::DriverError> for crate::Error {
+impl From<cudarc::driver::DriverError> for crate::core::Error {
     fn from(err: cudarc::driver::DriverError) -> Self {
-        crate::Error::wrap(err)
+        crate::core::Error::wrap(err)
     }
 }
 
@@ -29,13 +29,13 @@ pub(crate) fn launch_conv2d<
     Y: cudarc::cudnn::CudnnDataType,
 >(
     src: &CudaView<T>,
-    src_l: &crate::Layout,
+    src_l: &crate::core::Layout,
     filter: &CudaView<T>,
     dst: &mut CudaSlice<T>,
-    params: &crate::conv::ParamsConv2D,
-    dev: &crate::cuda_backend::CudaDevice,
-) -> crate::Result<()> {
-    use crate::conv::CudnnFwdAlgo as CandleAlgo;
+    params: &crate::core::conv::ParamsConv2D,
+    dev: &crate::core::cuda_backend::CudaDevice,
+) -> crate::core::Result<()> {
+    use crate::core::conv::CudnnFwdAlgo as CandleAlgo;
     use cudarc::cudnn::sys::cudnnConvolutionFwdAlgo_t as A;
 
     let device_id = dev.id();

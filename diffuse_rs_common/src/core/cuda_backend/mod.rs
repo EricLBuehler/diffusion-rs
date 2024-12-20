@@ -1,6 +1,6 @@
-use crate::backend::{BackendDevice, BackendStorage};
-use crate::op::{BinaryOpT, CmpOp, ReduceOp, UnaryOpT};
-use crate::{CpuStorage, DType, Layout, Result, Shape, WithDType};
+use crate::core::backend::{BackendDevice, BackendStorage};
+use crate::core::op::{BinaryOpT, CmpOp, ReduceOp, UnaryOpT};
+use crate::core::{CpuStorage, DType, Layout, Result, Shape, WithDType};
 pub use candle_kernels as kernels;
 pub use cudarc;
 use cudarc::cublas::{Gemm, GemmConfig, StridedBatchedConfig};
@@ -307,7 +307,7 @@ impl<'a> Map1Any for FastReduce<'a> {
             ReduceOp::ArgMax => ("fast_argmax", true, true),
         };
         if check_empty && layout.shape().elem_count() == 0 {
-            Err(crate::Error::EmptyTensor { op: "reduce" }.bt())?
+            Err(crate::core::Error::EmptyTensor { op: "reduce" }.bt())?
         }
         let func = dev.get_or_load_func(&kernel_name::<T>(name), kernels::REDUCE)?;
         if return_index {
@@ -388,7 +388,7 @@ impl<'a> Map1 for IndexSelect<'a> {
         let ds = dev.htod_copy([ids_dims, ids_l.stride()].concat()).w()?;
         let src = match src_l.contiguous_offsets() {
             Some((o1, o2)) => src.slice(o1..o2),
-            None => Err(crate::Error::RequiresContiguous { op: "index-select" }.bt())?,
+            None => Err(crate::core::Error::RequiresContiguous { op: "index-select" }.bt())?,
         };
         let left_size: usize = src_l.dims()[..self.2].iter().product();
         let right_size: usize = src_l.dims()[self.2 + 1..].iter().product();
@@ -430,7 +430,7 @@ impl<'a> Map1 for Gather<'a> {
         let dim = self.2;
         let (ids_o1, ids_o2) = match ids_l.contiguous_offsets() {
             Some(o12) => o12,
-            None => Err(crate::Error::RequiresContiguous { op: "gather" }.bt())?,
+            None => Err(crate::core::Error::RequiresContiguous { op: "gather" }.bt())?,
         };
         let (name, ids) = match &ids.slice {
             CudaStorageSlice::U32(slice) => {
@@ -456,7 +456,7 @@ impl<'a> Map1 for Gather<'a> {
         let cfg = LaunchConfig::for_num_elems(el as u32);
         let src = match src_l.contiguous_offsets() {
             Some((o1, o2)) => src.slice(o1..o2),
-            None => Err(crate::Error::RequiresContiguous { op: "gather" }.bt())?,
+            None => Err(crate::core::Error::RequiresContiguous { op: "gather" }.bt())?,
         };
         let left_sz: usize = src_l.dims()[..dim].iter().product();
         let right_sz: usize = src_l.dims()[dim + 1..].iter().product();
@@ -489,7 +489,7 @@ impl<'a> Map2InPlace for IndexAdd<'a> {
         let dim = self.2;
         let (ids_o1, ids_o2) = match ids_l.contiguous_offsets() {
             Some(o12) => o12,
-            None => Err(crate::Error::RequiresContiguous { op: "index-add" }.bt())?,
+            None => Err(crate::core::Error::RequiresContiguous { op: "index-add" }.bt())?,
         };
         let (name, ids) = match &ids.slice {
             CudaStorageSlice::U32(slice) => ("ia_u32", *slice.slice(ids_o1..ids_o2).device_ptr()),
@@ -505,7 +505,7 @@ impl<'a> Map2InPlace for IndexAdd<'a> {
         };
         let src = match src_l.contiguous_offsets() {
             Some((o1, o2)) => src.slice(o1..o2),
-            None => Err(crate::Error::RequiresContiguous { op: "index-add" }.bt())?,
+            None => Err(crate::core::Error::RequiresContiguous { op: "index-add" }.bt())?,
         };
         let left_sz: usize = src_l.dims()[..dim].iter().product();
         let right_sz: usize = src_l.dims()[dim + 1..].iter().product();
@@ -539,7 +539,7 @@ impl<'a> Map2InPlace for ScatterAdd<'a> {
         let dim = self.2;
         let (ids_o1, ids_o2) = match ids_l.contiguous_offsets() {
             Some(o12) => o12,
-            None => Err(crate::Error::RequiresContiguous { op: "scatter-add" }.bt())?,
+            None => Err(crate::core::Error::RequiresContiguous { op: "scatter-add" }.bt())?,
         };
         let (name, ids) = match &ids.slice {
             CudaStorageSlice::U32(slice) => ("sa_u32", *slice.slice(ids_o1..ids_o2).device_ptr()),
@@ -555,7 +555,7 @@ impl<'a> Map2InPlace for ScatterAdd<'a> {
         };
         let src = match src_l.contiguous_offsets() {
             Some((o1, o2)) => src.slice(o1..o2),
-            None => Err(crate::Error::RequiresContiguous { op: "scatter-add" }.bt())?,
+            None => Err(crate::core::Error::RequiresContiguous { op: "scatter-add" }.bt())?,
         };
         let left_sz: usize = src_l.dims()[..dim].iter().product();
         let right_sz: usize = src_l.dims()[dim + 1..].iter().product();
@@ -571,7 +571,7 @@ impl<'a> Map2InPlace for ScatterAdd<'a> {
     }
 }
 
-struct Conv1D<'a>(&'a crate::conv::ParamsConv1D);
+struct Conv1D<'a>(&'a crate::core::conv::ParamsConv1D);
 impl<'a> Map2 for Conv1D<'a> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
@@ -612,7 +612,7 @@ impl<'a> Map2 for Conv1D<'a> {
     }
 }
 
-struct Conv2D<'a>(&'a crate::conv::ParamsConv2D);
+struct Conv2D<'a>(&'a crate::core::conv::ParamsConv2D);
 impl<'a> Map2 for Conv2D<'a> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
@@ -677,7 +677,7 @@ impl Map1 for Col2Im1D {
     }
 }
 
-struct ConvTranspose1D<'a>(&'a crate::conv::ParamsConvTranspose1D);
+struct ConvTranspose1D<'a>(&'a crate::core::conv::ParamsConvTranspose1D);
 impl<'a> Map2 for ConvTranspose1D<'a> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
@@ -726,7 +726,7 @@ impl<'a> Map2 for ConvTranspose1D<'a> {
     }
 }
 
-struct ConvTranspose2D<'a>(&'a crate::conv::ParamsConvTranspose2D);
+struct ConvTranspose2D<'a>(&'a crate::core::conv::ParamsConvTranspose2D);
 impl<'a> Map2 for ConvTranspose2D<'a> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
@@ -925,7 +925,7 @@ impl<'a> Map2 for WhereCond<'a> {
     }
 }
 
-impl<U: crate::op::BinaryOpT> Map2 for U {
+impl<U: crate::core::op::BinaryOpT> Map2 for U {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
         lhs: &CudaSlice<T>,
@@ -1036,7 +1036,7 @@ macro_rules! cuda_dtype {
             fn as_cuda_slice(s: &CudaStorage) -> Result<&CudaSlice<Self>> {
                 match &s.slice {
                     CudaStorageSlice::$dtype(data) => Ok(&data),
-                    _ => Err(crate::Error::UnexpectedDType {
+                    _ => Err(crate::core::Error::UnexpectedDType {
                         expected: DType::$dtype,
                         got: s.dtype(),
                         msg: "unexpected dtype",
@@ -1409,7 +1409,7 @@ impl BackendStorage for CudaStorage {
         l: &Layout,
         kernel: &Self,
         kernel_l: &Layout,
-        params: &crate::conv::ParamsConv1D,
+        params: &crate::core::conv::ParamsConv1D,
     ) -> Result<Self> {
         const USE_IM2COL_CONV1D: bool = true;
 
@@ -1461,7 +1461,7 @@ impl BackendStorage for CudaStorage {
         l: &Layout,
         kernel: &Self,
         kernel_l: &Layout,
-        params: &crate::conv::ParamsConvTranspose1D,
+        params: &crate::core::conv::ParamsConvTranspose1D,
     ) -> Result<Self> {
         const USE_COL2IM_CONV1D_TR: bool = true;
 
@@ -1522,7 +1522,7 @@ impl BackendStorage for CudaStorage {
         l: &Layout,
         kernel: &Self,
         kernel_l: &Layout,
-        params: &crate::conv::ParamsConv2D,
+        params: &crate::core::conv::ParamsConv2D,
     ) -> Result<Self> {
         const USE_IM2COL_CONV2D: bool = true;
 
@@ -1579,7 +1579,7 @@ impl BackendStorage for CudaStorage {
         inp_l: &Layout,
         kernel: &Self,
         kernel_l: &Layout,
-        params: &crate::conv::ParamsConv2D,
+        params: &crate::core::conv::ParamsConv2D,
     ) -> Result<Self> {
         let device = self.device().clone();
         if !kernel_l.is_contiguous() {
@@ -1593,8 +1593,8 @@ impl BackendStorage for CudaStorage {
                 let inp = &inp.slice(inp_l.start_offset()..);
                 let k = &k.slice(kernel_l.start_offset()..);
                 let mut out = unsafe { device.alloc::<u8>(dst_el) }.w()?;
-                crate::cudnn::launch_conv2d::<u8, u8>(inp, inp_l, k, &mut out, params, &device)
-                    .map_err(crate::Error::wrap)?;
+                crate::core::cudnn::launch_conv2d::<u8, u8>(inp, inp_l, k, &mut out, params, &device)
+                    .map_err(crate::core::Error::wrap)?;
                 S::U8(out)
             }
             (S::BF16(inp), S::BF16(k)) => {
@@ -1604,32 +1604,32 @@ impl BackendStorage for CudaStorage {
                 // Only PSEUDO_BFLOAT16_CONFIG is supported in cudnn, there is no "true bfloat16"
                 // version.
                 // https://docs.nvidia.com/deeplearning/cudnn/latest/api/cudnn-cnn-library.html#id88
-                crate::cudnn::launch_conv2d::<bf16, f32>(inp, inp_l, k, &mut out, params, &device)
-                    .map_err(crate::Error::wrap)?;
+                crate::core::cudnn::launch_conv2d::<bf16, f32>(inp, inp_l, k, &mut out, params, &device)
+                    .map_err(crate::core::Error::wrap)?;
                 S::BF16(out)
             }
             (S::F16(inp), S::F16(k)) => {
                 let inp = &inp.slice(inp_l.start_offset()..);
                 let k = &k.slice(kernel_l.start_offset()..);
                 let mut out = unsafe { device.alloc::<f16>(dst_el) }.w()?;
-                crate::cudnn::launch_conv2d::<f16, f16>(inp, inp_l, k, &mut out, params, &device)
-                    .map_err(crate::Error::wrap)?;
+                crate::core::cudnn::launch_conv2d::<f16, f16>(inp, inp_l, k, &mut out, params, &device)
+                    .map_err(crate::core::Error::wrap)?;
                 S::F16(out)
             }
             (S::F32(inp), S::F32(k)) => {
                 let inp = &inp.slice(inp_l.start_offset()..);
                 let k = &k.slice(kernel_l.start_offset()..);
                 let mut out = unsafe { device.alloc::<f32>(dst_el) }.w()?;
-                crate::cudnn::launch_conv2d::<f32, f32>(inp, inp_l, k, &mut out, params, &device)
-                    .map_err(crate::Error::wrap)?;
+                crate::core::cudnn::launch_conv2d::<f32, f32>(inp, inp_l, k, &mut out, params, &device)
+                    .map_err(crate::core::Error::wrap)?;
                 S::F32(out)
             }
             (S::F64(inp), S::F64(k)) => {
                 let inp = &inp.slice(inp_l.start_offset()..);
                 let k = &k.slice(kernel_l.start_offset()..);
                 let mut out = unsafe { device.alloc::<f64>(dst_el) }.w()?;
-                crate::cudnn::launch_conv2d::<f64, f64>(inp, inp_l, k, &mut out, params, &device)
-                    .map_err(crate::Error::wrap)?;
+                crate::core::cudnn::launch_conv2d::<f64, f64>(inp, inp_l, k, &mut out, params, &device)
+                    .map_err(crate::core::Error::wrap)?;
                 S::F64(out)
             }
             (S::U32(_), S::U32(_)) => Err(CudaError::InternalError("conv2d does not support u32"))?,
@@ -1646,7 +1646,7 @@ impl BackendStorage for CudaStorage {
         l: &Layout,
         kernel: &Self,
         kernel_l: &Layout,
-        params: &crate::conv::ParamsConvTranspose2D,
+        params: &crate::core::conv::ParamsConvTranspose2D,
     ) -> Result<Self> {
         let device = self.device().clone();
         let slice =
@@ -2293,7 +2293,7 @@ unsafe fn gemm_strided_batched_bf16(
 pub struct KVConcat {
     pub concat_dim: usize,
 }
-impl crate::CustomOp2 for KVConcat {
+impl crate::core::CustomOp2 for KVConcat {
     fn name(&self) -> &'static str {
         "kvconcat"
     }

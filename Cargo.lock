@@ -699,6 +699,7 @@ version = "0.1.0"
 dependencies = [
  "accelerate-src",
  "anyhow",
+ "bindgen_cuda",
  "byteorder",
  "cudarc",
  "dirs",
