@@ -1,8 +1,8 @@
 //! A `VarBuilder` is used to retrieve variables used by a model. These variables can either come
 //! from a pre-trained checkpoint, e.g. using `VarBuilder::from_mmaped_safetensors`, or initialized
 //! for training, e.g. using `VarBuilder::from_varmap`.
-use crate::nn::VarMap;
 use crate::core::{safetensors::Load, DType, Device, Error, Result, Shape, Tensor};
+use crate::nn::VarMap;
 use safetensors::{slice::IndexOp, tensor::SafeTensors};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -268,7 +268,14 @@ impl<B: Backend> VarBuilderArgs<'_, B> {
 struct Zeros;
 
 impl SimpleBackend for Zeros {
-    fn get(&self, s: Shape, _: &str, _: crate::nn::Init, dtype: DType, dev: &Device) -> Result<Tensor> {
+    fn get(
+        &self,
+        s: Shape,
+        _: &str,
+        _: crate::nn::Init,
+        dtype: DType,
+        dev: &Device,
+    ) -> Result<Tensor> {
         Tensor::zeros(s, dtype, dev)
     }
 

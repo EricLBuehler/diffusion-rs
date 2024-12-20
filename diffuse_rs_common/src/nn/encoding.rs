@@ -1,7 +1,7 @@
 //! Encoding Utilities. (e.g., one-hot/cold encoding)
 
-use crate::core::{DType, Result, Tensor, WithDType};
 use crate::bail;
+use crate::core::{DType, Result, Tensor, WithDType};
 
 /// One-hot/cold encoding.
 ///

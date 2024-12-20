@@ -542,7 +542,8 @@ impl QTensor {
     pub fn dequantize(&self, device: &Device) -> Result<Tensor> {
         let storage = self.storage.dequantize(self.shape.elem_count())?;
         let none = crate::core::op::BackpropOp::none();
-        crate::core::tensor::from_storage(storage, self.shape.clone(), none, false).to_device(device)
+        crate::core::tensor::from_storage(storage, self.shape.clone(), none, false)
+            .to_device(device)
     }
 
     pub fn dequantize_f16(&self, device: &Device) -> Result<Tensor> {

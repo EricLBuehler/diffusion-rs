@@ -6,13 +6,13 @@ mod tokens;
 mod varbuilder;
 mod varbuilder_loading;
 
-pub mod nn;
 pub mod core;
+pub mod nn;
 
-#[cfg(feature = "metal")]
-pub mod metal_kernels;
 #[cfg(feature = "cuda")]
 pub mod cuda_kernels;
+#[cfg(feature = "metal")]
+pub mod metal_kernels;
 
 pub use model_source::*;
 pub use nn_wrap::*;

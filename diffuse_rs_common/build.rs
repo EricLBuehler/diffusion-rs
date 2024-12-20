@@ -5,7 +5,7 @@ fn main() {
         println!("cargo:rerun-if-changed=src/cuda_kernels/compatibility.cuh");
         println!("cargo:rerun-if-changed=src/cuda_kernels/cuda_utils.cuh");
         println!("cargo:rerun-if-changed=src/cuda_kernels/binary_op_macros.cuh");
-    
+
         let builder = bindgen_cuda::Builder::default();
         println!("cargo:info={builder:?}");
         let bindings = builder.build_ptx().unwrap();

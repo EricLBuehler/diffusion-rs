@@ -241,7 +241,8 @@ impl QMetalStorage {
             )
             .map_err(MetalError::from)?;
         }
-        let dst_storage = crate::core::MetalStorage::new(dst, device, dst_shape.elem_count(), DType::F32);
+        let dst_storage =
+            crate::core::MetalStorage::new(dst, device, dst_shape.elem_count(), DType::F32);
         Ok((dst_storage, dst_shape))
     }
 
@@ -333,7 +334,8 @@ impl QMetalStorage {
         )
         .map_err(MetalError::from)?;
 
-        let dst_storage = crate::core::MetalStorage::new(dst, device, dst_shape.elem_count(), DType::F32);
+        let dst_storage =
+            crate::core::MetalStorage::new(dst, device, dst_shape.elem_count(), DType::F32);
         Ok((dst_storage, dst_shape))
     }
 

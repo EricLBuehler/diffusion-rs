@@ -588,7 +588,9 @@ impl BackendDevice for CudaDevice {
     }
 
     fn synchronize(&self) -> Result<()> {
-        self.device.synchronize().map_err(crate::core::Error::wrap)?;
+        self.device
+            .synchronize()
+            .map_err(crate::core::Error::wrap)?;
         Ok(())
     }
 }

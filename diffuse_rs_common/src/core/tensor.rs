@@ -1,12 +1,12 @@
 //! Tensors are N-dimensional matrixes of elements using a single data type.
 #![allow(clippy::redundant_closure_call)]
+use crate::bail;
 use crate::core::backend::{BackendDevice, BackendStorage};
 use crate::core::op::{BackpropOp, BinaryOp, CmpOp, Op, ReduceOp, UnaryOp};
 use crate::core::scalar::TensorOrScalar;
 use crate::core::shape::{Dim, Dims};
 use crate::core::{storage::Storage, DType, Device, Error, Layout, Result, Shape};
 use std::sync::{Arc, RwLock};
-use crate::bail;
 
 /// Unique identifier for tensors.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

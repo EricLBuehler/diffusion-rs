@@ -138,7 +138,9 @@ impl Tensor {
             dilation: params.dilation,
         });
         let out_dims = params.out_dims();
-        Ok(crate::core::tensor::from_storage(storage, out_dims, op, false))
+        Ok(crate::core::tensor::from_storage(
+            storage, out_dims, op, false,
+        ))
     }
 
     /// Applies a 1D convolution over the input tensor.
@@ -207,7 +209,9 @@ impl Tensor {
             dilation: params.dilation,
         });
         let out_dims = params.out_dims();
-        Ok(crate::core::tensor::from_storage(storage, out_dims, op, false))
+        Ok(crate::core::tensor::from_storage(
+            storage, out_dims, op, false,
+        ))
     }
 
     /// Applies a 1D transposed convolution over the input tensor.
@@ -265,7 +269,9 @@ impl Tensor {
             dilation: params.dilation,
         });
         let out_dims = params.out_dims();
-        Ok(crate::core::tensor::from_storage(storage, out_dims, op, false))
+        Ok(crate::core::tensor::from_storage(
+            storage, out_dims, op, false,
+        ))
     }
 
     /// Applies a 2D convolution over the input tensor.
@@ -353,6 +359,8 @@ impl Tensor {
             dilation: params.dilation,
         });
         let out_dims = params.out_dims();
-        Ok(crate::core::tensor::from_storage(storage, out_dims, op, false))
+        Ok(crate::core::tensor::from_storage(
+            storage, out_dims, op, false,
+        ))
     }
 }

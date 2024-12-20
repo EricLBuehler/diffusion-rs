@@ -424,18 +424,42 @@ impl QCudaStorage {
             GgmlDType::F32 => deq::<f32>(&buffer, block_len, &mut out)?,
             GgmlDType::F16 => deq::<half::f16>(&buffer, block_len, &mut out)?,
             GgmlDType::BF16 => deq::<half::bf16>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q4_0 => deq::<crate::core::quantized::BlockQ4_0>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q4_1 => deq::<crate::core::quantized::BlockQ4_1>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q5_0 => deq::<crate::core::quantized::BlockQ5_0>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q5_1 => deq::<crate::core::quantized::BlockQ5_1>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q8_0 => deq::<crate::core::quantized::BlockQ8_0>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q8_1 => deq::<crate::core::quantized::BlockQ8_1>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q2K => deq::<crate::core::quantized::BlockQ2K>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q3K => deq::<crate::core::quantized::BlockQ3K>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q4K => deq::<crate::core::quantized::BlockQ4K>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q5K => deq::<crate::core::quantized::BlockQ5K>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q6K => deq::<crate::core::quantized::BlockQ6K>(&buffer, block_len, &mut out)?,
-            GgmlDType::Q8K => deq::<crate::core::quantized::BlockQ8K>(&buffer, block_len, &mut out)?,
+            GgmlDType::Q4_0 => {
+                deq::<crate::core::quantized::BlockQ4_0>(&buffer, block_len, &mut out)?
+            }
+            GgmlDType::Q4_1 => {
+                deq::<crate::core::quantized::BlockQ4_1>(&buffer, block_len, &mut out)?
+            }
+            GgmlDType::Q5_0 => {
+                deq::<crate::core::quantized::BlockQ5_0>(&buffer, block_len, &mut out)?
+            }
+            GgmlDType::Q5_1 => {
+                deq::<crate::core::quantized::BlockQ5_1>(&buffer, block_len, &mut out)?
+            }
+            GgmlDType::Q8_0 => {
+                deq::<crate::core::quantized::BlockQ8_0>(&buffer, block_len, &mut out)?
+            }
+            GgmlDType::Q8_1 => {
+                deq::<crate::core::quantized::BlockQ8_1>(&buffer, block_len, &mut out)?
+            }
+            GgmlDType::Q2K => {
+                deq::<crate::core::quantized::BlockQ2K>(&buffer, block_len, &mut out)?
+            }
+            GgmlDType::Q3K => {
+                deq::<crate::core::quantized::BlockQ3K>(&buffer, block_len, &mut out)?
+            }
+            GgmlDType::Q4K => {
+                deq::<crate::core::quantized::BlockQ4K>(&buffer, block_len, &mut out)?
+            }
+            GgmlDType::Q5K => {
+                deq::<crate::core::quantized::BlockQ5K>(&buffer, block_len, &mut out)?
+            }
+            GgmlDType::Q6K => {
+                deq::<crate::core::quantized::BlockQ6K>(&buffer, block_len, &mut out)?
+            }
+            GgmlDType::Q8K => {
+                deq::<crate::core::quantized::BlockQ8K>(&buffer, block_len, &mut out)?
+            }
         }
 
         self.device
@@ -652,7 +676,8 @@ impl QCudaStorage {
 
         let out = if FORCE_DMMV.load(std::sync::atomic::Ordering::Relaxed) {
             let data_f32 = self.dequantize(n * k)?;
-            let rhs_l = crate::core::Layout::new((k, n).into(), vec![1, k], 0).broadcast_as((b, k, n))?;
+            let rhs_l =
+                crate::core::Layout::new((k, n).into(), vec![1, k], 0).broadcast_as((b, k, n))?;
             storage.matmul_with_alpha(&data_f32, None, (b, m, n, k), layout, &rhs_l)?
         } else {
             let storage = storage.as_cuda_slice::<f32>()?;

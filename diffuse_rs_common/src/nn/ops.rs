@@ -713,7 +713,8 @@ impl crate::core::CustomOp2 for AttnSoftmaxLastDim {
             a_l.start_offset() * a_s.dtype().size_in_bytes(),
         )
         .map_err(crate::core::Error::wrap)?;
-        let newstorage = crate::core::MetalStorage::new(output, device.clone(), elem_count, a_s.dtype());
+        let newstorage =
+            crate::core::MetalStorage::new(output, device.clone(), elem_count, a_s.dtype());
         Ok((newstorage, a_l.shape().clone()))
     }
 }
@@ -932,7 +933,8 @@ impl crate::core::CustomOp2 for RmsNorm {
             &output,
         )
         .map_err(crate::core::Error::wrap)?;
-        let newstorage = crate::core::MetalStorage::new(output, device.clone(), elem_count, s1.dtype());
+        let newstorage =
+            crate::core::MetalStorage::new(output, device.clone(), elem_count, s1.dtype());
         Ok((newstorage, l1.shape().clone()))
     }
 }
@@ -1180,7 +1182,8 @@ impl crate::core::CustomOp3 for LayerNorm {
             &output,
         )
         .map_err(crate::core::Error::wrap)?;
-        let newstorage = crate::core::MetalStorage::new(output, device.clone(), elem_count, s1.dtype());
+        let newstorage =
+            crate::core::MetalStorage::new(output, device.clone(), elem_count, s1.dtype());
         Ok((newstorage, l1.shape().clone()))
     }
 }
@@ -1489,9 +1492,7 @@ impl crate::core::CustomOp3 for Sdpa {
             }
         } else if supports_sdpa_full {
             if q_l.dim(2)? != k_l.dim(2)? {
-                crate::bail!(
-                    "query and key sequence length must be equal if using full metal sdpa"
-                )
+                crate::bail!("query and key sequence length must be equal if using full metal sdpa")
             }
 
             command_buffer.set_label("full_attention");
@@ -1516,7 +1517,8 @@ impl crate::core::CustomOp3 for Sdpa {
             crate::bail!("must be vector or full sdpa kernel");
         }
 
-        let newstorage = crate::core::MetalStorage::new(output, device.clone(), elem_count, q.dtype());
+        let newstorage =
+            crate::core::MetalStorage::new(output, device.clone(), elem_count, q.dtype());
         Ok((newstorage, Shape::from_dims(&out_dims)))
     }
 }

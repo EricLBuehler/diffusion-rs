@@ -1,12 +1,12 @@
 use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
 
+use crate::bail;
 use crate::core::{
     op::{BackpropOp, Op},
     shape::Dim,
     tensor::from_storage,
     DType, Error, Result, Tensor,
 };
-use crate::bail;
 
 /// Specialization of `std::ops::RangeBounds` for `usize` to allow trait objects.
 pub trait RangeBound {

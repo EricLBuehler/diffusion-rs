@@ -1,6 +1,6 @@
 //! Convolution Layers.
-use crate::nn::BatchNorm;
 use crate::core::{Result, Tensor};
+use crate::nn::BatchNorm;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Conv1dConfig {

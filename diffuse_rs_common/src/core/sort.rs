@@ -87,7 +87,9 @@ impl crate::core::CustomOp1 for ArgSort {
         use crate::core::cuda_backend::cudarc::driver::{
             CudaSlice, DeviceRepr, LaunchAsync, LaunchConfig, ValidAsZeroBits,
         };
-        use crate::core::cuda_backend::{kernel_name, kernels, CudaStorageSlice as S, Map1Any, WrapErr};
+        use crate::core::cuda_backend::{
+            kernel_name, kernels, CudaStorageSlice as S, Map1Any, WrapErr,
+        };
         use crate::core::{CudaDevice, WithDType};
 
         impl Map1Any for ArgSort {

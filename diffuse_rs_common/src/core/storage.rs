@@ -1,6 +1,8 @@
 use crate::core::backend::BackendStorage;
 use crate::core::op::{self, CmpOp, ReduceOp};
-use crate::core::{CpuStorage, CudaStorage, DType, Device, Error, Layout, MetalStorage, Result, Shape};
+use crate::core::{
+    CpuStorage, CudaStorage, DType, Device, Error, Layout, MetalStorage, Result, Shape,
+};
 use crate::core::{CustomOp1, CustomOp2, CustomOp3, InplaceOp1, InplaceOp2, InplaceOp3};
 
 // We do not want to implement Clone on Storage as cloning may fail because of

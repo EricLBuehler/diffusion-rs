@@ -5,12 +5,12 @@ use std::{
     thread::{self, JoinHandle},
 };
 
+use crate::core::{safetensors::MmapedSafetensors, DType, Device, Result, Tensor};
 use crate::{
     safetensors::BytesSafetensors,
     varbuilder::{SimpleBackend, VarBuilderArgs},
     FileData, VarBuilder,
 };
-use crate::core::{safetensors::MmapedSafetensors, DType, Device, Result, Tensor};
 
 use super::progress::IterWithProgress;
 

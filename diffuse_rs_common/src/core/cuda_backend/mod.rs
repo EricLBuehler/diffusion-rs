@@ -1593,8 +1593,10 @@ impl BackendStorage for CudaStorage {
                 let inp = &inp.slice(inp_l.start_offset()..);
                 let k = &k.slice(kernel_l.start_offset()..);
                 let mut out = unsafe { device.alloc::<u8>(dst_el) }.w()?;
-                crate::core::cudnn::launch_conv2d::<u8, u8>(inp, inp_l, k, &mut out, params, &device)
-                    .map_err(crate::core::Error::wrap)?;
+                crate::core::cudnn::launch_conv2d::<u8, u8>(
+                    inp, inp_l, k, &mut out, params, &device,
+                )
+                .map_err(crate::core::Error::wrap)?;
                 S::U8(out)
             }
             (S::BF16(inp), S::BF16(k)) => {
@@ -1604,32 +1606,40 @@ impl BackendStorage for CudaStorage {
                 // Only PSEUDO_BFLOAT16_CONFIG is supported in cudnn, there is no "true bfloat16"
                 // version.
                 // https://docs.nvidia.com/deeplearning/cudnn/latest/api/cudnn-cnn-library.html#id88
-                crate::core::cudnn::launch_conv2d::<bf16, f32>(inp, inp_l, k, &mut out, params, &device)
-                    .map_err(crate::core::Error::wrap)?;
+                crate::core::cudnn::launch_conv2d::<bf16, f32>(
+                    inp, inp_l, k, &mut out, params, &device,
+                )
+                .map_err(crate::core::Error::wrap)?;
                 S::BF16(out)
             }
             (S::F16(inp), S::F16(k)) => {
                 let inp = &inp.slice(inp_l.start_offset()..);
                 let k = &k.slice(kernel_l.start_offset()..);
                 let mut out = unsafe { device.alloc::<f16>(dst_el) }.w()?;
-                crate::core::cudnn::launch_conv2d::<f16, f16>(inp, inp_l, k, &mut out, params, &device)
-                    .map_err(crate::core::Error::wrap)?;
+                crate::core::cudnn::launch_conv2d::<f16, f16>(
+                    inp, inp_l, k, &mut out, params, &device,
+                )
+                .map_err(crate::core::Error::wrap)?;
                 S::F16(out)
             }
             (S::F32(inp), S::F32(k)) => {
                 let inp = &inp.slice(inp_l.start_offset()..);
                 let k = &k.slice(kernel_l.start_offset()..);
                 let mut out = unsafe { device.alloc::<f32>(dst_el) }.w()?;
-                crate::core::cudnn::launch_conv2d::<f32, f32>(inp, inp_l, k, &mut out, params, &device)
-                    .map_err(crate::core::Error::wrap)?;
+                crate::core::cudnn::launch_conv2d::<f32, f32>(
+                    inp, inp_l, k, &mut out, params, &device,
+                )
+                .map_err(crate::core::Error::wrap)?;
                 S::F32(out)
             }
             (S::F64(inp), S::F64(k)) => {
                 let inp = &inp.slice(inp_l.start_offset()..);
                 let k = &k.slice(kernel_l.start_offset()..);
                 let mut out = unsafe { device.alloc::<f64>(dst_el) }.w()?;
-                crate::core::cudnn::launch_conv2d::<f64, f64>(inp, inp_l, k, &mut out, params, &device)
-                    .map_err(crate::core::Error::wrap)?;
+                crate::core::cudnn::launch_conv2d::<f64, f64>(
+                    inp, inp_l, k, &mut out, params, &device,
+                )
+                .map_err(crate::core::Error::wrap)?;
                 S::F64(out)
             }
             (S::U32(_), S::U32(_)) => Err(CudaError::InternalError("conv2d does not support u32"))?,
