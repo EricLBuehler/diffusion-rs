@@ -7,9 +7,9 @@
 //! # Example
 //!
 //! ```rust
-//! use crate::core::{Tensor, Device::Cpu, test_utils::to_vec3_round};
+//! use diffuse_rs_common::core::{Tensor, Device::Cpu, test_utils::to_vec3_round};
 //! use diffuse_rs_common::nn::{LayerNorm, Module};
-//! # fn main() -> crate::core::Result<()> {
+//! # fn main() -> diffuse_rs_common::core::Result<()> {
 //!
 //! let w = Tensor::new(&[1f32, 1f32, 1f32], &Cpu)?;
 //! let b = Tensor::new(&[0f32, 0f32, 0f32], &Cpu)?;

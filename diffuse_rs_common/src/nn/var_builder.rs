@@ -650,7 +650,7 @@ impl<'a> VarBuilder<'a> {
     /// passing the new names to the inner VarBuilder.
     ///
     /// ```rust
-    /// use crate::core::{Tensor, DType, Device};
+    /// use diffuse_rs_common::core::{Tensor, DType, Device};
     ///
     /// let a = Tensor::arange(0f32, 6f32, &Device::Cpu)?.reshape((2, 3))?;
     /// let tensors: std::collections::HashMap<_, _> = [
@@ -668,7 +668,7 @@ impl<'a> VarBuilder<'a> {
     /// assert!(vb.get((2, 3), "bar").is_ok());
     /// assert!(vb.get((2, 3), "foo").is_ok());
     /// assert!(!vb.contains_tensor("baz"));
-    /// # Ok::<(), crate::core::Error>(())
+    /// # Ok::<(), diffuse_rs_common::core::Error>(())
     /// ```
     pub fn rename_f<F: Fn(&str) -> String + Sync + Send + 'static>(self, f: F) -> Self {
         let f: Box<dyn Fn(&str) -> String + Sync + Send + 'static> = Box::new(f);

@@ -8,7 +8,7 @@ use rayon::prelude::*;
 /// a slice of fixed index on dimension `dim` are between 0 and 1 and sum to 1.
 ///
 /// ```rust
-/// use crate::core::{Tensor, Device, test_utils::to_vec2_round};
+/// use diffuse_rs_common::core::{Tensor, Device, test_utils::to_vec2_round};
 /// let a = Tensor::new(&[[0f32, 1., 0., 1.], [-2., 2., 3., -3.]], &Device::Cpu)?;
 /// let a = diffuse_rs_common::nn::ops::softmax(&a, 1)?;
 /// assert_eq!(
@@ -17,7 +17,7 @@ use rayon::prelude::*;
 ///         [0.1345, 0.3655, 0.1345, 0.3655],
 ///         [0.0049, 0.2671, 0.7262, 0.0018]
 ///     ]);
-/// # Ok::<(), crate::core::Error>(())
+/// # Ok::<(), diffuse_rs_common::core::Error>(())
 /// ```
 pub fn softmax<D: crate::core::shape::Dim>(xs: &Tensor, dim: D) -> Result<Tensor> {
     let dim = dim.to_index(xs.shape(), "softmax")?;
