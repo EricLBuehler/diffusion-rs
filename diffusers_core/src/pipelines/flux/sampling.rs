@@ -103,26 +103,12 @@ pub fn unpack(xs: &Tensor, height: usize, width: usize) -> Result<Tensor> {
 }
 
 struct ModelInputs {
-    img: Tensor,
-    img_ids: Tensor,
-    txt: Tensor,
-    txt_ids: Tensor,
-    timesteps: Tensor,
-    y: Tensor,
-    guidance: Option<Tensor>,
+    t_vec: Tensor,
 }
 
 impl GraphInput for ModelInputs {
     fn load_inputs_inplace(&self, input: Self, device: &Device) -> candle_core::Result<()> {
-        unsafe { copy_inplace(&input.img, &self.img, device)? };
-        unsafe { copy_inplace(&input.img_ids, &self.img_ids, device)? };
-        unsafe { copy_inplace(&input.txt, &self.txt, device)? };
-        unsafe { copy_inplace(&input.txt_ids, &self.txt_ids, device)? };
-        unsafe { copy_inplace(&input.timesteps, &self.timesteps, device)? };
-        unsafe { copy_inplace(&input.y, &self.y, device)? };
-        if let Some(guidance) = &self.guidance {
-            unsafe { copy_inplace(input.guidance.as_ref().unwrap(), &guidance, device)? };
-        }
+        unsafe { copy_inplace(&input.t_vec, &self.t_vec, device)? };
         Ok(())
     }
 }
@@ -157,43 +143,25 @@ fn denoise_inner(
             let t_vec = Tensor::full(*t_curr as f32, b_sz, dev)?;
             let device = img.device().clone();
             if i == 0 {
-                let initial_inputs = ModelInputs {
-                    img: img.clone(),
-                    img_ids: img_ids.clone(),
-                    txt: txt.clone(),
-                    txt_ids: txt_ids.clone(),
-                    timesteps: t_vec.clone(),
-                    y: vec_.clone(),
-                    guidance: guidance.clone(),
-                };
                 graph = Some(Graph::new(
                     |input| {
                         let pred = model.forward(
-                            &input.img,
-                            &input.img_ids,
-                            &input.txt,
-                            &input.txt_ids,
-                            &input.timesteps,
-                            &input.y,
-                            input.guidance.as_ref(),
+                            &img,
+                            &img_ids,
+                            &txt,
+                            &txt_ids,
+                            &input.t_vec,
+                            &vec_,
+                            guidance.as_ref(),
                         )?;
                         img = (&img + pred * (t_prev - t_curr))?;
                         Ok(())
                     },
                     &device,
-                    initial_inputs,
+                    ModelInputs { t_vec },
                 )?);
             } else if let Some(graph) = &graph {
-                let t_vec = Tensor::full(*t_curr as f32, b_sz, dev)?;
-                graph.replay(ModelInputs {
-                    img: img.clone(),
-                    img_ids: img_ids.clone(),
-                    txt: txt.clone(),
-                    txt_ids: txt_ids.clone(),
-                    timesteps: t_vec.clone(),
-                    y: vec_.clone(),
-                    guidance: guidance.clone(),
-                })?;
+                graph.replay(ModelInputs { t_vec })?;
             } else {
                 unreachable!()
             }
