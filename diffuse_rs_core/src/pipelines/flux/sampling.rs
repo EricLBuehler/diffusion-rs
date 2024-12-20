@@ -156,11 +156,11 @@ fn denoise_inner(
                     |input| {
                         let pred = model.forward(
                             &img,
-                            &img_ids,
-                            &txt,
-                            &txt_ids,
+                            img_ids,
+                            txt,
+                            txt_ids,
                             &input.t_vec,
-                            &vec_,
+                            vec_,
                             guidance.as_ref(),
                         )?;
                         img = (&img + pred * (t_prev - t_curr))?;
@@ -182,6 +182,7 @@ fn denoise_inner(
         }
         #[cfg(not(feature = "cuda"))]
         {
+            let _ = i;
             let t_vec = Tensor::full(*t_curr as f32, b_sz, dev)?;
             let pred =
                 model.forward(&img, img_ids, txt, txt_ids, &t_vec, vec_, guidance.as_ref())?;

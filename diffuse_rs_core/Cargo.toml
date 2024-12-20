@@ -29,7 +29,7 @@ tracing.workspace = true
 objc = { workspace = true, optional = true }
 
 [features]
-cuda = ["diffuse_rs_common/cuda", "diffuse_rs_backend/cuda", "dep:diffuse_rs_cuda_graph"]
+cuda = ["diffuse_rs_common/cuda", "diffuse_rs_backend/cuda", "dep:diffuse_rs_cuda_graph", "diffuse_rs_cuda_graph/cuda"]
 cudnn = ["diffuse_rs_common/cudnn"]
 metal = ["diffuse_rs_common/metal", "diffuse_rs_backend/metal", "dep:objc"]
 accelerate = ["diffuse_rs_common/accelerate"]

@@ -2457,21 +2457,13 @@ impl crate::core::CustomOp2 for KVConcat {
         let mut lshape: Vec<usize> = ltensor_l.shape().dims().to_vec();
         if self.concat_dim == 0 {
             lshape[0] += rtensor_l.shape().dims()[0];
+        } else if dim_size > 3 {
+            lshape[2] += rtensor_l.shape().dims()[2];
         } else {
-            if dim_size > 3 {
-                lshape[2] += rtensor_l.shape().dims()[2];
-            } else {
-                lshape[1] += rtensor_l.shape().dims()[1];
-            }
+            lshape[1] += rtensor_l.shape().dims()[1];
         }
 
         let device = dev.clone();
-        Ok((
-            CudaStorage {
-                slice: slice,
-                device,
-            },
-            lshape.into(),
-        ))
+        Ok((CudaStorage { slice, device }, lshape.into()))
     }
 }

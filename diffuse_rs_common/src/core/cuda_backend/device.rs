@@ -50,7 +50,7 @@ impl std::ops::Deref for CudaDevice {
 
 impl CudaDevice {
     pub fn cublas_handle(&self) -> &cudarc::cublas::CudaBlas {
-        &*self.blas
+        &self.blas
     }
 
     pub fn cuda_device(&self) -> Arc<cudarc::driver::CudaDevice> {

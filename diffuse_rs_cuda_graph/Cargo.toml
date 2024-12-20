@@ -12,5 +12,5 @@ diffuse_rs_common = { path = "../diffuse_rs_common" }
 half.workspace = true
 float8.workspace = true
 
-[build-dependencies]
-bindgen_cuda = "0.1.1"
+[features]
+cuda = []

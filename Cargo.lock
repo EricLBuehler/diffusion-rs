@@ -756,7 +756,6 @@ name = "diffuse_rs_cuda_graph"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bindgen_cuda",
  "diffuse_rs_common",
  "float8",
  "half",
