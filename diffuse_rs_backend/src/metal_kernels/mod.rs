@@ -1,4 +1,4 @@
-use candle_core::DType;
+use diffuse_rs_common::core::DType;
 use metal::{
     Buffer, CompileOptions, ComputeCommandEncoderRef, ComputePipelineState, Device, Function,
     FunctionConstantValues, Library, MTLSize,

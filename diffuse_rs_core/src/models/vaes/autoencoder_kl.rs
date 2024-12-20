@@ -1,5 +1,5 @@
-use candle_core::{Result, Tensor};
-use candle_nn::{Activation, Conv2d, Conv2dConfig};
+use diffuse_rs_common::core::{Result, Tensor};
+use diffuse_rs_common::nn::{Activation, Conv2d, Conv2dConfig};
 use diffuse_rs_common::VarBuilder;
 use serde::Deserialize;
 

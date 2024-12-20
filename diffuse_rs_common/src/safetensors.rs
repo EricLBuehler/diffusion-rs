@@ -1,5 +1,5 @@
-use candle_core::safetensors::Load;
-use candle_core::{Device, Error, Result, Tensor};
+use crate::core::safetensors::Load;
+use crate::core::{Device, Error, Result, Tensor};
 use safetensors::tensor as st;
 use safetensors::tensor::SafeTensors;
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use autoencoder_kl::{AutencoderKlConfig, AutoEncoderKl};
-use candle_core::{Device, Result, Tensor};
+use diffuse_rs_common::core::{Device, Result, Tensor};
 use serde::Deserialize;
 
 use diffuse_rs_common::{from_mmaped_safetensors, FileData, VarBuilder};

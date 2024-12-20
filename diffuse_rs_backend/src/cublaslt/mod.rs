@@ -2,8 +2,8 @@
 
 #![allow(unused_variables, unused_imports, dead_code)]
 
-use candle_core::{Device, Result, Tensor};
-use candle_nn::Activation as CandleActivation;
+use diffuse_rs_common::core::{Device, Result, Tensor};
+use diffuse_rs_common::nn::Activation as CandleActivation;
 use once_cell::sync::Lazy;
 use std::sync::{Mutex, Once};
 
@@ -38,7 +38,7 @@ pub fn maybe_init_cublas_lt_wrapper() {
                 // Check if we can call the driver
                 // Then check if we can create a device
                 // Then check that the device is CUDA
-                use candle_core::cuda_backend::cudarc::driver;
+                use diffuse_rs_common::core::cuda_backend::cudarc::driver;
                 CUBLASLT = driver::result::init()
                     .ok()
                     .and_then(|_| Device::cuda_if_available(0).ok())
@@ -107,13 +107,13 @@ impl CublasLtWrapper {
             )?;
 
             if Some(CandleActivation::Swiglu) == act {
-                result = candle_nn::ops::swiglu(&result)?;
+                result = diffuse_rs_common::nn::ops::swiglu(&result)?;
             }
             Ok(result)
         }
         #[cfg(not(feature = "cuda"))]
         {
-            candle_core::bail!("`cuda` feature is not enabled")
+            diffuse_rs_common::bail!("`cuda` feature is not enabled")
         }
     }
 }

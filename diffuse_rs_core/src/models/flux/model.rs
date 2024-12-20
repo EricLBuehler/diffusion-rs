@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use candle_core::{DType, IndexOp, Result, Tensor, D};
-use candle_nn::{layer_norm::RmsNormNonQuantized, LayerNorm, RmsNorm};
 use diffuse_rs_backend::{QuantMethod, QuantizedConfig};
+use diffuse_rs_common::core::{DType, IndexOp, Result, Tensor, D};
+use diffuse_rs_common::nn::{layer_norm::RmsNormNonQuantized, LayerNorm, RmsNorm};
 use diffuse_rs_common::VarBuilder;
 use serde::Deserialize;
 
@@ -54,7 +54,7 @@ fn scaled_dot_product_attention(q: &Tensor, k: &Tensor, v: &Tensor) -> Result<Te
     // let k = k.flatten_to(batch_dims.len() - 1)?;
     // let v = v.flatten_to(batch_dims.len() - 1)?;
     // let attn_weights = (q.matmul(&k.t()?)? * scale_factor)?;
-    // let attn_scores = candle_nn::ops::softmax_last_dim(&attn_weights)?.matmul(&v)?;
+    // let attn_scores = diffuse_rs_common::nn::ops::softmax_last_dim(&attn_weights)?.matmul(&v)?;
     // batch_dims.push(attn_scores.dim(D::Minus2)?);
     // batch_dims.push(attn_scores.dim(D::Minus1)?);
     // attn_scores.reshape(batch_dims)
@@ -62,7 +62,7 @@ fn scaled_dot_product_attention(q: &Tensor, k: &Tensor, v: &Tensor) -> Result<Te
 
 fn rope(pos: &Tensor, dim: usize, theta: usize) -> Result<Tensor> {
     if dim % 2 == 1 {
-        candle_core::bail!("dim {dim} is odd")
+        diffuse_rs_common::bail!("dim {dim} is odd")
     }
     let dev = pos.device();
     let theta = theta as f64;
@@ -103,16 +103,17 @@ fn timestep_embedding(t: &Tensor, dim: usize, dtype: DType) -> Result<Tensor> {
     const TIME_FACTOR: f64 = 1000.;
     const MAX_PERIOD: f64 = 10000.;
     if dim % 2 == 1 {
-        candle_core::bail!("{dim} is odd")
+        diffuse_rs_common::bail!("{dim} is odd")
     }
     let dev = t.device();
     let half = dim / 2;
     let t = (t * TIME_FACTOR)?;
-    let arange = Tensor::arange(0, half as u32, dev)?.to_dtype(candle_core::DType::F32)?;
+    let arange =
+        Tensor::arange(0, half as u32, dev)?.to_dtype(diffuse_rs_common::core::DType::F32)?;
     let freqs = (arange * (-MAX_PERIOD.ln() / half as f64))?.exp()?;
     let args = t
         .unsqueeze(1)?
-        .to_dtype(candle_core::DType::F32)?
+        .to_dtype(diffuse_rs_common::core::DType::F32)?
         .broadcast_mul(&freqs.unsqueeze(0)?)?;
     let emb = Tensor::cat(&[args.cos()?, args.sin()?], D::Minus1)?.to_dtype(dtype)?;
     Ok(emb)
@@ -136,7 +137,7 @@ impl EmbedNd {
     }
 }
 
-impl candle_core::Module for EmbedNd {
+impl diffuse_rs_common::core::Module for EmbedNd {
     fn forward(&self, ids: &Tensor) -> Result<Tensor> {
         let n_axes = ids.dim(D::Minus1)?;
         let mut emb = Vec::with_capacity(n_axes);
@@ -172,7 +173,7 @@ impl MlpEmbedder {
     }
 }
 
-impl candle_core::Module for MlpEmbedder {
+impl diffuse_rs_common::core::Module for MlpEmbedder {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         self.out_layer
             .forward_autocast(&self.in_layer.forward_autocast(xs)?.silu()?)
@@ -239,7 +240,7 @@ impl Modulation1 {
             .unsqueeze(1)?
             .chunk(3, D::Minus1)?;
         if ys.len() != 3 {
-            candle_core::bail!("unexpected len from chunk {ys:?}")
+            diffuse_rs_common::bail!("unexpected len from chunk {ys:?}")
         }
         Ok(ModulationOut {
             shift: ys[0].clone(),
@@ -273,7 +274,7 @@ impl Modulation2 {
             .unsqueeze(1)?
             .chunk(6, D::Minus1)?;
         if ys.len() != 6 {
-            candle_core::bail!("unexpected len from chunk {ys:?}")
+            diffuse_rs_common::bail!("unexpected len from chunk {ys:?}")
         }
         let mod1 = ModulationOut {
             shift: ys[0].clone(),
@@ -440,7 +441,7 @@ impl Mlp {
     }
 }
 
-impl candle_core::Module for Mlp {
+impl diffuse_rs_common::core::Module for Mlp {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let _span = self.mlp.enter();
         self.lin2
@@ -783,10 +784,10 @@ impl Flux {
         guidance: Option<&Tensor>,
     ) -> Result<Tensor> {
         if txt.rank() != 3 {
-            candle_core::bail!("unexpected shape for txt {:?}", txt.shape())
+            diffuse_rs_common::bail!("unexpected shape for txt {:?}", txt.shape())
         }
         if img.rank() != 3 {
-            candle_core::bail!("unexpected shape for img {:?}", img.shape())
+            diffuse_rs_common::bail!("unexpected shape for img {:?}", img.shape())
         }
         let dtype = img.dtype();
         let pe = {

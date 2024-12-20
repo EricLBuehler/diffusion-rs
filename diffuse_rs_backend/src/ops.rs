@@ -1,4 +1,4 @@
-use candle_core::{CpuStorage, Layout, Result, Shape, Tensor};
+use diffuse_rs_common::core::{CpuStorage, Layout, Result, Shape, Tensor};
 
 #[allow(dead_code)]
 struct Sdpa {
@@ -6,7 +6,7 @@ struct Sdpa {
     softcapping: f32,
 }
 
-impl candle_core::CustomOp3 for Sdpa {
+impl diffuse_rs_common::core::CustomOp3 for Sdpa {
     fn name(&self) -> &'static str {
         "metal-sdpa"
     }
@@ -20,21 +20,21 @@ impl candle_core::CustomOp3 for Sdpa {
         _s3: &CpuStorage,
         _l3: &Layout,
     ) -> Result<(CpuStorage, Shape)> {
-        candle_core::bail!("SDPA has no cpu impl")
+        diffuse_rs_common::bail!("SDPA has no cpu impl")
     }
 
     #[cfg(feature = "metal")]
     fn metal_fwd(
         &self,
-        q: &candle_core::MetalStorage,
+        q: &diffuse_rs_common::core::MetalStorage,
         q_l: &Layout,
-        k: &candle_core::MetalStorage,
+        k: &diffuse_rs_common::core::MetalStorage,
         k_l: &Layout,
-        v: &candle_core::MetalStorage,
+        v: &diffuse_rs_common::core::MetalStorage,
         v_l: &Layout,
-    ) -> Result<(candle_core::MetalStorage, Shape)> {
+    ) -> Result<(diffuse_rs_common::core::MetalStorage, Shape)> {
         use crate::metal_kernels::SdpaDType;
-        use candle_core::{backend::BackendStorage, DType, Shape, D};
+        use diffuse_rs_common::core::{backend::BackendStorage, DType, Shape, D};
 
         let device = q.device();
 
@@ -45,17 +45,17 @@ impl candle_core::CustomOp3 for Sdpa {
 
         // q,k must have matching emb dim
         if q_l.dim(D::Minus1)? != k_l.dim(D::Minus1)? {
-            candle_core::bail!("`q` and `k` last dims must match");
+            diffuse_rs_common::bail!("`q` and `k` last dims must match");
         }
 
         // k,v must have matching n kv heads
         if v_l.dim(D::Minus(3))? != k_l.dim(D::Minus(3))? {
-            candle_core::bail!("`k` and `v` head dims must match");
+            diffuse_rs_common::bail!("`k` and `v` head dims must match");
         }
 
         // n_heads % n_kv_heads == 0; n_heads >= 1, n_kv_heads >= 1.
         if q_l.dim(D::Minus(3))? % k_l.dim(D::Minus(3))? != 0 {
-            candle_core::bail!("query `n_heads` must be a multiple of `n_kv_heads`");
+            diffuse_rs_common::bail!("query `n_heads` must be a multiple of `n_kv_heads`");
         }
 
         let k_head = k_l.dim(D::Minus1)?;
@@ -75,7 +75,7 @@ impl candle_core::CustomOp3 for Sdpa {
         implementation_supports_use_case &= supports_sdpa_full || supports_sdpa_vector;
 
         if !supported_head_dim {
-            candle_core::bail!(
+            diffuse_rs_common::bail!(
                 "Meta SDPA does not support q head dim {q_head}: q dims {:?}, k dims {:?}, v dims {:?}.",
                 q_l.dims(),
                 k_l.dims(),
@@ -83,7 +83,7 @@ impl candle_core::CustomOp3 for Sdpa {
             );
         }
         if !implementation_supports_use_case {
-            candle_core::bail!(
+            diffuse_rs_common::bail!(
                 "Meta SDPA does not support q dims {:?}, k dims {:?}, v dims {:?}.",
                 q_l.dims(),
                 k_l.dims(),
@@ -93,7 +93,7 @@ impl candle_core::CustomOp3 for Sdpa {
 
         for t in [k.dtype(), v.dtype()] {
             if q.dtype() != t {
-                candle_core::bail!("all q, k, v dtypes must match.");
+                diffuse_rs_common::bail!("all q, k, v dtypes must match.");
             }
         }
 
@@ -101,7 +101,7 @@ impl candle_core::CustomOp3 for Sdpa {
             DType::BF16 => SdpaDType::BF16,
             DType::F16 => SdpaDType::F16,
             DType::F32 => SdpaDType::F32,
-            other => candle_core::bail!("unsupported sdpa type {other:?}"),
+            other => diffuse_rs_common::bail!("unsupported sdpa type {other:?}"),
         };
 
         let command_buffer = q.device().command_buffer()?;
@@ -156,7 +156,7 @@ impl candle_core::CustomOp3 for Sdpa {
                     self.softcapping,
                     itype,
                 )
-                .map_err(candle_core::Error::wrap)?;
+                .map_err(diffuse_rs_common::core::Error::wrap)?;
             } else {
                 command_buffer.set_label("vector_attention");
                 crate::metal_kernels::call_sdpa_vector(
@@ -178,11 +178,11 @@ impl candle_core::CustomOp3 for Sdpa {
                     self.softcapping,
                     itype,
                 )
-                .map_err(candle_core::Error::wrap)?;
+                .map_err(diffuse_rs_common::core::Error::wrap)?;
             }
         } else if supports_sdpa_full {
             if q_l.dim(2)? != k_l.dim(2)? {
-                candle_core::bail!(
+                diffuse_rs_common::bail!(
                     "query and key sequence length must be equal if using full metal sdpa"
                 )
             }
@@ -204,13 +204,17 @@ impl candle_core::CustomOp3 for Sdpa {
                 self.softcapping,
                 itype,
             )
-            .map_err(candle_core::Error::wrap)?;
+            .map_err(diffuse_rs_common::core::Error::wrap)?;
         } else {
-            candle_core::bail!("must be vector or full sdpa kernel");
+            diffuse_rs_common::bail!("must be vector or full sdpa kernel");
         }
 
-        let newstorage =
-            candle_core::MetalStorage::new(output, device.clone(), elem_count, q.dtype());
+        let newstorage = diffuse_rs_common::core::MetalStorage::new(
+            output,
+            device.clone(),
+            elem_count,
+            q.dtype(),
+        );
         Ok((newstorage, Shape::from_dims(&out_dims)))
     }
 }
@@ -252,7 +256,7 @@ pub fn sdpa(q: &Tensor, k: &Tensor, v: &Tensor, scale: f32, softcapping: f32) ->
             att = (att * softcapping as f64)?;
         }
 
-        att = candle_nn::ops::softmax_last_dim(&att)?;
+        att = diffuse_rs_common::nn::ops::softmax_last_dim(&att)?;
         att.matmul(v)
     }
 }

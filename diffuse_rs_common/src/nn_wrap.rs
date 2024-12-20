@@ -1,5 +1,5 @@
-use candle_core::Result;
-use candle_nn::{
+use crate::core::Result;
+use crate::nn::{
     Conv1d, Conv1dConfig, Conv2d, Conv2dConfig, Embedding, GroupNorm, LayerNorm, LayerNormConfig,
     Linear,
 };

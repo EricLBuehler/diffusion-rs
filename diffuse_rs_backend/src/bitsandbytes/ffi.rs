@@ -1,4 +1,4 @@
-use candle_core::cuda::cudarc::driver::sys::CUstream;
+use diffuse_rs_common::core::cuda::cudarc::driver::sys::CUstream;
 use half::{bf16, f16};
 
 #[allow(dead_code)]

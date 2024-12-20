@@ -3,7 +3,7 @@ mod flux;
 use std::{collections::HashMap, fmt::Display, sync::Arc};
 
 use anyhow::Result;
-use candle_core::{Device, Tensor};
+use diffuse_rs_common::core::{Device, Tensor};
 use flux::FluxLoader;
 use image::{DynamicImage, RgbImage};
 use serde::Deserialize;
@@ -75,7 +75,7 @@ pub trait ModelPipeline: Send + Sync {
         &self,
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
-    ) -> candle_core::Result<Tensor>;
+    ) -> diffuse_rs_common::core::Result<Tensor>;
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -205,7 +205,9 @@ impl Pipeline {
             #[allow(clippy::cast_possible_truncation)]
             images.push(DynamicImage::ImageRgb8(
                 RgbImage::from_raw(w as u32, h as u32, flattened.to_vec1::<u8>()?).ok_or(
-                    candle_core::Error::Msg("RgbImage has invalid capacity.".to_string()),
+                    diffuse_rs_common::core::Error::Msg(
+                        "RgbImage has invalid capacity.".to_string(),
+                    ),
                 )?,
             ));
         }

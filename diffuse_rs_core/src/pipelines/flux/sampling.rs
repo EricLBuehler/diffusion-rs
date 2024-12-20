@@ -1,6 +1,6 @@
 #![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 
-use candle_core::{Device, Result, Tensor};
+use diffuse_rs_common::core::{Device, Result, Tensor};
 
 use crate::models::FluxModel;
 use diffuse_rs_common::NiceProgressBar;

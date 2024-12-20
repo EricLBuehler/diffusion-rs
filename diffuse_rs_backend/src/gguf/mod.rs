@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use candle_core::{quantized::QMatMul, DType, Result, Tensor};
-use candle_nn::Module;
+use diffuse_rs_common::core::{quantized::QMatMul, DType, Result, Tensor};
+use diffuse_rs_common::nn::Module;
 
 use crate::{QuantMethod, QuantMethodConfig};
 
