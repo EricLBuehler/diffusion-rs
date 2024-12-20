@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use candle_core::{
+use diffuse_rs_common::core::{
     quantized::{GgmlDType, QTensor},
     DType, Result, Shape, Tensor, D,
 };
@@ -88,7 +88,7 @@ impl BnbLinear {
         {
             Self::linear_4bit(in_dim, out_dim, bias, vb)
         } else {
-            candle_core::bail!("`BnbLinear` expects fp4/nf4 or int8 layers.");
+            diffuse_rs_common::bail!("`BnbLinear` expects fp4/nf4 or int8 layers.");
         }
     }
 
@@ -106,7 +106,7 @@ impl BnbLinear {
 
         // Ok(Self::Int8 { weight, scb, bias })
 
-        candle_core::bail!("Int8 quantization is unsupported.");
+        diffuse_rs_common::bail!("Int8 quantization is unsupported.");
     }
 
     fn linear_4bit(_in_dim: usize, out_dim: usize, bias: bool, vb: VarBuilder) -> Result<Self> {
@@ -117,7 +117,7 @@ impl BnbLinear {
         if !vb_w.contains_tensor("quant_state.bitsandbytes__nf4")
             && !vb_w.contains_tensor("quant_state.bitsandbytes__fp4")
         {
-            candle_core::bail!("`BnbLinear` expects either `...__nf4` or `...__fp4` tensors, this means the layer is not 4bit or 8big.");
+            diffuse_rs_common::bail!("`BnbLinear` expects either `...__nf4` or `...__fp4` tensors, this means the layer is not 4bit or 8big.");
         }
 
         let quant_ty = if vb_w.contains_tensor("quant_state.bitsandbytes__nf4") {
@@ -138,27 +138,31 @@ impl BnbLinear {
             BnbQuantType::Int8 => None,
         };
         let Some(state) = state else {
-            candle_core::bail!("Only fp8/nf4 quantization is supported for now.")
+            diffuse_rs_common::bail!("Only fp8/nf4 quantization is supported for now.")
         };
 
         let state_str = String::from_utf8(state.to_vec1::<u8>()?)?;
         let state: BnbQuantState =
-            serde_json::from_str(&state_str).map_err(candle_core::Error::msg)?;
+            serde_json::from_str(&state_str).map_err(diffuse_rs_common::core::Error::msg)?;
 
         let nested = if vb_w.contains_tensor("nested_absmax") {
             // TODO: can `nested_blocksize` be None, default to 64 like bnb?
             Some(Arc::new(BnbQuantParmas {
                 absmax: vb_w.get_unchecked_dtype("nested_absmax", DType::F32)?,
                 code: vb_w.get_unchecked_dtype("nested_quant_map", DType::F32)?,
-                blocksize: state.nested_blocksize.ok_or(candle_core::Error::debug(
-                    "`nested_blocksize` must be present.",
-                ))?,
+                blocksize: state
+                    .nested_blocksize
+                    .ok_or(diffuse_rs_common::core::Error::debug(
+                        "`nested_blocksize` must be present.",
+                    ))?,
                 shape: None,
                 nested: None,
                 offset: None, // Put it in the outer one!
                 dtype: state
                     .nested_dtype
-                    .ok_or(candle_core::Error::debug("`nested_dtype` must be present."))?,
+                    .ok_or(diffuse_rs_common::core::Error::debug(
+                        "`nested_dtype` must be present.",
+                    ))?,
             }))
         } else {
             None
@@ -204,16 +208,16 @@ impl BnbLinear {
         if let Some(nested) = &params.nested {
             absmax = Self::dequantize(&params.absmax, nested, BnbQuantType::Int8)?;
             absmax = (absmax
-                + params
-                    .offset
-                    .ok_or(candle_core::Error::debug("`offset` must be present."))?)?;
+                + params.offset.ok_or(diffuse_rs_common::core::Error::debug(
+                    "`offset` must be present.",
+                ))?)?;
         }
 
         let out_shape = params.shape.clone().unwrap_or(input.shape().clone());
         let out_dtype: DType = params.dtype.into();
 
         if !SUPPORTED_BLOCKSIZE.contains(&params.blocksize) {
-            candle_core::bail!(
+            diffuse_rs_common::bail!(
                 "Blocksize of {} is not supported, {SUPPORTED_BLOCKSIZE:?} are.",
                 params.blocksize
             );
@@ -233,7 +237,7 @@ impl BnbLinear {
 }
 
 impl QuantMethod for BnbLinear {
-    fn new(method: QuantMethodConfig) -> candle_core::Result<Self>
+    fn new(method: QuantMethodConfig) -> diffuse_rs_common::core::Result<Self>
     where
         Self: Sized,
     {

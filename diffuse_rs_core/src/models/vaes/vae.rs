@@ -1,7 +1,7 @@
 #![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 
-use candle_core::{Result, Tensor, D};
-use candle_nn::{Activation, Conv2d, Conv2dConfig, GroupNorm};
+use diffuse_rs_common::core::{Result, Tensor, D};
+use diffuse_rs_common::nn::{Activation, Conv2d, Conv2dConfig, GroupNorm};
 use diffuse_rs_common::{conv2d, group_norm, linear, VarBuilder};
 use serde::Deserialize;
 use tracing::{span, Span};
@@ -29,7 +29,7 @@ fn scaled_dot_product_attention(q: &Tensor, k: &Tensor, v: &Tensor) -> Result<Te
     let dim = q.dim(D::Minus1)?;
     let scale_factor = 1.0 / (dim as f64).sqrt();
     let attn_weights = (q.matmul(&k.t()?)? * scale_factor)?;
-    candle_nn::ops::softmax_last_dim(&attn_weights)?.matmul(v)
+    diffuse_rs_common::nn::ops::softmax_last_dim(&attn_weights)?.matmul(v)
 }
 
 #[derive(Debug, Clone)]
@@ -92,7 +92,7 @@ impl AttnBlock {
     }
 }
 
-impl candle_core::Module for AttnBlock {
+impl diffuse_rs_common::core::Module for AttnBlock {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let _span = self.attn.enter();
         let init_xs = xs;
@@ -123,7 +123,7 @@ struct ResnetBlock {
 
 impl ResnetBlock {
     fn new(in_c: usize, out_c: usize, vb: VarBuilder, cfg: &VAEConfig) -> Result<Self> {
-        let conv_cfg = candle_nn::Conv2dConfig {
+        let conv_cfg = diffuse_rs_common::nn::Conv2dConfig {
             padding: 1,
             ..Default::default()
         };
@@ -154,7 +154,7 @@ impl ResnetBlock {
     }
 }
 
-impl candle_core::Module for ResnetBlock {
+impl diffuse_rs_common::core::Module for ResnetBlock {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let _span = self.resnet.enter();
         let h = xs
@@ -179,7 +179,7 @@ struct Downsample {
 
 impl Downsample {
     fn new(in_c: usize, vb: VarBuilder) -> Result<Self> {
-        let conv_cfg = candle_nn::Conv2dConfig {
+        let conv_cfg = diffuse_rs_common::nn::Conv2dConfig {
             stride: 2,
             ..Default::default()
         };
@@ -191,7 +191,7 @@ impl Downsample {
     }
 }
 
-impl candle_core::Module for Downsample {
+impl diffuse_rs_common::core::Module for Downsample {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let _span = self.downsample.enter();
         let xs = xs.pad_with_zeros(D::Minus1, 0, 1)?;
@@ -208,7 +208,7 @@ struct Upsample {
 
 impl Upsample {
     fn new(in_c: usize, vb: VarBuilder) -> Result<Self> {
-        let conv_cfg = candle_nn::Conv2dConfig {
+        let conv_cfg = diffuse_rs_common::nn::Conv2dConfig {
             padding: 1,
             ..Default::default()
         };
@@ -220,7 +220,7 @@ impl Upsample {
     }
 }
 
-impl candle_core::Module for Upsample {
+impl diffuse_rs_common::core::Module for Upsample {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let _ = self.upsample.enter();
         let (_, _, h, w) = xs.dims4()?;
@@ -253,9 +253,9 @@ impl Encoder {
             .iter()
             .all(|x| x == "DownEncoderBlock2D")
         {
-            candle_core::bail!("All down (encoder) block types must be `DownEncoderBlock2D`");
+            diffuse_rs_common::bail!("All down (encoder) block types must be `DownEncoderBlock2D`");
         }
-        let conv_cfg = candle_nn::Conv2dConfig {
+        let conv_cfg = diffuse_rs_common::nn::Conv2dConfig {
             padding: 1,
             ..Default::default()
         };
@@ -325,7 +325,7 @@ impl Encoder {
     }
 }
 
-impl candle_nn::Module for Encoder {
+impl diffuse_rs_common::nn::Module for Encoder {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let mut h = xs.apply(&self.conv_in)?;
         for block in self.down.iter() {
@@ -368,9 +368,9 @@ pub struct Decoder {
 impl Decoder {
     pub fn new(cfg: &VAEConfig, vb: VarBuilder) -> Result<Self> {
         if !cfg.up_block_types.iter().all(|x| x == "UpDecoderBlock2D") {
-            candle_core::bail!("All up (decoder) block types must be `UpDecoderBlock2D`");
+            diffuse_rs_common::bail!("All up (decoder) block types must be `UpDecoderBlock2D`");
         }
-        let conv_cfg = candle_nn::Conv2dConfig {
+        let conv_cfg = diffuse_rs_common::nn::Conv2dConfig {
             padding: 1,
             ..Default::default()
         };
@@ -431,7 +431,7 @@ impl Decoder {
     }
 }
 
-impl candle_nn::Module for Decoder {
+impl diffuse_rs_common::nn::Module for Decoder {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let h = xs.apply(&self.conv_in)?;
         let mut h = h.apply(&self.mid_block_1)?;
@@ -465,7 +465,7 @@ impl DiagonalGaussian {
     }
 }
 
-impl candle_nn::Module for DiagonalGaussian {
+impl diffuse_rs_common::nn::Module for DiagonalGaussian {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         let chunks = xs.chunk(2, self.chunk_dim)?;
         if self.sample {

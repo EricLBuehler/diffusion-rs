@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use candle_core::{
+use diffuse_rs_common::core::{
     quantized::{GgmlDType, QTensor},
     DType, Result, Tensor,
 };
@@ -21,7 +21,7 @@ pub use bitsandbytes::{BnbLinear, BnbQuantParmas, BnbQuantType};
 pub use gguf::GgufMatMul;
 pub use unquantized::UnquantLinear;
 
-use candle_nn::{Linear, Module};
+use diffuse_rs_common::nn::{Linear, Module};
 use diffuse_rs_common::VarBuilder;
 use serde::{Deserialize, Serialize};
 
@@ -108,7 +108,7 @@ pub enum IsqType {
 }
 
 impl TryFrom<IsqType> for GgmlDType {
-    type Error = candle_core::Error;
+    type Error = diffuse_rs_common::core::Error;
 
     fn try_from(value: IsqType) -> Result<Self> {
         let tp = match value {
@@ -124,7 +124,7 @@ impl TryFrom<IsqType> for GgmlDType {
             IsqType::Q8K => Self::Q8K,
             IsqType::Q8_0 => Self::Q8_0,
             IsqType::Q8_1 => Self::Q8_1,
-            _ => candle_core::bail!("Expected valid GGML ISQ type."),
+            _ => diffuse_rs_common::bail!("Expected valid GGML ISQ type."),
         };
         #[cfg(feature = "cuda")]
         {
@@ -141,7 +141,7 @@ impl TryFrom<IsqType> for GgmlDType {
                     | GgmlDType::Q5K
                     | GgmlDType::Q6K
             ) {
-                candle_core::bail!("GGML ISQ type on CUDA must be one of `Q4_0`, `Q4_1`, `Q5_0`, `Q5_1`, `Q8_0`, `Q2K`, `Q3K`, `Q4K`, `Q5K`, `Q6K`, `HQQ8`, `HQQ4`")
+                diffuse_rs_common::bail!("GGML ISQ type on CUDA must be one of `Q4_0`, `Q4_1`, `Q5_0`, `Q5_1`, `Q8_0`, `Q2K`, `Q3K`, `Q4K`, `Q5K`, `Q6K`, `HQQ8`, `HQQ4`")
             }
         }
         Ok(tp)

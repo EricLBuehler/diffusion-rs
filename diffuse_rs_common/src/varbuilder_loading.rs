@@ -10,7 +10,7 @@ use crate::{
     varbuilder::{SimpleBackend, VarBuilderArgs},
     FileData, VarBuilder,
 };
-use candle_core::{safetensors::MmapedSafetensors, DType, Device, Result, Tensor};
+use crate::core::{safetensors::MmapedSafetensors, DType, Device, Result, Tensor};
 
 use super::progress::IterWithProgress;
 
@@ -116,10 +116,10 @@ trait LoadTensors {
                     Box::new(BytesSafetensorBackend(BytesSafetensors::new(data)?))
                 }
                 FileData::Path(path) => {Box::new(SafetensorBackend(unsafe {
-                    candle_core::safetensors::MmapedSafetensors::new(path)?
+                    crate::core::safetensors::MmapedSafetensors::new(path)?
                 }))}
             },
-            other => candle_core::bail!("Unexpected extension `{other}`, this should have been handles by `get_model_paths`."),
+            other => crate::bail!("Unexpected extension `{other}`, this should have been handles by `get_model_paths`."),
         };
 
         let mut loaded_tensors = HashMap::new();

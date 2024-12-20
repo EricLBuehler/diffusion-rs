@@ -1,8 +1,8 @@
 use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 
 use anyhow::Result;
-use candle_core::{DType, Device, Tensor, D};
-use candle_nn::Module;
+use diffuse_rs_common::core::{DType, Device, Tensor, D};
+use diffuse_rs_common::nn::Module;
 use serde::Deserialize;
 use tokenizers::{models::bpe::BPE, ModelWrapper, Tokenizer};
 use tracing::info;
@@ -177,11 +177,11 @@ impl ModelPipeline for FluxPipeline {
         &self,
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
-    ) -> candle_core::Result<Tensor> {
+    ) -> diffuse_rs_common::core::Result<Tensor> {
         let mut t5_input_ids = Tensor::new(
             self.t5_tokenizer
                 .encode_batch(prompts.clone(), true)
-                .map_err(|e| candle_core::Error::Msg(e.to_string()))?
+                .map_err(|e| diffuse_rs_common::core::Error::Msg(e.to_string()))?
                 .into_iter()
                 .map(|e| e.get_ids().to_vec())
                 .collect::<Vec<_>>(),
@@ -191,7 +191,7 @@ impl ModelPipeline for FluxPipeline {
         if !self.flux_model.is_guidance() {
             match t5_input_ids.dim(1)?.cmp(&256) {
                 Ordering::Greater => {
-                    candle_core::bail!("T5 embedding length greater than 256, please shrink the prompt or use the -dev (with guidance distillation) version.")
+                    diffuse_rs_common::bail!("T5 embedding length greater than 256, please shrink the prompt or use the -dev (with guidance distillation) version.")
                 }
                 Ordering::Less | Ordering::Equal => {
                     t5_input_ids =
@@ -205,7 +205,7 @@ impl ModelPipeline for FluxPipeline {
         let clip_input_ids = Tensor::new(
             self.clip_tokenizer
                 .encode_batch(prompts, true)
-                .map_err(|e| candle_core::Error::Msg(e.to_string()))?
+                .map_err(|e| diffuse_rs_common::core::Error::Msg(e.to_string()))?
                 .into_iter()
                 .map(|e| e.get_ids().to_vec())
                 .collect::<Vec<_>>(),

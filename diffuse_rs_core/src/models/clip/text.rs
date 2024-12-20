@@ -1,8 +1,7 @@
 #![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 
-use candle_core::{DType, Device, IndexOp, Result, Tensor, D};
-use candle_nn as nn;
-use candle_nn::Module;
+use diffuse_rs_common::core::{DType, Device, IndexOp, Result, Tensor, D};
+use diffuse_rs_common::nn::{ops::sigmoid, Module};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -14,7 +13,7 @@ pub enum Activation {
 impl Module for Activation {
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
         match self {
-            Activation::QuickGelu => xs * nn::ops::sigmoid(&(xs * 1.702f64)?)?,
+            Activation::QuickGelu => xs * sigmoid(&(xs * 1.702f64)?)?,
         }
     }
 }
@@ -34,8 +33,8 @@ pub struct ClipTextConfig {
 // TODO rewrite to be more similar to https://github.com/huggingface/transformers/blob/f6fa0f0bf0796ac66f201f23bdb8585de1609add/src/transformers/models/clip/modeling_clip.py#L142
 #[derive(Clone, Debug)]
 struct ClipTextEmbeddings {
-    token_embedding: candle_nn::Embedding,
-    position_embedding: candle_nn::Embedding,
+    token_embedding: diffuse_rs_common::nn::Embedding,
+    position_embedding: diffuse_rs_common::nn::Embedding,
     position_ids: Tensor,
 }
 
@@ -43,7 +42,7 @@ impl ClipTextEmbeddings {
     fn new(vs: diffuse_rs_common::VarBuilder, c: &ClipTextConfig) -> Result<Self> {
         let token_embedding =
             diffuse_rs_common::embedding(c.vocab_size, c.projection_dim, vs.pp("token_embedding"))?;
-        let position_embedding: nn::Embedding = diffuse_rs_common::embedding(
+        let position_embedding = diffuse_rs_common::embedding(
             c.max_position_embeddings,
             c.projection_dim,
             vs.pp("position_embedding"),
@@ -70,10 +69,10 @@ impl Module for ClipTextEmbeddings {
 
 #[derive(Clone, Debug)]
 struct ClipAttention {
-    k_proj: candle_nn::Linear,
-    v_proj: candle_nn::Linear,
-    q_proj: candle_nn::Linear,
-    out_proj: candle_nn::Linear,
+    k_proj: diffuse_rs_common::nn::Linear,
+    v_proj: diffuse_rs_common::nn::Linear,
+    q_proj: diffuse_rs_common::nn::Linear,
+    out_proj: diffuse_rs_common::nn::Linear,
     head_dim: usize,
     scale: f64,
     num_attention_heads: usize,
@@ -139,7 +138,7 @@ impl ClipAttention {
             attn_weights
         };
 
-        let attn_weights = candle_nn::ops::softmax(&attn_weights, D::Minus1)?;
+        let attn_weights = diffuse_rs_common::nn::ops::softmax(&attn_weights, D::Minus1)?;
 
         let attn_output = attn_weights.matmul(&value_states)?.to_dtype(in_dtype)?;
         let attn_output = attn_output
@@ -152,8 +151,8 @@ impl ClipAttention {
 
 #[derive(Clone, Debug)]
 struct ClipMlp {
-    fc1: candle_nn::Linear,
-    fc2: candle_nn::Linear,
+    fc1: diffuse_rs_common::nn::Linear,
+    fc2: diffuse_rs_common::nn::Linear,
     activation: Activation,
 }
 
@@ -180,9 +179,9 @@ impl ClipMlp {
 #[derive(Clone, Debug)]
 struct ClipEncoderLayer {
     self_attn: ClipAttention,
-    layer_norm1: candle_nn::LayerNorm,
+    layer_norm1: diffuse_rs_common::nn::LayerNorm,
     mlp: ClipMlp,
-    layer_norm2: candle_nn::LayerNorm,
+    layer_norm2: diffuse_rs_common::nn::LayerNorm,
 }
 
 impl ClipEncoderLayer {
@@ -245,7 +244,7 @@ impl ClipEncoder {
 pub struct ClipTextTransformer {
     embeddings: ClipTextEmbeddings,
     encoder: ClipEncoder,
-    final_layer_norm: candle_nn::LayerNorm,
+    final_layer_norm: diffuse_rs_common::nn::LayerNorm,
     device: Device,
 }
 

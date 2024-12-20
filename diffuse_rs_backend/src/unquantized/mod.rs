@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use candle_core::{DType, Device, DeviceLocation, Result, Shape, Tensor, D};
+use diffuse_rs_common::core::{DType, Device, DeviceLocation, Result, Shape, Tensor, D};
 
 use crate::{
     cublaslt::{maybe_init_cublas_lt_wrapper, CUBLASLT_HANDLE},
@@ -14,7 +14,7 @@ pub struct UnquantLinear {
 }
 
 impl QuantMethod for UnquantLinear {
-    fn new(method: QuantMethodConfig) -> candle_core::Result<Self>
+    fn new(method: QuantMethodConfig) -> diffuse_rs_common::core::Result<Self>
     where
         Self: Sized,
     {
