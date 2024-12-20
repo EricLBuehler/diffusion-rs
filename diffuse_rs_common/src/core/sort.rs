@@ -92,6 +92,7 @@ impl crate::core::CustomOp1 for ArgSort {
         };
         use crate::core::{CudaDevice, WithDType};
 
+        #[allow(non_local_definitions)]
         impl Map1Any for ArgSort {
             fn f<T: DeviceRepr + WithDType + ValidAsZeroBits, W: Fn(CudaSlice<T>) -> S>(
                 &self,
