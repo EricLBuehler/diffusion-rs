@@ -175,8 +175,10 @@ impl Pipeline {
             components.insert(component, component_elem);
         }
 
-        #[cfg(not(feature = "metal"))]
-        let device = Device::cuda_if_available(0)?;
+        #[cfg(all(not(feature = "metal"), not(feature = "cuda")))]
+        let device = Device::Cpu;
+        #[cfg(feature = "cuda")]
+        let device = Device::new_cuda_with_stream(0)?;
         #[cfg(feature = "metal")]
         let device = Device::new_metal(0)?;
 
