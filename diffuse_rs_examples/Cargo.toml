@@ -1,0 +1,17 @@
+[package]
+name = "diffuse_rs_examples"
+version = "0.1.0"
+edition = "2021"
+description = "Examples of diffuse_rs"
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+homepage.workspace = true
+
+[dependencies]
+diffuse_rs_core = { path = "../diffuse_rs_core" }
+anyhow.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

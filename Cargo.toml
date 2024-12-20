@@ -1,10 +1,12 @@
 [workspace]
 members = [
-    "diffusers_core",
-    "diffusers_examples",
-    "diffusers_backend",
-    "diffusers_common",
-    "diffusers_cuda_graph"
+    "diffuse_rs_core",
+    "diffuse_rs_examples",
+    "diffuse_rs_backend",
+    "diffuse_rs_common",
+    "diffuse_rs_cli",
+    "diffuse_rs_py",
+    "diffuse_rs_cuda_graph",
 ]
 resolver = "2"
 
@@ -19,15 +21,10 @@ categories = ["science"]
 license = "MIT"
 
 [workspace.dependencies]
-# candle-core = { git = "https://github.com/EricLBuehler/candle.git", version = "0.8.0", rev = "6800496" }
-# candle-nn = { git = "https://github.com/EricLBuehler/candle.git", version = "0.8.0", rev = "6800496" }
-candle-core = "0.8.0"
-candle-nn = "0.8.0"
+clap = { version = "4.5.23", features = ["derive"] }
 serde = "1.0.215"
 serde_json = "1.0.133"
-float8 = "0.1.1"
 serde_plain = "1.0.2"
-half = "2.4.1"
 hf-hub = "0.3.2"
 tokenizers = "0.21.0"
 anyhow = "1.0.94"
@@ -43,3 +40,25 @@ lazy_static = "1.4"
 paste = "1.0.15"
 byteorder = "1.5.0"
 safetensors = "0.4.1"
+zip = "2.2.1"
+memmap2 = { version = "0.9.5", features = ["stable_deref_trait"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+cliclack = "0.3.5"
+objc = "0.2.7"
+pyo3 = { version = "0.23.3", features = ["extension-module"] }
+ug = "0.0.2"
+ug-cuda = "0.0.2"
+ug-metal = "0.0.2"
+intel-mkl-src = { version = "0.8.1", features = ["mkl-static-lp64-iomp"] }
+cudarc = { version = "0.12.1", features = ["std", "cublas", "cublaslt", "curand", "driver", "nvrtc", "f16", "cuda-version-from-build-system", "dynamic-linking"], default-features=false }
+accelerate-src = { version = "0.3.2" }
+libc = { version = "0.2.147" }
+rand = "0.8.5"
+rand_distr = "0.4.3"
+num-traits = "0.2.15"
+half = { version = "2.4.1", features = ["num-traits", "use-intrinsics", "rand_distr"] }
+float8 = { version = "0.1.0", features = ["num-traits", "rand_distr"] }
+num_cpus = "1.15.0"
+yoke = { version = "0.7.2", features = ["derive"] }
+gemm = { version = "0.17.0", features = ["wasm-simd128-enable"] }
