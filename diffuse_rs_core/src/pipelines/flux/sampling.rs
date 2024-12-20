@@ -2,6 +2,9 @@
 
 use diffuse_rs_common::core::{Device, Result, Tensor};
 
+#[cfg(feature = "cuda")]
+use diffuse_rs_cuda_graph::{copy_inplace, Graph, GraphDumpFormat, GraphDumpVerbosity, GraphInput};
+
 use crate::models::FluxModel;
 use diffuse_rs_common::NiceProgressBar;
 
@@ -101,6 +104,23 @@ pub fn unpack(xs: &Tensor, height: usize, width: usize) -> Result<Tensor> {
         .reshape((b, c_ph_pw / 4, height * 2, width * 2))
 }
 
+#[cfg(feature = "cuda")]
+struct ModelInputs {
+    t_vec: Tensor,
+}
+
+#[cfg(feature = "cuda")]
+impl GraphInput for ModelInputs {
+    fn load_inputs_inplace(
+        &self,
+        input: Self,
+        device: &Device,
+    ) -> diffuse_rs_common::core::Result<()> {
+        unsafe { copy_inplace(&input.t_vec, &self.t_vec, device)? };
+        Ok(())
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn denoise_inner(
     model: &FluxModel,
@@ -120,14 +140,53 @@ fn denoise_inner(
         None
     };
     let mut img = img.clone();
-    for window in NiceProgressBar::<_, 'g'>(timesteps.windows(2), "Denoise loop") {
+    #[cfg(feature = "cuda")]
+    let mut graph = None;
+    for (i, window) in NiceProgressBar::<_, 'g'>(timesteps.windows(2).enumerate(), "Denoise loop") {
         let (t_curr, t_prev) = match window {
             [a, b] => (a, b),
             _ => continue,
         };
-        let t_vec = Tensor::full(*t_curr as f32, b_sz, dev)?;
-        let pred = model.forward(&img, img_ids, txt, txt_ids, &t_vec, vec_, guidance.as_ref())?;
-        img = (img + pred * (t_prev - t_curr))?
+        #[cfg(feature = "cuda")]
+        {
+            let t_vec = Tensor::full(*t_curr as f32, b_sz, dev)?;
+            let device = img.device().clone();
+            if i == 0 {
+                graph = Some(Graph::new(
+                    |input| {
+                        let pred = model.forward(
+                            &img,
+                            &img_ids,
+                            &txt,
+                            &txt_ids,
+                            &input.t_vec,
+                            &vec_,
+                            guidance.as_ref(),
+                        )?;
+                        img = (&img + pred * (t_prev - t_curr))?;
+                        Ok(())
+                    },
+                    &device,
+                    ModelInputs { t_vec },
+                )?);
+                graph.as_ref().unwrap().output_dot(
+                    "out.dot",
+                    GraphDumpFormat::Dot,
+                    GraphDumpVerbosity::Verbose,
+                )?;
+            } else if let Some(graph) = &graph {
+                graph.replay(ModelInputs { t_vec })?;
+            } else {
+                unreachable!()
+            }
+        }
+        #[cfg(not(feature = "cuda"))]
+        {
+            let t_vec = Tensor::full(*t_curr as f32, b_sz, dev)?;
+            let pred =
+                model.forward(&img, img_ids, txt, txt_ids, &t_vec, vec_, guidance.as_ref())?;
+            img = (img + pred * (t_prev - t_curr))?
+        }
     }
     Ok(img)
 }
