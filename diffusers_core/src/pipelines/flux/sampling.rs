@@ -1,7 +1,7 @@
 #![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 
 use candle_core::{Device, Result, Tensor};
-use diffusers_cuda_graph::{copy_inplace, Graph, GraphInput};
+use diffusers_cuda_graph::{copy_inplace, Graph, GraphDumpFormat, GraphDumpVerbosity, GraphInput};
 
 use crate::models::FluxModel;
 use diffusers_common::NiceProgressBar;
@@ -160,6 +160,11 @@ fn denoise_inner(
                     &device,
                     ModelInputs { t_vec },
                 )?);
+                graph.as_ref().unwrap().output_dot(
+                    "out.dot",
+                    GraphDumpFormat::Dot,
+                    GraphDumpVerbosity::Verbose,
+                )?;
             } else if let Some(graph) = &graph {
                 graph.replay(ModelInputs { t_vec })?;
             } else {
