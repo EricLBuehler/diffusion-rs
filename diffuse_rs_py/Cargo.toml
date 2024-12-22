@@ -24,9 +24,9 @@ image.workspace = true
 [build-dependencies]
 pyo3-build-config = "0.23"
 
-# [features]
-# cuda = ["diffuse_rs_core/cuda"]
-# cudnn = ["diffuse_rs_core/cudnn"]
-# metal = ["diffuse_rs_core/metal"]
-# accelerate = ["diffuse_rs_core/accelerate"]
-# mkl = ["diffuse_rs_core/mkl"]
+[features]
+cuda = ["diffuse_rs_core/cuda"]
+cudnn = ["diffuse_rs_core/cudnn"]
+metal = ["diffuse_rs_core/metal"]
+accelerate = ["diffuse_rs_core/accelerate"]
+mkl = ["diffuse_rs_core/mkl"]
