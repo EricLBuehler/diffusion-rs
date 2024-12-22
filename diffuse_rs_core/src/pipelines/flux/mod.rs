@@ -53,6 +53,7 @@ impl Loader for FluxLoader {
         &self,
         mut components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
+        silent: bool,
     ) -> Result<Arc<dyn ModelPipeline>> {
         let scheduler = components.remove(&ComponentName::Scheduler).unwrap();
         let clip_component = components.remove(&ComponentName::TextEncoder(1)).unwrap();
@@ -92,7 +93,9 @@ impl Loader for FluxLoader {
         } else {
             anyhow::bail!("incorrect storage of t5 tokenizer")
         };
-        info!("loading CLIP model");
+        if !silent {
+            info!("loading CLIP model");
+        }
         let clip_component = if let ComponentElem::Model {
             safetensors,
             config,
@@ -101,12 +104,14 @@ impl Loader for FluxLoader {
             let cfg: ClipTextConfig = serde_json::from_str(&config.read_to_string()?)?;
 
             let vb =
-                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, false)?;
+                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, silent)?;
             ClipTextTransformer::new(vb.pp("text_model"), &cfg)?
         } else {
             anyhow::bail!("incorrect storage of clip model")
         };
-        info!("loading T5 model");
+        if !silent {
+            info!("loading T5 model");
+        }
         let t5_component = if let ComponentElem::Model {
             safetensors,
             config,
@@ -114,22 +119,26 @@ impl Loader for FluxLoader {
         {
             let cfg: T5Config = serde_json::from_str(&config.read_to_string()?)?;
             let vb =
-                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, false)?;
+                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, silent)?;
             T5EncoderModel::new(vb, &cfg, device)?
         } else {
             anyhow::bail!("incorrect storage of t5 model")
         };
-        info!("loading VAE model");
+        if !silent {
+            info!("loading VAE model");
+        }
         let vae_component = if let ComponentElem::Model {
             safetensors,
             config,
         } = vae_component
         {
-            dispatch_load_vae_model(&config, safetensors.into_values().collect(), device)?
+            dispatch_load_vae_model(&config, safetensors.into_values().collect(), device, silent)?
         } else {
             anyhow::bail!("incorrect storage of vae model")
         };
-        info!("loading FLUX model");
+        if !silent {
+            info!("loading FLUX model");
+        }
         let flux_component = if let ComponentElem::Model {
             safetensors,
             config,
@@ -137,16 +146,18 @@ impl Loader for FluxLoader {
         {
             let cfg: FluxConfig = serde_json::from_str(&config.read_to_string()?)?;
             let vb =
-                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, false)?;
+                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, silent)?;
             FluxModel::new(&cfg, vb)?
         } else {
             anyhow::bail!("incorrect storage of flux model")
         };
 
-        info!(
-            "FLUX pipeline using a guidance-distilled model: {}",
-            flux_component.is_guidance()
-        );
+        if !silent {
+            info!(
+                "FLUX pipeline using a guidance-distilled model: {}",
+                flux_component.is_guidance()
+            );
+        }
 
         let pipeline = FluxPipeline {
             clip_tokenizer: Arc::new(clip_tokenizer),
