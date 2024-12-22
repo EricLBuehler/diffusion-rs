@@ -172,6 +172,28 @@ pub struct FluxPipeline {
     scheduler_config: SchedulerConfig,
 }
 
+impl FluxPipeline {
+    fn tokenize_and_pad(
+        prompts: Vec<String>,
+        tokenizer: &Tokenizer,
+    ) -> diffuse_rs_common::core::Result<Vec<Vec<u32>>> {
+        let mut t5_tokens = Vec::new();
+        let unpadded_t5_tokens = tokenizer
+            .encode_batch(prompts, true)
+            .map_err(|e| diffuse_rs_common::core::Error::Msg(e.to_string()))?
+            .into_iter()
+            .map(|e| e.get_ids().to_vec())
+            .collect::<Vec<_>>();
+        let t5_max_tokens = unpadded_t5_tokens.iter().map(|x| x.len()).max().unwrap();
+        for mut tokenization in unpadded_t5_tokens {
+            tokenization.extend(vec![0; t5_max_tokens - tokenization.len()]);
+            t5_tokens.push(tokenization);
+        }
+
+        Ok(t5_tokens)
+    }
+}
+
 impl ModelPipeline for FluxPipeline {
     fn forward(
         &self,
@@ -179,12 +201,7 @@ impl ModelPipeline for FluxPipeline {
         params: DiffusionGenerationParams,
     ) -> diffuse_rs_common::core::Result<Tensor> {
         let mut t5_input_ids = Tensor::new(
-            self.t5_tokenizer
-                .encode_batch(prompts.clone(), true)
-                .map_err(|e| diffuse_rs_common::core::Error::Msg(e.to_string()))?
-                .into_iter()
-                .map(|e| e.get_ids().to_vec())
-                .collect::<Vec<_>>(),
+            Self::tokenize_and_pad(prompts.clone(), &self.t5_tokenizer)?,
             self.t5_model.device(),
         )?;
 
@@ -203,12 +220,7 @@ impl ModelPipeline for FluxPipeline {
         let t5_embed = self.t5_model.forward(&t5_input_ids)?;
 
         let clip_input_ids = Tensor::new(
-            self.clip_tokenizer
-                .encode_batch(prompts, true)
-                .map_err(|e| diffuse_rs_common::core::Error::Msg(e.to_string()))?
-                .into_iter()
-                .map(|e| e.get_ids().to_vec())
-                .collect::<Vec<_>>(),
+            Self::tokenize_and_pad(prompts, &self.clip_tokenizer)?,
             self.clip_model.device(),
         )?;
         let clip_embed = self.clip_model.forward(&clip_input_ids)?;
