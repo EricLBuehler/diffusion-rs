@@ -67,6 +67,7 @@ pub(crate) trait Loader {
         &self,
         components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
+        silent: bool,
     ) -> Result<Arc<dyn ModelPipeline>>;
 }
 
@@ -180,7 +181,7 @@ impl Pipeline {
         #[cfg(feature = "metal")]
         let device = Device::new_metal(0)?;
 
-        let model = model_loader.load_from_components(components, &device)?;
+        let model = model_loader.load_from_components(components, &device, silent)?;
 
         Ok(Self(model))
     }
