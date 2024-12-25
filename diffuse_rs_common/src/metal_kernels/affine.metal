@@ -614,6 +614,7 @@ kernel void FN_NAME##_strided( \
 } \
 
 
+AFFINE(affine_i8, int8_t)
 AFFINE(affine_u8, uint8_t)
 AFFINE(affine_u32, uint32_t)
 AFFINE(affine_f32, float)
