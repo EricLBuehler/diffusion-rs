@@ -192,7 +192,7 @@ impl Module for dyn QuantMethod {
 }
 
 fn vb_contains_quant(vb: &VarBuilder) -> bool {
-    vb.contains_tensor("weight.absmax")
+    vb.contains_tensor("weight.absmax") || vb.contains_tensor("SCB")
 }
 
 pub fn linear_no_bias(

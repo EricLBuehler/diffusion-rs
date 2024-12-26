@@ -180,7 +180,7 @@ pub fn call_dequant_bnb_nf4(
         (code, input, absmax, output, blocksize as i32, n as i32)
     );
 
-    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n.div_ceil(blocksize));
+    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n);
     encoder.dispatch_thread_groups(thread_group_count, thread_group_size);
     Ok(())
 }
@@ -220,7 +220,7 @@ pub fn call_dequant_bnb_fp4(
         (code, input, absmax, output, blocksize as i32, n as i32)
     );
 
-    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n.div_ceil(blocksize));
+    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n);
     encoder.dispatch_thread_groups(thread_group_count, thread_group_size);
     Ok(())
 }
@@ -260,7 +260,7 @@ pub fn call_dequant_bnb_int8(
         (code, input, absmax, output, blocksize as i32, n as i32)
     );
 
-    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n.div_ceil(blocksize));
+    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n);
     encoder.dispatch_thread_groups(thread_group_count, thread_group_size);
     Ok(())
 }
