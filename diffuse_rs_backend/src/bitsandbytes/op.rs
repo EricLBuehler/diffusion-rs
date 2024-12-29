@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 #[cfg(feature = "cuda")]
 use diffuse_rs_common::core::cuda::{
-    cudarc::driver::{sys::CUstream, CudaSlice, DeviceRepr, ValidAsZeroBits},
+    cudarc::driver::{sys::CUstream, CudaSlice, CudaView, DeviceRepr, ValidAsZeroBits},
     CudaDevice,
 };
 
@@ -203,9 +203,9 @@ impl DequantizeOp {
     #[cfg(feature = "cuda")]
     fn dispatch_cuda_kernel<T: WithDType + DeviceRepr + ValidAsZeroBits>(
         &self,
-        input: &CudaSlice<u8>,
-        code: &CudaSlice<f32>,
-        absmax: &CudaSlice<f32>,
+        input: CudaView<u8>,
+        code: CudaView<f32>,
+        absmax: CudaView<f32>,
         dev: &CudaDevice,
         kernel: unsafe extern "C" fn(*const f32, *const u8, *const f32, *mut T, i32, i32, CUstream),
     ) -> Result<CudaSlice<T>> {
@@ -296,9 +296,15 @@ impl CustomOp3 for DequantizeOp {
         if !(input_l.is_contiguous() && absmax_l.is_contiguous() && code_l.is_contiguous()) {
             diffuse_rs_common::bail!("All inputs must be contiguous");
         }
-        let input_slice = input_s.as_cuda_slice::<u8>()?;
-        let absmax_slice = absmax_s.as_cuda_slice::<f32>()?;
-        let code_slice = code_s.as_cuda_slice::<f32>()?;
+        let input_slice = input_s
+            .as_cuda_slice::<u8>()?
+            .slice(input_l.start_offset()..);
+        let absmax_slice = absmax_s
+            .as_cuda_slice::<f32>()?
+            .slice(absmax_l.start_offset()..);
+        let code_slice = code_s
+            .as_cuda_slice::<f32>()?
+            .slice(code_l.start_offset()..);
         let dev = input_s.device().clone();
         let out = match (self.out_ty, self.quant_ty) {
             (BnbDType::F32, BnbQuantType::Nf4) => {
@@ -556,6 +562,34 @@ impl Dequantize8BitOp {
 
         out
     }
+
+    #[cfg(feature = "cuda")]
+    fn dispatch_cuda_kernel<T: WithDType + DeviceRepr + ValidAsZeroBits>(
+        &self,
+        weight: CudaView<i8>,
+        scb: CudaView<f32>,
+        row: i32,
+        col: i32,
+        n: i32,
+        dev: &CudaDevice,
+        kernel: unsafe extern "C" fn(*const i8, *const f32, *mut T, i32, i32, i32),
+    ) -> Result<CudaSlice<T>> {
+        use diffuse_rs_common::core::cuda::{cudarc::driver::DevicePtr, WrapErr};
+
+        let out = unsafe { dev.alloc::<T>(n as usize).w()? };
+        unsafe {
+            kernel(
+                (*weight.device_ptr()) as *const _,
+                (*scb.device_ptr()) as *const _,
+                (*out.device_ptr()) as *mut _,
+                row,
+                col,
+                n,
+            )
+        };
+
+        Ok(out)
+    }
 }
 
 impl CustomOp2 for Dequantize8BitOp {
@@ -601,6 +635,74 @@ impl CustomOp2 for Dequantize8BitOp {
                 t
             ),
         }
+    }
+
+    #[cfg(feature = "cuda")]
+    fn cuda_fwd(
+        &self,
+        weight_s: &diffuse_rs_common::core::CudaStorage,
+        weight_l: &diffuse_rs_common::core::Layout,
+        scb_s: &diffuse_rs_common::core::CudaStorage,
+        scb_l: &diffuse_rs_common::core::Layout,
+    ) -> Result<(diffuse_rs_common::core::CudaStorage, Shape)> {
+        if !(weight_l.is_contiguous() && scb_l.is_contiguous()) {
+            diffuse_rs_common::bail!("All inputs must be contiguous");
+        }
+        let weight_slice = weight_s
+            .as_cuda_slice::<i8>()?
+            .slice(weight_l.start_offset()..);
+        let scb_slice = scb_s.as_cuda_slice::<f32>()?.slice(scb_l.start_offset()..);
+        let dev = weight_s.device().clone();
+
+        let row = weight_l.dim(0)? as i32;
+        let col = weight_l.dim(1)? as i32;
+        let n = weight_l.shape().elem_count() as i32;
+
+        if row != scb_l.dim(0)? as i32 {
+            diffuse_rs_common::bail!("scb dim0 must match weight dim0");
+        }
+
+        let out = match self.out_ty {
+            DType::F32 => diffuse_rs_common::core::CudaStorage::wrap_cuda_slice(
+                self.dispatch_cuda_kernel(
+                    weight_slice,
+                    scb_slice,
+                    row,
+                    col,
+                    n,
+                    &dev,
+                    ffi::dequantize_8bit_kernel_f32,
+                )?,
+                dev,
+            ),
+            DType::F16 => diffuse_rs_common::core::CudaStorage::wrap_cuda_slice(
+                self.dispatch_cuda_kernel(
+                    weight_slice,
+                    scb_slice,
+                    row,
+                    col,
+                    n,
+                    &dev,
+                    ffi::dequantize_8bit_kernel_f16,
+                )?,
+                dev,
+            ),
+            DType::BF16 => diffuse_rs_common::core::CudaStorage::wrap_cuda_slice(
+                self.dispatch_cuda_kernel(
+                    weight_slice,
+                    scb_slice,
+                    row,
+                    col,
+                    n,
+                    &dev,
+                    ffi::dequantize_8bit_kernel_bf16,
+                )?,
+                dev,
+            ),
+            _ => diffuse_rs_common::bail!("only f32/bf16/f16 are allowed in dequantize-8bit-op"),
+        };
+
+        Ok((out, weight_l.shape().clone()))
     }
 
     #[cfg(feature = "metal")]

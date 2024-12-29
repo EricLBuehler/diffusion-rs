@@ -86,4 +86,29 @@ extern "C" {
         n: i32,
         stream: CUstream,
     );
+
+    pub(crate) fn dequantize_8bit_kernel_f32(
+        weight: *const i8,
+        scb: *const f32,
+        out: *mut f32,
+        row: i32,
+        col: i32,
+        n: i32,
+    );
+    pub(crate) fn dequantize_8bit_kernel_f16(
+        weight: *const i8,
+        scb: *const f32,
+        out: *mut f16,
+        row: i32,
+        col: i32,
+        n: i32,
+    );
+    pub(crate) fn dequantize_8bit_kernel_bf16(
+        weight: *const i8,
+        scb: *const f32,
+        out: *mut bf16,
+        row: i32,
+        col: i32,
+        n: i32,
+    );
 }

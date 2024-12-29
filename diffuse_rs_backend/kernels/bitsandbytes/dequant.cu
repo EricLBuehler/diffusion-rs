@@ -201,3 +201,33 @@ extern "C" void dequantize_blockwise_bf16_nf4(float *code, unsigned char *A, flo
     dequantizeBlockwise<__nv_bfloat16, NF4>(code, A, absmax, out, blocksize, n, stream);
 }
 // #endif
+
+
+template<typename T>
+__global__ void dequantize_8bit_kernel(const int8_t *weight, const float *scb, T *out, const int row, const int col, const int n)
+{
+  const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= n) {
+    return;
+  }
+  const float local_scb = scb[idx / col];
+  out[idx] = static_cast<T>((float(weight[idx]) * local_scb) / 127.f);
+}
+
+template<typename T> void dequantize_8bit_kernel_wrap(const int8_t *weight, const float *scb, T *out, const int row, const int col, const int n)
+{
+  const int NUM_THREADS = 1024;
+  dim3 grid((n + NUM_THREADS - 1)/NUM_THREADS, 1, 1);
+  dim3 block(NUM_THREADS, 1, 1);
+  dequantize_8bit_kernel<<<grid, block, 0>>>(weight, scb, out, row, col, n);
+}
+
+extern "C" void dequantize_8bit_kernel_f32(const int8_t *weight, const float *scb, float *out, const int row, const int col, const int n) {
+    dequantize_8bit_kernel_wrap<float>(weight, scb, out, row, col, n);
+}
+extern "C" void dequantize_8bit_kernel_f16(const int8_t *weight, const float *scb, __half *out, const int row, const int col, const int n) {
+    dequantize_8bit_kernel_wrap<__half>(weight, scb, out, row, col, n);
+}
+extern "C" void dequantize_8bit_kernel_bf16(const int8_t *weight, const float *scb, __nv_bfloat16 *out, const int row, const int col, const int n) {
+    dequantize_8bit_kernel_wrap<__nv_bfloat16>(weight, scb, out, row, col, n);
+}

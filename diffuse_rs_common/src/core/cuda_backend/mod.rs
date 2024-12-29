@@ -1063,6 +1063,7 @@ macro_rules! cuda_dtype {
         }
     };
 }
+cuda_dtype!(i8, I8);
 cuda_dtype!(u8, U8);
 cuda_dtype!(u32, U32);
 cuda_dtype!(i16, I16);
