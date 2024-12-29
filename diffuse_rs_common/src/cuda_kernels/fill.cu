@@ -8,6 +8,7 @@ __device__ void fill_with(T *buf, T value, const size_t numel) {
     }
 }
 extern "C" __global__ void fill_u8(uint8_t *buf, uint8_t value, const size_t numel) { fill_with(buf, value, numel); }
+extern "C" __global__ void fill_i8(int8_t *buf, int8_t value, const size_t numel) { fill_with(buf, value, numel); }
 extern "C" __global__ void fill_u32(uint32_t *buf, uint32_t value, const size_t numel) { fill_with(buf, value, numel); }
 extern "C" __global__ void fill_i16(int16_t *buf, int16_t value, const size_t numel) { fill_with(buf, value, numel); }
 extern "C" __global__ void fill_i32(int32_t *buf, int32_t value, const size_t numel) { fill_with(buf, value, numel); }

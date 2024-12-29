@@ -339,6 +339,7 @@ kernel void asort_desc_##RUST_T( \
 
 ARGSORT(float, f32)
 ARGSORT(half, f16)
+ARGSORT(int8_t, i8)
 ARGSORT(uint8_t, u8)
 ARGSORT(uint32_t, u32)
 ARGSORT(int32_t, i32)

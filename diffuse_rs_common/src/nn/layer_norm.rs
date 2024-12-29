@@ -248,23 +248,23 @@ impl RmsNorm<RmsNormQuantized> {
                 match (x_storage.dtype(), weight_storage.dtype()) {
                     (DType::BF16, DType::BF16) => self.dtype_execute_rmsnorm::<half::bf16, _>(
                         dev,
-                        |x| half::bf16::from_f64(x),
-                        &x_storage,
-                        &weight_storage,
+                        half::bf16::from_f64,
+                        x_storage,
+                        weight_storage,
                         x,
                     ),
                     (DType::F16, DType::F16) => self.dtype_execute_rmsnorm::<half::f16, _>(
                         dev,
-                        |x| half::f16::from_f64(x),
-                        &x_storage,
-                        &weight_storage,
+                        half::f16::from_f64,
+                        x_storage,
+                        weight_storage,
                         x,
                     ),
                     (DType::F32, DType::F32) => self.dtype_execute_rmsnorm::<f32, _>(
                         dev,
                         |x| x as f32,
-                        &x_storage,
-                        &weight_storage,
+                        x_storage,
+                        weight_storage,
                         x,
                     ),
                     _ => crate::bail!("DType mismatch in fused rmsnorm."),
@@ -296,8 +296,8 @@ impl Module for RmsNorm<RmsNormQuantized> {
         match (xs.dtype(), xs.device()) {
             (DType::BF16, Device::Cuda(dev))
             | (DType::F32, Device::Cuda(dev))
-            | (DType::F16, Device::Cuda(dev)) => return self.fused_rmsnorm(xs, &dev),
-            _ => return self.inner.forward(xs),
+            | (DType::F16, Device::Cuda(dev)) => self.fused_rmsnorm(xs, dev),
+            _ => self.inner.forward(xs),
         }
         #[cfg(not(feature = "cuda"))]
         {

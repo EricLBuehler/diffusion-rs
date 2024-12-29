@@ -92,21 +92,17 @@ impl BnbLinear {
         }
     }
 
-    fn linear_8bit(_in_dim: usize, _out_dim: usize, _bias: bool, _vb: VarBuilder) -> Result<Self> {
-        // TODO: weight needs to be i8!
+    fn linear_8bit(_in_dim: usize, out_dim: usize, bias: bool, vb: VarBuilder) -> Result<Self> {
+        let weight = vb.get_unchecked_dtype("weight", DType::I8)?;
+        let scb = vb.get_unchecked_dtype("SCB", DType::F32)?;
 
-        // let weight = vb.get_unchecked_dtype("weight", DType::F32)?;
-        // let scb = vb.get_unchecked_dtype("SCB", DType::F32)?;
+        let bias = if bias {
+            Some(vb.get((out_dim,), "bias")?)
+        } else {
+            None
+        };
 
-        // let bias = if bias {
-        //     Some(vb.get((out_dim,), "bias")?)
-        // } else {
-        //     None
-        // };
-
-        // Ok(Self::Int8 { weight, scb, bias })
-
-        diffuse_rs_common::bail!("Int8 quantization is unsupported.");
+        Ok(Self::Int8 { weight, scb, bias })
     }
 
     fn linear_4bit(_in_dim: usize, out_dim: usize, bias: bool, vb: VarBuilder) -> Result<Self> {
@@ -199,14 +195,14 @@ impl BnbLinear {
     }
 
     /// Dequantize input (u8). Handles nested absmax dequantization.
-    fn dequantize(
+    fn dequantize_4bit(
         input: &Tensor,
         params: &BnbQuantParmas,
         quant_ty: BnbQuantType,
     ) -> Result<Tensor> {
         let mut absmax = params.absmax.clone();
         if let Some(nested) = &params.nested {
-            absmax = Self::dequantize(&params.absmax, nested, BnbQuantType::Int8)?;
+            absmax = Self::dequantize_4bit(&params.absmax, nested, BnbQuantType::Int8)?;
             absmax = (absmax
                 + params.offset.ok_or(diffuse_rs_common::core::Error::debug(
                     "`offset` must be present.",
@@ -257,30 +253,24 @@ impl QuantMethod for BnbLinear {
         }
     }
 
-    fn dequantize_w(&self) -> Result<Tensor> {
+    fn dequantize_w(&self, out_ty: DType) -> Result<Tensor> {
         match self {
             Self::Fp4Nf4 {
                 weight,
                 bias: _,
                 params,
                 quant_ty,
-            } => Self::dequantize(weight, params, *quant_ty),
+            } => Self::dequantize_4bit(weight, params, *quant_ty),
             Self::Int8 {
                 weight,
                 scb,
                 bias: _,
-            } => {
-                // https://huggingface.co/blog/hf-bitsandbytes-integration#hugging-face-transformers-integration-nuances
-                weight
-                    .to_dtype(scb.dtype())?
-                    .broadcast_div(&scb.unsqueeze(1)?)?
-                    / 127.
-            }
+            } => op::dequantize_8bit(weight, scb, out_ty),
         }
     }
 
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        let w = self.dequantize_w()?.t()?.to_dtype(xs.dtype())?;
+        let w = self.dequantize_w(xs.dtype())?.t()?;
         let res = xs.broadcast_matmul(&w)?;
         let bias = match self {
             Self::Fp4Nf4 { bias, .. } | Self::Int8 { bias, .. } => bias,
@@ -297,7 +287,7 @@ impl QuantMethod for BnbLinear {
     }
 
     fn maybe_to_gguf_quant(self: Arc<Self>) -> Result<Arc<dyn QuantMethod>> {
-        let weight = self.dequantize_w()?;
+        let weight = self.dequantize_w(DType::F32)?;
 
         match &*self {
             Self::Fp4Nf4 { bias, quant_ty, .. } => {

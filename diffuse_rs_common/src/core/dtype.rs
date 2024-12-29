@@ -11,6 +11,8 @@ pub enum DType {
     F8E4M3,
     // Unsigned 8 bits integer.
     U8,
+    // Signed 8 bits integer.
+    I8,
     // Unsigned 32 bits integer.
     U32,
     // Signed 16 bits integer.
@@ -63,6 +65,7 @@ impl DType {
     /// String representation for dtypes.
     pub fn as_str(&self) -> &'static str {
         match self {
+            Self::I8 => "i8",
             Self::U8 => "u8",
             Self::U32 => "u32",
             Self::I16 => "i16",
@@ -79,6 +82,7 @@ impl DType {
     /// The size used by each element in bytes, i.e. 1 for `U8`, 4 for `F32`.
     pub fn size_in_bytes(&self) -> usize {
         match self {
+            Self::I8 => 1,
             Self::U8 => 1,
             Self::F8E4M3 => 1,
             Self::U32 => 4,
@@ -94,14 +98,14 @@ impl DType {
 
     pub fn is_int(&self) -> bool {
         match self {
-            Self::U8 | Self::U32 | Self::I16 | Self::I32 | Self::I64 => true,
+            Self::U8 | Self::I8 | Self::U32 | Self::I16 | Self::I32 | Self::I64 => true,
             Self::BF16 | Self::F16 | Self::F32 | Self::F64 | Self::F8E4M3 => false,
         }
     }
 
     pub fn is_float(&self) -> bool {
         match self {
-            Self::U8 | Self::U32 | Self::I16 | Self::I32 | Self::I64 => false,
+            Self::U8 | Self::I8 | Self::U32 | Self::I16 | Self::I32 | Self::I64 => false,
             Self::BF16 | Self::F16 | Self::F32 | Self::F64 | Self::F8E4M3 => true,
         }
     }
@@ -184,6 +188,7 @@ macro_rules! with_dtype {
 use float8::F8E4M3;
 use half::{bf16, f16};
 
+with_dtype!(i8, I8, |v: f64| v as i8, |v: i8| v as f64);
 with_dtype!(u8, U8, |v: f64| v as u8, |v: u8| v as f64);
 with_dtype!(u32, U32, |v: f64| v as u32, |v: u32| v as f64);
 with_dtype!(i16, I16, |v: f64| v as i16, |v: i16| v as f64);

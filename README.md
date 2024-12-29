@@ -9,8 +9,7 @@ Blazingly fast inference of diffusion models.
 
 ## Features
 - Quantization
-  - `bitsandbytes` format (fp4, nf4)
-    - 🚧 Int8 (https://arxiv.org/abs/2208.07339) support is coming soon!
+  - `bitsandbytes` format (fp4, nf4, and int8)
   - `GGUF` (2-8 bit quantization)
 - Easy: Strong support for running 🤗 DDUF models.
 - Many devices: NVIDIA GPUs (CUDA), Apple M-series GPUs (Metal), CPU SIMD

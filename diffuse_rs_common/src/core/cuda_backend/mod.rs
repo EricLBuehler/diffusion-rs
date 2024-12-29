@@ -1,7 +1,7 @@
 use crate::core::backend::{BackendDevice, BackendStorage};
 use crate::core::op::{BinaryOpT, CmpOp, ReduceOp, UnaryOpT};
 use crate::core::{CpuStorage, DType, Layout, Result, Shape, WithDType};
-pub use candle_kernels as kernels;
+pub use crate::cuda_kernels as kernels;
 pub use cudarc;
 use cudarc::cublas::{Gemm, GemmConfig, StridedBatchedConfig};
 use cudarc::driver::{
@@ -47,6 +47,7 @@ impl SlicePtrOrNull<usize> {
 #[derive(Debug)]
 pub enum CudaStorageSlice {
     U8(CudaSlice<u8>),
+    I8(CudaSlice<i8>),
     U32(CudaSlice<u32>),
     I16(CudaSlice<i16>),
     I32(CudaSlice<i32>),
@@ -257,7 +258,7 @@ impl Map1 for Powf {
 }
 
 struct FastReduce<'a>(&'a [usize], ReduceOp);
-impl<'a> Map1Any for FastReduce<'a> {
+impl Map1Any for FastReduce<'_> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits, W: Fn(CudaSlice<T>) -> S>(
         &self,
         src: &CudaSlice<T>,
@@ -352,7 +353,7 @@ impl<U: UnaryOpT> Map1 for U {
 }
 
 struct IndexSelect<'a>(&'a CudaStorage, &'a Layout, usize);
-impl<'a> Map1 for IndexSelect<'a> {
+impl Map1 for IndexSelect<'_> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
         src: &CudaSlice<T>,
@@ -367,6 +368,9 @@ impl<'a> Map1 for IndexSelect<'a> {
             CudaStorageSlice::U8(slice) => {
                 ("is_u8", *slice.slice(ids_l.start_offset()..).device_ptr())
             }
+            CudaStorageSlice::I8(slice) => {
+                ("is_i8", *slice.slice(ids_l.start_offset()..).device_ptr())
+            }
             CudaStorageSlice::I16(slice) => {
                 ("is_i16", *slice.slice(ids_l.start_offset()..).device_ptr())
             }
@@ -377,7 +381,7 @@ impl<'a> Map1 for IndexSelect<'a> {
                 ("is_i64", *slice.slice(ids_l.start_offset()..).device_ptr())
             }
             _ => Err(CudaError::UnexpectedDType {
-                msg: "index_select ids should be u8/u32/i16/i32/i64",
+                msg: "index_select ids should be i8/u8/u32/i16/i32/i64",
                 expected: DType::U32,
                 got: self.0.dtype(),
             })
@@ -418,7 +422,7 @@ impl<'a> Map1 for IndexSelect<'a> {
 }
 
 struct Gather<'a>(&'a CudaStorage, &'a Layout, usize);
-impl<'a> Map1 for Gather<'a> {
+impl Map1 for Gather<'_> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
         src: &CudaSlice<T>,
@@ -437,6 +441,7 @@ impl<'a> Map1 for Gather<'a> {
                 ("gather_u32", *slice.slice(ids_o1..ids_o2).device_ptr())
             }
             CudaStorageSlice::U8(slice) => ("gather_u8", *slice.slice(ids_o1..ids_o2).device_ptr()),
+            CudaStorageSlice::I8(slice) => ("gather_i8", *slice.slice(ids_o1..ids_o2).device_ptr()),
             CudaStorageSlice::I16(slice) => {
                 ("gather_i16", *slice.slice(ids_o1..ids_o2).device_ptr())
             }
@@ -447,7 +452,7 @@ impl<'a> Map1 for Gather<'a> {
                 ("gather_i64", *slice.slice(ids_o1..ids_o2).device_ptr())
             }
             _ => Err(CudaError::UnexpectedDType {
-                msg: "gather ids should be u8/u32/i16/i32/i64",
+                msg: "gather ids should be i8/u8/u32/i16/i32/i64",
                 expected: DType::U32,
                 got: ids.dtype(),
             })?,
@@ -475,7 +480,7 @@ impl<'a> Map1 for Gather<'a> {
 }
 
 struct IndexAdd<'a>(&'a CudaStorage, &'a Layout, usize);
-impl<'a> Map2InPlace for IndexAdd<'a> {
+impl Map2InPlace for IndexAdd<'_> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
         dst: &mut CudaSlice<T>,
@@ -497,8 +502,9 @@ impl<'a> Map2InPlace for IndexAdd<'a> {
             CudaStorageSlice::I32(slice) => ("ia_i32", *slice.slice(ids_o1..ids_o2).device_ptr()),
             CudaStorageSlice::I64(slice) => ("ia_i64", *slice.slice(ids_o1..ids_o2).device_ptr()),
             CudaStorageSlice::U8(slice) => ("ia_u8", *slice.slice(ids_o1..ids_o2).device_ptr()),
+            CudaStorageSlice::I8(slice) => ("ia_i8", *slice.slice(ids_o1..ids_o2).device_ptr()),
             _ => Err(CudaError::UnexpectedDType {
-                msg: "index-add ids should be u8/u32/i16/i32/i64",
+                msg: "index-add ids should be i8/u8/u32/i16/i32/i64",
                 expected: DType::U32,
                 got: ids.dtype(),
             })?,
@@ -525,7 +531,7 @@ impl<'a> Map2InPlace for IndexAdd<'a> {
 }
 
 struct ScatterAdd<'a>(&'a CudaStorage, &'a Layout, usize);
-impl<'a> Map2InPlace for ScatterAdd<'a> {
+impl Map2InPlace for ScatterAdd<'_> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
         dst: &mut CudaSlice<T>,
@@ -547,8 +553,9 @@ impl<'a> Map2InPlace for ScatterAdd<'a> {
             CudaStorageSlice::I32(slice) => ("sa_i32", *slice.slice(ids_o1..ids_o2).device_ptr()),
             CudaStorageSlice::I64(slice) => ("sa_i64", *slice.slice(ids_o1..ids_o2).device_ptr()),
             CudaStorageSlice::U8(slice) => ("sa_u8", *slice.slice(ids_o1..ids_o2).device_ptr()),
+            CudaStorageSlice::I8(slice) => ("sa_i8", *slice.slice(ids_o1..ids_o2).device_ptr()),
             _ => Err(CudaError::UnexpectedDType {
-                msg: "scatter-add ids should be u8/u32/i16/i32/i64",
+                msg: "scatter-add ids should be i8/u8/u32/i16/i32/i64",
                 expected: DType::U32,
                 got: ids.dtype(),
             })?,
@@ -572,7 +579,7 @@ impl<'a> Map2InPlace for ScatterAdd<'a> {
 }
 
 struct Conv1D<'a>(&'a crate::core::conv::ParamsConv1D);
-impl<'a> Map2 for Conv1D<'a> {
+impl Map2 for Conv1D<'_> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
         inp: &CudaSlice<T>,
@@ -613,7 +620,7 @@ impl<'a> Map2 for Conv1D<'a> {
 }
 
 struct Conv2D<'a>(&'a crate::core::conv::ParamsConv2D);
-impl<'a> Map2 for Conv2D<'a> {
+impl Map2 for Conv2D<'_> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
         inp: &CudaSlice<T>,
@@ -678,7 +685,7 @@ impl Map1 for Col2Im1D {
 }
 
 struct ConvTranspose1D<'a>(&'a crate::core::conv::ParamsConvTranspose1D);
-impl<'a> Map2 for ConvTranspose1D<'a> {
+impl Map2 for ConvTranspose1D<'_> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
         inp: &CudaSlice<T>,
@@ -727,7 +734,7 @@ impl<'a> Map2 for ConvTranspose1D<'a> {
 }
 
 struct ConvTranspose2D<'a>(&'a crate::core::conv::ParamsConvTranspose2D);
-impl<'a> Map2 for ConvTranspose2D<'a> {
+impl Map2 for ConvTranspose2D<'_> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
         inp: &CudaSlice<T>,
@@ -868,7 +875,7 @@ impl Map1 for UpsampleNearest2D {
 }
 
 struct WhereCond<'a>(&'a CudaStorage, &'a Layout);
-impl<'a> Map2 for WhereCond<'a> {
+impl Map2 for WhereCond<'_> {
     fn f<T: DeviceRepr + WithDType + ValidAsZeroBits>(
         &self,
         t: &CudaSlice<T>,
@@ -882,6 +889,10 @@ impl<'a> Map2 for WhereCond<'a> {
             CudaStorageSlice::U8(slice) => {
                 let ptr = *slice.slice(ids_l.start_offset()..).device_ptr();
                 (ptr, "where_u8")
+            }
+            CudaStorageSlice::I8(slice) => {
+                let ptr = *slice.slice(ids_l.start_offset()..).device_ptr();
+                (ptr, "where_i8")
             }
             CudaStorageSlice::U32(slice) => {
                 let ptr = *slice.slice(ids_l.start_offset()..).device_ptr();
@@ -900,7 +911,7 @@ impl<'a> Map2 for WhereCond<'a> {
                 (ptr, "where_i64")
             }
             _ => Err(CudaError::UnexpectedDType {
-                msg: "where conditions should be u8/u32/i16/i32/i64",
+                msg: "where conditions should be i8/u8/u32/i16/i32/i64",
                 expected: DType::U32,
                 got: self.0.dtype(),
             })
@@ -1052,6 +1063,7 @@ macro_rules! cuda_dtype {
         }
     };
 }
+cuda_dtype!(i8, I8);
 cuda_dtype!(u8, U8);
 cuda_dtype!(u32, U32);
 cuda_dtype!(i16, I16);
@@ -1177,6 +1189,7 @@ impl BackendStorage for CudaStorage {
 
     fn dtype(&self) -> DType {
         match self.slice {
+            CudaStorageSlice::I8(_) => DType::I8,
             CudaStorageSlice::U8(_) => DType::U8,
             CudaStorageSlice::U32(_) => DType::U32,
             CudaStorageSlice::I16(_) => DType::I16,
@@ -1206,6 +1219,7 @@ impl BackendStorage for CudaStorage {
         // lifetime issue and is safe as long as self.slice does not go out of scope before inp
         // is used.
         let inp = match &self.slice {
+            CudaStorageSlice::I8(inp) => *inp.slice(start_o..).device_ptr(),
             CudaStorageSlice::U8(inp) => *inp.slice(start_o..).device_ptr(),
             CudaStorageSlice::U32(inp) => *inp.slice(start_o..).device_ptr(),
             CudaStorageSlice::I16(inp) => *inp.slice(start_o..).device_ptr(),
@@ -1222,6 +1236,12 @@ impl BackendStorage for CudaStorage {
         let kernel_name = format!("cast_{}_{}", self.dtype().as_str(), dtype.as_str());
         let func = dev.get_or_load_func(&kernel_name, kernels::CAST)?;
         let slice = match dtype {
+            DType::I8 => {
+                let out = unsafe { dev.alloc::<i8>(el) }.w()?;
+                let params = (el, dims.len(), &ds, *inp, &out);
+                unsafe { func.launch(cfg, params) }.w()?;
+                CudaStorageSlice::I8(out)
+            }
             DType::U8 => {
                 let out = unsafe { dev.alloc::<u8>(el) }.w()?;
                 let params = (el, dims.len(), &ds, *inp, &out);
@@ -1342,6 +1362,11 @@ impl BackendStorage for CudaStorage {
                 let dev = slice.device();
                 let cpu_storage = dev.dtoh_sync_copy(slice).w()?;
                 Ok(CpuStorage::U8(cpu_storage))
+            }
+            CudaStorageSlice::I8(slice) => {
+                let dev = slice.device();
+                let cpu_storage = dev.dtoh_sync_copy(slice).w()?;
+                Ok(CpuStorage::I8(cpu_storage))
             }
             CudaStorageSlice::U32(slice) => {
                 let dev = slice.device();
@@ -2457,21 +2482,13 @@ impl crate::core::CustomOp2 for KVConcat {
         let mut lshape: Vec<usize> = ltensor_l.shape().dims().to_vec();
         if self.concat_dim == 0 {
             lshape[0] += rtensor_l.shape().dims()[0];
+        } else if dim_size > 3 {
+            lshape[2] += rtensor_l.shape().dims()[2];
         } else {
-            if dim_size > 3 {
-                lshape[2] += rtensor_l.shape().dims()[2];
-            } else {
-                lshape[1] += rtensor_l.shape().dims()[1];
-            }
+            lshape[1] += rtensor_l.shape().dims()[1];
         }
 
         let device = dev.clone();
-        Ok((
-            CudaStorage {
-                slice: slice,
-                device,
-            },
-            lshape.into(),
-        ))
+        Ok((CudaStorage { slice, device }, lshape.into()))
     }
 }

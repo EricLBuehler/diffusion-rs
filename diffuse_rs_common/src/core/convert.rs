@@ -150,6 +150,11 @@ impl Tensor {
                 let vs = vs.to_vec1::<u8>()?;
                 f.write_all(&vs)?;
             }
+            DType::I8 => {
+                for v in vs.to_vec1::<i8>()? {
+                    f.write_i8(v)?
+                }
+            }
             DType::F8E4M3 => {
                 for v in vs.to_vec1::<F8E4M3>()? {
                     f.write_u8(v.to_bits())?

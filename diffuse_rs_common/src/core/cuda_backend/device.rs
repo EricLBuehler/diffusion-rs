@@ -1,6 +1,6 @@
 use crate::core::backend::BackendDevice;
 use crate::core::{CpuStorage, CpuStorageRef, DType, Layout, Result, Shape};
-pub use candle_kernels as kernels;
+pub use crate::cuda_kernels as kernels;
 pub use cudarc;
 use cudarc::driver::{CudaFunction, LaunchAsync, LaunchConfig};
 use float8::F8E4M3;
@@ -50,7 +50,7 @@ impl std::ops::Deref for CudaDevice {
 
 impl CudaDevice {
     pub fn cublas_handle(&self) -> &cudarc::cublas::CudaBlas {
-        &*self.blas
+        &self.blas
     }
 
     pub fn cuda_device(&self) -> Arc<cudarc::driver::CudaDevice> {
@@ -90,6 +90,14 @@ impl CudaDevice {
                 // SAFETY: Set later by running the fill kernel.
                 let data = unsafe { self.alloc::<u8>(elem_count) }.w()?;
                 let func = self.get_or_load_func("fill_u8", kernels::FILL)?;
+                let params = (&data, v as u8, elem_count);
+                unsafe { func.launch(cfg, params) }.w()?;
+                CudaStorageSlice::U8(data)
+            }
+            DType::I8 => {
+                // SAFETY: Set later by running the fill kernel.
+                let data = unsafe { self.alloc::<u8>(elem_count) }.w()?;
+                let func = self.get_or_load_func("fill_i8", kernels::FILL)?;
                 let params = (&data, v as u8, elem_count);
                 unsafe { func.launch(cfg, params) }.w()?;
                 CudaStorageSlice::U8(data)
@@ -256,6 +264,10 @@ impl BackendDevice for CudaDevice {
                 let data = self.alloc_zeros::<u8>(elem_count).w()?;
                 CudaStorageSlice::U8(data)
             }
+            DType::I8 => {
+                let data = self.alloc_zeros::<i8>(elem_count).w()?;
+                CudaStorageSlice::I8(data)
+            }
             DType::U32 => {
                 let data = self.alloc_zeros::<u32>(elem_count).w()?;
                 CudaStorageSlice::U32(data)
@@ -306,6 +318,7 @@ impl BackendDevice for CudaDevice {
             // TODO: Add support for F16 and BF16 though this is likely to require some upstream
             // cudarc changes.
             DType::U8
+            | DType::I8
             | DType::U32
             | DType::I64
             | DType::I32
@@ -355,6 +368,7 @@ impl BackendDevice for CudaDevice {
         };
         let slice = match dtype {
             DType::U8
+            | DType::I8
             | DType::U32
             | DType::I16
             | DType::I32
@@ -396,6 +410,10 @@ impl BackendDevice for CudaDevice {
             DType::U8 => {
                 let data = self.alloc::<u8>(elem_count).w()?;
                 CudaStorageSlice::U8(data)
+            }
+            DType::I8 => {
+                let data = self.alloc::<i8>(elem_count).w()?;
+                CudaStorageSlice::I8(data)
             }
             DType::U32 => {
                 let data = self.alloc::<u32>(elem_count).w()?;
@@ -446,6 +464,10 @@ impl BackendDevice for CudaDevice {
                 let data = self.htod_sync_copy(storage).w()?;
                 CudaStorageSlice::U8(data)
             }
+            CpuStorageRef::I8(storage) => {
+                let data = self.htod_sync_copy(storage).w()?;
+                CudaStorageSlice::I8(data)
+            }
             CpuStorageRef::U32(storage) => {
                 let data = self.htod_sync_copy(storage).w()?;
                 CudaStorageSlice::U32(data)
@@ -495,6 +517,10 @@ impl BackendDevice for CudaDevice {
                 let data = self.htod_sync_copy(storage).w()?;
                 CudaStorageSlice::U8(data)
             }
+            CpuStorage::I8(storage) => {
+                let data = self.htod_sync_copy(storage).w()?;
+                CudaStorageSlice::I8(data)
+            }
             CpuStorage::U32(storage) => {
                 let data = self.htod_sync_copy(storage).w()?;
                 CudaStorageSlice::U32(data)
@@ -543,6 +569,10 @@ impl BackendDevice for CudaDevice {
             CpuStorage::U8(storage) => {
                 let data = self.htod_copy(storage).w()?;
                 CudaStorageSlice::U8(data)
+            }
+            CpuStorage::I8(storage) => {
+                let data = self.htod_copy(storage).w()?;
+                CudaStorageSlice::I8(data)
             }
             CpuStorage::U32(storage) => {
                 let data = self.htod_copy(storage).w()?;

@@ -115,6 +115,7 @@ impl RotaryEmbedding {
     }
 
     #[cfg(feature = "cuda")]
+    #[allow(clippy::too_many_arguments)]
     fn execute_dtype<T: CudaDType + WithDType + DeviceRepr>(
         &self,
         dev: &CudaDevice,
@@ -186,54 +187,52 @@ impl RotaryEmbedding {
                 Storage::Cuda(k_storage),
                 Storage::Cuda(cache_storage),
                 Storage::Cuda(pos_storage),
-            ) => {
-                return match (q.dtype(), k.dtype(), cache_type) {
-                    (DType::BF16, DType::BF16, DType::BF16) => self.execute_dtype::<half::bf16>(
-                        &dev,
-                        q_storage,
-                        k_storage,
-                        q,
-                        k,
-                        cache_storage,
-                        pos_storage,
-                    ),
-                    (DType::F16, DType::F16, DType::F16) => self.execute_dtype::<half::f16>(
-                        &dev,
-                        q_storage,
-                        k_storage,
-                        q,
-                        k,
-                        cache_storage,
-                        pos_storage,
-                    ),
-                    (DType::F32, DType::F32, DType::F32) => self.execute_dtype::<f32>(
-                        &dev,
-                        q_storage,
-                        k_storage,
-                        q,
-                        k,
-                        cache_storage,
-                        pos_storage,
-                    ),
-                    (DType::F64, DType::F64, DType::F64) => self.execute_dtype::<f64>(
-                        &dev,
-                        q_storage,
-                        k_storage,
-                        q,
-                        k,
-                        cache_storage,
-                        pos_storage,
-                    ),
-                    _ => crate::bail!(
-                        "DType mismatch in fused RotaryEmbedding q={:?}, k={:?}, cache={:?}",
-                        q.dtype(),
-                        k.dtype(),
-                        cache_type
-                    ),
-                }
-            }
+            ) => match (q.dtype(), k.dtype(), cache_type) {
+                (DType::BF16, DType::BF16, DType::BF16) => self.execute_dtype::<half::bf16>(
+                    dev,
+                    q_storage,
+                    k_storage,
+                    q,
+                    k,
+                    cache_storage,
+                    pos_storage,
+                ),
+                (DType::F16, DType::F16, DType::F16) => self.execute_dtype::<half::f16>(
+                    dev,
+                    q_storage,
+                    k_storage,
+                    q,
+                    k,
+                    cache_storage,
+                    pos_storage,
+                ),
+                (DType::F32, DType::F32, DType::F32) => self.execute_dtype::<f32>(
+                    dev,
+                    q_storage,
+                    k_storage,
+                    q,
+                    k,
+                    cache_storage,
+                    pos_storage,
+                ),
+                (DType::F64, DType::F64, DType::F64) => self.execute_dtype::<f64>(
+                    dev,
+                    q_storage,
+                    k_storage,
+                    q,
+                    k,
+                    cache_storage,
+                    pos_storage,
+                ),
+                _ => crate::bail!(
+                    "DType mismatch in fused RotaryEmbedding q={:?}, k={:?}, cache={:?}",
+                    q.dtype(),
+                    k.dtype(),
+                    cache_type
+                ),
+            },
             _ => unreachable!(),
-        };
+        }
     }
 
     /// This may modify the tensors in place!

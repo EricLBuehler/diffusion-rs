@@ -94,6 +94,7 @@ impl BackendStorage for MetalStorage {
 
     fn to_cpu_storage(&self) -> Result<CpuStorage> {
         match self.dtype {
+            DType::I8 => Ok(CpuStorage::I8(self.to_cpu()?)),
             DType::U8 => Ok(CpuStorage::U8(self.to_cpu()?)),
             DType::U32 => Ok(CpuStorage::U32(self.to_cpu()?)),
             DType::I16 => Ok(CpuStorage::I16(self.to_cpu()?)),
@@ -380,6 +381,7 @@ impl BackendStorage for MetalStorage {
                 (DType::U32, DType::I32) => "cast_u32_i32",
                 (DType::U32, DType::I64) => "cast_u32_i64",
                 (DType::U32, DType::U8) => "cast_u32_u8",
+                (DType::U32, DType::I8) => "cast_u32_i8",
 
                 (DType::U8, DType::BF16) => "cast_u8_bf16",
                 (DType::U8, DType::F16) => "cast_u8_f16",
@@ -389,6 +391,14 @@ impl BackendStorage for MetalStorage {
                 (DType::U8, DType::I64) => "cast_u8_i64",
                 (DType::U8, DType::U32) => "cast_u8_u32",
 
+                (DType::I8, DType::BF16) => "cast_i8_bf16",
+                (DType::I8, DType::F16) => "cast_i8_f16",
+                (DType::I8, DType::F32) => "cast_i8_f32",
+                (DType::I8, DType::I16) => "cast_i8_i16",
+                (DType::I8, DType::I32) => "cast_i8_i32",
+                (DType::I8, DType::I64) => "cast_i8_i64",
+                (DType::I8, DType::U32) => "cast_i8_u32",
+
                 (DType::F32, DType::BF16) => "cast_f32_bf16",
                 (DType::F32, DType::F16) => "cast_f32_f16",
                 (DType::F32, DType::I16) => "cast_f32_i16",
@@ -396,24 +406,28 @@ impl BackendStorage for MetalStorage {
                 (DType::F32, DType::I64) => "cast_f32_i64",
                 (DType::F32, DType::U32) => "cast_f32_u32",
                 (DType::F32, DType::U8) => "cast_f32_u8",
+                (DType::F32, DType::I8) => "cast_f32_i8",
 
                 (DType::I16, DType::BF16) => "cast_i16_bf16",
                 (DType::I16, DType::F16) => "cast_i16_f16",
                 (DType::I16, DType::F32) => "cast_i16_f32",
                 (DType::I16, DType::U32) => "cast_i16_u32",
                 (DType::I16, DType::U8) => "cast_i16_u8",
+                (DType::I16, DType::I8) => "cast_i16_i8",
 
                 (DType::I32, DType::BF16) => "cast_i32_bf16",
                 (DType::I32, DType::F16) => "cast_i32_f16",
                 (DType::I32, DType::F32) => "cast_i32_f32",
                 (DType::I32, DType::U32) => "cast_i32_u32",
                 (DType::I32, DType::U8) => "cast_i32_u8",
+                (DType::I32, DType::I8) => "cast_i32_i8",
 
                 (DType::I64, DType::BF16) => "cast_i64_bf16",
                 (DType::I64, DType::F16) => "cast_i64_f16",
                 (DType::I64, DType::F32) => "cast_i64_f32",
                 (DType::I64, DType::U32) => "cast_i64_u32",
                 (DType::I64, DType::U8) => "cast_i64_u8",
+                (DType::I64, DType::I8) => "cast_i64_i8",
                 (DType::I64, DType::F8E4M3) => "cast_i64_f8e4m3",
 
                 (DType::F16, DType::BF16) => "cast_f16_bf16",
@@ -423,6 +437,7 @@ impl BackendStorage for MetalStorage {
                 (DType::F16, DType::I64) => "cast_f16_i64",
                 (DType::F16, DType::U32) => "cast_f16_u32",
                 (DType::F16, DType::U8) => "cast_f16_u8",
+                (DType::F16, DType::I8) => "cast_f16_i8",
 
                 (DType::BF16, DType::F16) => "cast_bf16_f16",
                 (DType::BF16, DType::F32) => "cast_bf16_f32",
@@ -431,6 +446,7 @@ impl BackendStorage for MetalStorage {
                 (DType::BF16, DType::I64) => "cast_bf16_i64",
                 (DType::BF16, DType::U32) => "cast_bf16_u32",
                 (DType::BF16, DType::U8) => "cast_bf16_u8",
+                (DType::BF16, DType::I8) => "cast_bf16_i8",
 
                 (DType::F8E4M3, DType::BF16) => "cast_f8e4m3_bf16",
 
@@ -457,28 +473,33 @@ impl BackendStorage for MetalStorage {
                 (DType::BF16, DType::I64) => "cast_bf16_i64_strided",
                 (DType::BF16, DType::U32) => "cast_bf16_u32_strided",
                 (DType::BF16, DType::U8) => "cast_bf16_u8_strided",
+                (DType::BF16, DType::I8) => "cast_bf16_i8_strided",
 
                 (DType::F16, DType::BF16) => "cast_f16_bf16_strided",
                 (DType::F16, DType::F32) => "cast_f16_f32_strided",
                 (DType::F16, DType::I64) => "cast_f16_i64_strided",
                 (DType::F16, DType::U32) => "cast_f16_u32_strided",
                 (DType::F16, DType::U8) => "cast_f16_u8_strided",
+                (DType::F16, DType::I8) => "cast_f16_i8_strided",
 
                 (DType::F32, DType::BF16) => "cast_f32_bf16_strided",
                 (DType::F32, DType::F16) => "cast_f32_f16_strided",
                 (DType::F32, DType::I64) => "cast_f32_i64_strided",
                 (DType::F32, DType::U32) => "cast_f32_u32_strided",
                 (DType::F32, DType::U8) => "cast_f32_u8_strided",
+                (DType::F32, DType::I8) => "cast_f32_i8_strided",
 
                 (DType::I64, DType::F32) => "cast_i64_f32_strided",
                 (DType::I64, DType::BF16) => "cast_i64_bf16_strided",
                 (DType::I64, DType::F16) => "cast_i64_f16_strided",
                 (DType::I64, DType::U32) => "cast_i64_u32_strided",
                 (DType::I64, DType::U8) => "cast_i64_u8_strided",
+                (DType::I64, DType::I8) => "cast_i64_i8_strided",
 
                 (DType::U32, DType::BF16) => "cast_u32_bf16_strided",
                 (DType::U32, DType::F16) => "cast_u32_f16_strided",
                 (DType::U32, DType::F32) => "cast_u32_f32_strided",
+                (DType::U32, DType::I8) => "cast_u32_i8_strided",
                 (DType::U32, DType::U8) => "cast_u32_u8_strided",
                 (DType::U32, DType::I16) => "cast_u32_i16_strided",
                 (DType::U32, DType::I32) => "cast_u32_i32_strided",
@@ -491,6 +512,14 @@ impl BackendStorage for MetalStorage {
                 (DType::U8, DType::I32) => "cast_u8_i32_strided",
                 (DType::U8, DType::I64) => "cast_u8_i64_strided",
                 (DType::U8, DType::U32) => "cast_u8_u32_strided",
+
+                (DType::I8, DType::BF16) => "cast_i8_bf16_strided",
+                (DType::I8, DType::F16) => "cast_i8_f16_strided",
+                (DType::I8, DType::F32) => "cast_i8_f32_strided",
+                (DType::I8, DType::I16) => "cast_i8_i16_strided",
+                (DType::I8, DType::I32) => "cast_i8_i32_strided",
+                (DType::I8, DType::I64) => "cast_i8_i64_strided",
+                (DType::I8, DType::U32) => "cast_i8_u32_strided",
 
                 (DType::I16, DType::F32) => "cast_i16_f32_strided",
                 (DType::I32, DType::F32) => "cast_i32_f32_strided",
@@ -2136,6 +2165,7 @@ impl BackendDevice for MetalDevice {
 
     fn ones_impl(&self, shape: &Shape, dtype: DType) -> Result<MetalStorage> {
         let name = match dtype {
+            DType::I8 => "fill_i8",
             DType::U8 => "fill_u8",
             DType::U32 => "fill_u32",
             DType::I64 => "fill_i64",
@@ -2173,6 +2203,7 @@ impl BackendDevice for MetalDevice {
 
     fn storage_from_slice<T: crate::core::WithDType>(&self, s: &[T]) -> Result<Self::Storage> {
         let (count, buffer) = match T::cpu_storage_ref(s) {
+            CpuStorageRef::I8(storage) => (storage.len(), self.new_buffer_with_data(storage)),
             CpuStorageRef::U8(storage) => (storage.len(), self.new_buffer_with_data(storage)),
             CpuStorageRef::U32(storage) => (storage.len(), self.new_buffer_with_data(storage)),
             CpuStorageRef::I16(storage) => (storage.len(), self.new_buffer_with_data(storage)),
@@ -2189,6 +2220,7 @@ impl BackendDevice for MetalDevice {
 
     fn storage_from_cpu_storage(&self, storage: &CpuStorage) -> Result<Self::Storage> {
         let (count, buffer) = match storage {
+            CpuStorage::I8(storage) => (storage.len(), self.new_buffer_with_data(storage)),
             CpuStorage::U8(storage) => (storage.len(), self.new_buffer_with_data(storage)),
             CpuStorage::U32(storage) => (storage.len(), self.new_buffer_with_data(storage)),
             CpuStorage::I16(storage) => (storage.len(), self.new_buffer_with_data(storage)),

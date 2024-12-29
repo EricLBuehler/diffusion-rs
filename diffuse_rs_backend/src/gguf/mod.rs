@@ -25,8 +25,8 @@ impl QuantMethod for GgufMatMul {
         }
     }
 
-    fn dequantize_w(&self) -> Result<Tensor> {
-        self.w.dequantize_f16()?.to_dtype(DType::F32)
+    fn dequantize_w(&self, out_ty: DType) -> Result<Tensor> {
+        self.w.dequantize_f16()?.to_dtype(out_ty)
     }
 
     fn forward(&self, a: &Tensor) -> Result<Tensor> {
