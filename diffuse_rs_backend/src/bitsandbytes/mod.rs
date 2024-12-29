@@ -253,7 +253,7 @@ impl QuantMethod for BnbLinear {
         }
     }
 
-    fn dequantize_w(&self) -> Result<Tensor> {
+    fn dequantize_w(&self, out_ty: DType) -> Result<Tensor> {
         match self {
             Self::Fp4Nf4 {
                 weight,
@@ -266,7 +266,7 @@ impl QuantMethod for BnbLinear {
                 scb,
                 bias: _,
             } => {
-                op::dequantize_8bit(weight, scb, DType::F32)
+                op::dequantize_8bit(weight, scb, out_ty)
                 // https://huggingface.co/blog/hf-bitsandbytes-integration#hugging-face-transformers-integration-nuances
                 // weight
                 //     .to_dtype(scb.dtype())?
@@ -277,7 +277,7 @@ impl QuantMethod for BnbLinear {
     }
 
     fn forward(&self, xs: &Tensor) -> Result<Tensor> {
-        let w = self.dequantize_w()?.t()?.to_dtype(xs.dtype())?;
+        let w = self.dequantize_w(xs.dtype())?.t()?;
         let res = xs.broadcast_matmul(&w)?;
         let bias = match self {
             Self::Fp4Nf4 { bias, .. } | Self::Int8 { bias, .. } => bias,
@@ -294,7 +294,7 @@ impl QuantMethod for BnbLinear {
     }
 
     fn maybe_to_gguf_quant(self: Arc<Self>) -> Result<Arc<dyn QuantMethod>> {
-        let weight = self.dequantize_w()?;
+        let weight = self.dequantize_w(DType::F32)?;
 
         match &*self {
             Self::Fp4Nf4 { bias, quant_ty, .. } => {

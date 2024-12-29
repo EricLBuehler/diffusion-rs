@@ -154,7 +154,7 @@ pub trait QuantMethod: Send + Sync + Debug {
     where
         Self: Sized;
 
-    fn dequantize_w(&self) -> Result<Tensor>;
+    fn dequantize_w(&self, out_ty: DType) -> Result<Tensor>;
 
     /// Compute matmul of `self` and `a`. `self` should contain the weights.
     /// Automatically cast to required quantization actiation type and back
