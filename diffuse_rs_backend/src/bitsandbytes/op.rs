@@ -9,7 +9,8 @@ use diffuse_rs_common::core::cuda::{
 };
 
 use diffuse_rs_common::core::{
-    backend::BackendStorage, CpuStorage, CustomOp3, Result, Shape, Tensor, WithDType,
+    backend::BackendStorage, CpuStorage, CustomOp2, CustomOp3, DType, Result, Shape, Tensor,
+    WithDType,
 };
 
 #[cfg(feature = "cuda")]
@@ -459,8 +460,11 @@ impl CustomOp3 for DequantizeOp {
                 &crate::metal_kernels::Kernels::new(),
                 self.out_ty.into(),
                 input_s.buffer(),
+                input_l.start_offset() * input_s.dtype().size_in_bytes(),
                 absmax_s.buffer(),
+                absmax_l.start_offset() * absmax_s.dtype().size_in_bytes(),
                 code_s.buffer(),
+                code_l.start_offset() * code_s.dtype().size_in_bytes(),
                 &output,
                 self.blocksize,
                 self.n,
@@ -472,8 +476,11 @@ impl CustomOp3 for DequantizeOp {
                 &crate::metal_kernels::Kernels::new(),
                 self.out_ty.into(),
                 input_s.buffer(),
+                input_l.start_offset() * input_s.dtype().size_in_bytes(),
                 absmax_s.buffer(),
+                absmax_l.start_offset() * absmax_s.dtype().size_in_bytes(),
                 code_s.buffer(),
+                code_l.start_offset() * code_s.dtype().size_in_bytes(),
                 &output,
                 self.blocksize,
                 self.n,
@@ -485,8 +492,11 @@ impl CustomOp3 for DequantizeOp {
                 &crate::metal_kernels::Kernels::new(),
                 self.out_ty.into(),
                 input_s.buffer(),
+                input_l.start_offset() * input_s.dtype().size_in_bytes(),
                 absmax_s.buffer(),
+                absmax_l.start_offset() * absmax_s.dtype().size_in_bytes(),
                 code_s.buffer(),
+                code_l.start_offset() * code_s.dtype().size_in_bytes(),
                 &output,
                 self.blocksize,
                 self.n,
@@ -524,4 +534,134 @@ pub fn dequantize(
             out_ty,
         },
     )
+}
+
+struct Dequantize8BitOp {
+    out_ty: DType,
+}
+
+impl Dequantize8BitOp {
+    fn dequantize_cpu<T: WithDType + Debug>(
+        &self,
+        weight: &[i8],
+        scb: &[f32],
+        col: usize,
+    ) -> Vec<T> {
+        let mut out = vec![T::zero(); weight.len()];
+
+        for (i, w) in weight.into_iter().enumerate() {
+            let local_scb = scb[i / col];
+            out[i] = T::from_f64((*w as f64 * local_scb as f64) / 127.);
+        }
+
+        out
+    }
+}
+
+impl CustomOp2 for Dequantize8BitOp {
+    fn name(&self) -> &'static str {
+        "dequantize-8bit-bnb"
+    }
+
+    fn cpu_fwd(
+        &self,
+        weight_s: &CpuStorage,
+        weight_l: &diffuse_rs_common::core::Layout,
+        scb_s: &CpuStorage,
+        scb_l: &diffuse_rs_common::core::Layout,
+    ) -> diffuse_rs_common::core::Result<(CpuStorage, diffuse_rs_common::core::Shape)> {
+        if !(weight_l.is_contiguous() && scb_l.is_contiguous()) {
+            diffuse_rs_common::bail!("All inputs must be contiguous");
+        }
+
+        let row = weight_l.dim(0)?;
+        let col = weight_l.dim(1)?;
+
+        if row != scb_l.dim(0)? {
+            diffuse_rs_common::bail!("scb dim0 must match weight dim0");
+        }
+
+        match (weight_s, scb_s, self.out_ty) {
+            (CpuStorage::I8(weight), CpuStorage::F32(scb), DType::BF16) => Ok((
+                CpuStorage::BF16(self.dequantize_cpu(&weight, &scb, col)),
+                weight_l.shape().clone(),
+            )),
+            (CpuStorage::I8(weight), CpuStorage::F32(scb), DType::F16) => Ok((
+                CpuStorage::F16(self.dequantize_cpu(&weight, &scb, col)),
+                weight_l.shape().clone(),
+            )),
+            (CpuStorage::I8(weight), CpuStorage::F32(scb), DType::F32) => Ok((
+                CpuStorage::F32(self.dequantize_cpu(&weight, &scb, col)),
+                weight_l.shape().clone(),
+            )),
+            (w, s, t) => diffuse_rs_common::bail!(
+                "Unsupported dtypes for cpu dequant: {:?} weight, {:?} scb, {:?} out",
+                w.dtype(),
+                s.dtype(),
+                t
+            ),
+        }
+    }
+
+    #[cfg(feature = "metal")]
+    fn metal_fwd(
+        &self,
+        weight_s: &diffuse_rs_common::core::MetalStorage,
+        weight_l: &diffuse_rs_common::core::Layout,
+        scb_s: &diffuse_rs_common::core::MetalStorage,
+        scb_l: &diffuse_rs_common::core::Layout,
+    ) -> Result<(diffuse_rs_common::core::MetalStorage, Shape)> {
+        use diffuse_rs_common::core::DType;
+
+        if !(weight_l.is_contiguous() && scb_l.is_contiguous()) {
+            diffuse_rs_common::bail!("All inputs must be contiguous");
+        }
+
+        let command_buffer = weight_s.device().command_buffer()?;
+        command_buffer.set_label("dequant-bnb-nf4");
+
+        let device = weight_s.device();
+
+        let row = weight_l.dim(0)?;
+        let col = weight_l.dim(1)?;
+        let n = weight_l.shape().elem_count();
+
+        let output = device.new_buffer(n, self.out_ty.into(), "dequant-8bit-bnb")?;
+
+        if weight_s.dtype() != DType::I8 {
+            diffuse_rs_common::bail!("input must be i8");
+        }
+        if scb_s.dtype() != DType::F32 {
+            diffuse_rs_common::bail!("scb must be f32");
+        }
+
+        if row != scb_l.dim(0)? {
+            diffuse_rs_common::bail!("scb dim0 must match weight dim0");
+        }
+
+        crate::metal_kernels::call_dequant_bnb_8bit(
+            device.device(),
+            &command_buffer,
+            &crate::metal_kernels::Kernels::new(),
+            self.out_ty.into(),
+            weight_s.buffer(),
+            weight_l.start_offset() * weight_s.dtype().size_in_bytes(),
+            scb_s.buffer(),
+            scb_l.start_offset() * scb_s.dtype().size_in_bytes(),
+            &output,
+            row,
+            col,
+            n,
+        )
+        .map_err(diffuse_rs_common::core::Error::wrap)?;
+
+        let newstorage =
+            diffuse_rs_common::core::MetalStorage::new(output, device.clone(), n, self.out_ty);
+        Ok((newstorage, weight_l.shape().clone()))
+    }
+}
+
+/// Implements: https://huggingface.co/blog/hf-bitsandbytes-integration#hugging-face-transformers-integration-nuances
+pub fn dequantize_8bit(weight: &Tensor, scb: &Tensor, out_ty: DType) -> Result<Tensor> {
+    weight.apply_op2(scb, Dequantize8BitOp { out_ty })
 }

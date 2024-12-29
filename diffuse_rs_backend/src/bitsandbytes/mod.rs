@@ -266,11 +266,12 @@ impl QuantMethod for BnbLinear {
                 scb,
                 bias: _,
             } => {
+                op::dequantize_8bit(weight, scb, DType::F32)
                 // https://huggingface.co/blog/hf-bitsandbytes-integration#hugging-face-transformers-integration-nuances
-                weight
-                    .to_dtype(scb.dtype())?
-                    .broadcast_mul(&scb.unsqueeze(1)?)?
-                    / 127.
+                // weight
+                //     .to_dtype(scb.dtype())?
+                //     .broadcast_mul(&scb.unsqueeze(1)?)?
+                //     / 127.
             }
         }
     }

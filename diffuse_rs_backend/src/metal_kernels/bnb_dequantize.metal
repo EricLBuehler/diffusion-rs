@@ -417,6 +417,24 @@ template <typename T>
     out[idx] = static_cast<T>(code[input[idx]] * local_abs_max);
 }
 
+template <typename T>
+[[kernel]] void kernel_dequantize_8bit(
+    const device char* weight [[buffer(0)]], // [row, col]
+    const device float* scb [[buffer(1)]], // [row]
+    device T* out [[buffer(2)]],
+    device const int& row,
+    device const int& col,
+    device const int& n,
+    uint idx [[thread_position_in_grid]]) {
+    if (idx >= n) {
+        return;
+    }
+
+    float local_scb = scb[n / col];
+
+    out[idx] = static_cast<T>(float(weight[n] * local_scb) / 127.f);
+}
+
 #define instantiate_dequantize_nf4(type)                        \
 template [[host_name("kernel_dequantize_nf4_" #type )]]         \
 [[kernel]] void kernel_dequantize_nf4<type>(                    \
@@ -463,3 +481,19 @@ template [[host_name("kernel_dequantize_int8_" #type )]]        \
 instantiate_dequantize_int8(float)
 instantiate_dequantize_int8(bfloat16_t)
 instantiate_dequantize_int8(half)
+
+
+#define instantiate_dequantize_8bit(type)                       \
+template [[host_name("kernel_dequantize_8bit_" #type )]]        \
+[[kernel]] void kernel_dequantize_8bit<type>(                   \
+    const device char* weight [[buffer(0)]],                    \
+    const device float* scb [[buffer(1)]],                      \
+    device type* out [[buffer(2)]],                             \
+    device const int& row,                                      \
+    device const int& col,                                      \
+    device const int& n,                                        \
+    uint idx [[thread_position_in_grid]]);                      \
+
+instantiate_dequantize_8bit(float)
+instantiate_dequantize_8bit(bfloat16_t)
+instantiate_dequantize_8bit(half)
