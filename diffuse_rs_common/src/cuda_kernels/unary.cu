@@ -181,6 +181,7 @@ UNARY_OP(__half, usign_f16, sign_(x))
 UNARY_OP(__half, usigmoid_f16, sigmoid_fwd(x))
 #endif
 
+UNARY_OP(int8_t, ucopy_i8, x)
 UNARY_OP(uint8_t, ucopy_u8, x)
 UNARY_OP(uint32_t, ucopy_u32, x)
 UNARY_OP(int16_t, ucopy_i16, x)
