@@ -269,7 +269,7 @@ impl QuantMethod for BnbLinear {
                 // https://huggingface.co/blog/hf-bitsandbytes-integration#hugging-face-transformers-integration-nuances
                 weight
                     .to_dtype(scb.dtype())?
-                    .broadcast_div(&scb.unsqueeze(1)?)?
+                    .broadcast_mul(&scb.unsqueeze(1)?)?
                     / 127.
             }
         }
