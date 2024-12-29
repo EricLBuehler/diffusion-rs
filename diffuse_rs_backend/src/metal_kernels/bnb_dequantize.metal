@@ -430,9 +430,9 @@ template <typename T>
         return;
     }
 
-    float local_scb = scb[n / col];
+    float local_scb = scb[idx / col];
 
-    out[idx] = static_cast<T>(float(weight[n] * local_scb) / 127.f);
+    out[idx] = static_cast<T>((float(weight[idx]) * local_scb) / 127.f);
 }
 
 #define instantiate_dequantize_nf4(type)                        \
