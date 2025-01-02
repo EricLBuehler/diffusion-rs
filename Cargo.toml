@@ -6,6 +6,7 @@ members = [
     "diffuse_rs_common",
     "diffuse_rs_cli",
     "diffuse_rs_py",
+    "diffuse_rs_cuda_graph",
 ]
 resolver = "2"
 

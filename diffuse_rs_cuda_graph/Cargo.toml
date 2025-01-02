@@ -1,0 +1,16 @@
+[package]
+name = "diffuse_rs_cuda_graph"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+diffuse_rs_common = { path = "../diffuse_rs_common" }
+half.workspace = true
+float8.workspace = true
+
+[features]
+cuda = []
