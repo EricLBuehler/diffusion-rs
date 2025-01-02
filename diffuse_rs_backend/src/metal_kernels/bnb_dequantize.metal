@@ -360,22 +360,19 @@ template <typename T>
     device T* out [[buffer(3)]],
     device const int& blocksize,
     device const int& n,
-    uint id [[thread_position_in_grid]]) {
-
-    int block_idx = id * blocksize;
-    int valid_items = (n > blocksize + block_idx) ? blocksize : (n - block_idx);
-    int block_end = block_idx + valid_items;
-
-    for (int i = block_idx; i < block_end; ++i) {
-        float local_abs_max = absmax[block_idx / (blocksize / 2)];
-
-        uint8_t input_value = static_cast<uint8_t>(input[i]);
-        float high_nibble = dequantize_nf4(input_value >> 4);
-        float low_nibble = dequantize_nf4(input_value & 0x0F);
-
-        out[i * 2] = static_cast<T>(high_nibble * local_abs_max);
-        out[i * 2 + 1] = static_cast<T>(low_nibble * local_abs_max);
+    uint idx [[thread_position_in_grid]]) {
+    if (idx >= n) {
+        return;
     }
+
+    float local_abs_max = absmax[idx / (blocksize / 2)];
+
+    uint8_t input_value = static_cast<uint8_t>(input[idx]);
+    float high_nibble = dequantize_nf4(input_value >> 4);
+    float low_nibble = dequantize_nf4(input_value & 0x0F);
+
+    out[idx * 2] = static_cast<T>(high_nibble * local_abs_max);
+    out[idx * 2 + 1] = static_cast<T>(low_nibble * local_abs_max);
 }
 
 template <typename T>
@@ -386,23 +383,20 @@ template <typename T>
     device T* out [[buffer(3)]],
     device const int& blocksize,
     device const int& n,
-    uint id [[thread_position_in_grid]]) {
-
-    int block_idx = id * blocksize;
-    int valid_items = (n > blocksize + block_idx) ? blocksize : (n - block_idx);
-    int block_end = block_idx + valid_items;
-
-    for (int i = block_idx; i < block_end; ++i) {
-        float local_abs_max = absmax[block_idx / (blocksize / 2)];
-
-        // Extract the high and low nibbles from the input value
-        uint8_t input_value = static_cast<uint8_t>(input[i]);
-        float high_nibble = dequantize_fp4_tree(input_value >> 4, local_abs_max);
-        float low_nibble = dequantize_fp4_tree(input_value & 0x0F, local_abs_max);
-
-        out[i * 2] = static_cast<T>(high_nibble);
-        out[i * 2 + 1] = static_cast<T>(low_nibble);
+    uint idx [[thread_position_in_grid]]) {
+    if (idx >= n) {
+        return;
     }
+
+    float local_abs_max = absmax[idx / (blocksize / 2)];
+
+    // Extract the high and low nibbles from the input value
+    uint8_t input_value = static_cast<uint8_t>(input[idx]);
+    float high_nibble = dequantize_fp4_tree(input_value >> 4, local_abs_max);
+    float low_nibble = dequantize_fp4_tree(input_value & 0x0F, local_abs_max);
+
+    out[idx * 2] = static_cast<T>(high_nibble);
+    out[idx * 2 + 1] = static_cast<T>(low_nibble);
 }
 
 template <typename T>
@@ -413,17 +407,32 @@ template <typename T>
     device T* out [[buffer(3)]],
     device const int& blocksize,
     device const int& n,
-    uint id [[thread_position_in_grid]]) {
-
-    int block_idx = id * blocksize;
-    int valid_items = (n > blocksize + block_idx) ? blocksize : (n - block_idx);
-    int block_end = block_idx + valid_items;
-
-    for (int i = block_idx; i < block_end; ++i) {
-        float local_abs_max = absmax[block_idx / blocksize];
-
-        out[i] = static_cast<T>(code[input[i]] * local_abs_max);
+    uint idx [[thread_position_in_grid]]) {
+    if (idx >= n) {
+        return;
     }
+
+    float local_abs_max = absmax[idx / blocksize];
+
+    out[idx] = static_cast<T>(code[input[idx]] * local_abs_max);
+}
+
+template <typename T>
+[[kernel]] void kernel_dequantize_8bit(
+    const device char* weight [[buffer(0)]], // [row, col]
+    const device float* scb [[buffer(1)]], // [row]
+    device T* out [[buffer(2)]],
+    device const int& row,
+    device const int& col,
+    device const int& n,
+    uint idx [[thread_position_in_grid]]) {
+    if (idx >= n) {
+        return;
+    }
+
+    float local_scb = scb[idx / col];
+
+    out[idx] = static_cast<T>((float(weight[idx]) * local_scb) / 127.f);
 }
 
 #define instantiate_dequantize_nf4(type)                        \
@@ -435,7 +444,7 @@ template [[host_name("kernel_dequantize_nf4_" #type )]]         \
     device type* out [[buffer(3)]],                             \
     device const int& blocksize,                                \
     device const int& n,                                        \
-    uint id [[thread_position_in_grid]]);                       \
+    uint idx [[thread_position_in_grid]]);                      \
 
 instantiate_dequantize_nf4(float)
 instantiate_dequantize_nf4(bfloat16_t)
@@ -451,7 +460,7 @@ template [[host_name("kernel_dequantize_fp4_" #type )]]         \
     device type* out [[buffer(3)]],                             \
     device const int& blocksize,                                \
     device const int& n,                                        \
-    uint id [[thread_position_in_grid]]);                       \
+    uint idx [[thread_position_in_grid]]);                      \
 
 instantiate_dequantize_fp4(float)
 instantiate_dequantize_fp4(bfloat16_t)
@@ -467,8 +476,24 @@ template [[host_name("kernel_dequantize_int8_" #type )]]        \
     device type* out [[buffer(3)]],                             \
     device const int& blocksize,                                \
     device const int& n,                                        \
-    uint id [[thread_position_in_grid]]);                       \
+    uint idx [[thread_position_in_grid]]);                      \
 
 instantiate_dequantize_int8(float)
 instantiate_dequantize_int8(bfloat16_t)
 instantiate_dequantize_int8(half)
+
+
+#define instantiate_dequantize_8bit(type)                       \
+template [[host_name("kernel_dequantize_8bit_" #type )]]        \
+[[kernel]] void kernel_dequantize_8bit<type>(                   \
+    const device char* weight [[buffer(0)]],                    \
+    const device float* scb [[buffer(1)]],                      \
+    device type* out [[buffer(2)]],                             \
+    device const int& row,                                      \
+    device const int& col,                                      \
+    device const int& n,                                        \
+    uint idx [[thread_position_in_grid]]);                      \
+
+instantiate_dequantize_8bit(float)
+instantiate_dequantize_8bit(bfloat16_t)
+instantiate_dequantize_8bit(half)

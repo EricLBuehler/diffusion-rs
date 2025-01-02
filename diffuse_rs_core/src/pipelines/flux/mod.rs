@@ -53,6 +53,7 @@ impl Loader for FluxLoader {
         &self,
         mut components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
+        silent: bool,
     ) -> Result<Arc<dyn ModelPipeline>> {
         let scheduler = components.remove(&ComponentName::Scheduler).unwrap();
         let clip_component = components.remove(&ComponentName::TextEncoder(1)).unwrap();
@@ -92,7 +93,9 @@ impl Loader for FluxLoader {
         } else {
             anyhow::bail!("incorrect storage of t5 tokenizer")
         };
-        info!("loading CLIP model");
+        if !silent {
+            info!("loading CLIP model");
+        }
         let clip_component = if let ComponentElem::Model {
             safetensors,
             config,
@@ -101,12 +104,14 @@ impl Loader for FluxLoader {
             let cfg: ClipTextConfig = serde_json::from_str(&config.read_to_string()?)?;
 
             let vb =
-                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, false)?;
+                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, silent)?;
             ClipTextTransformer::new(vb.pp("text_model"), &cfg)?
         } else {
             anyhow::bail!("incorrect storage of clip model")
         };
-        info!("loading T5 model");
+        if !silent {
+            info!("loading T5 model");
+        }
         let t5_component = if let ComponentElem::Model {
             safetensors,
             config,
@@ -114,22 +119,26 @@ impl Loader for FluxLoader {
         {
             let cfg: T5Config = serde_json::from_str(&config.read_to_string()?)?;
             let vb =
-                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, false)?;
+                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, silent)?;
             T5EncoderModel::new(vb, &cfg, device)?
         } else {
             anyhow::bail!("incorrect storage of t5 model")
         };
-        info!("loading VAE model");
+        if !silent {
+            info!("loading VAE model");
+        }
         let vae_component = if let ComponentElem::Model {
             safetensors,
             config,
         } = vae_component
         {
-            dispatch_load_vae_model(&config, safetensors.into_values().collect(), device)?
+            dispatch_load_vae_model(&config, safetensors.into_values().collect(), device, silent)?
         } else {
             anyhow::bail!("incorrect storage of vae model")
         };
-        info!("loading FLUX model");
+        if !silent {
+            info!("loading FLUX model");
+        }
         let flux_component = if let ComponentElem::Model {
             safetensors,
             config,
@@ -137,16 +146,18 @@ impl Loader for FluxLoader {
         {
             let cfg: FluxConfig = serde_json::from_str(&config.read_to_string()?)?;
             let vb =
-                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, false)?;
+                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, silent)?;
             FluxModel::new(&cfg, vb)?
         } else {
             anyhow::bail!("incorrect storage of flux model")
         };
 
-        info!(
-            "FLUX pipeline using a guidance-distilled model: {}",
-            flux_component.is_guidance()
-        );
+        if !silent {
+            info!(
+                "FLUX pipeline using a guidance-distilled model: {}",
+                flux_component.is_guidance()
+            );
+        }
 
         let pipeline = FluxPipeline {
             clip_tokenizer: Arc::new(clip_tokenizer),
@@ -172,6 +183,28 @@ pub struct FluxPipeline {
     scheduler_config: SchedulerConfig,
 }
 
+impl FluxPipeline {
+    fn tokenize_and_pad(
+        prompts: Vec<String>,
+        tokenizer: &Tokenizer,
+    ) -> diffuse_rs_common::core::Result<Vec<Vec<u32>>> {
+        let mut t5_tokens = Vec::new();
+        let unpadded_t5_tokens = tokenizer
+            .encode_batch(prompts, true)
+            .map_err(|e| diffuse_rs_common::core::Error::Msg(e.to_string()))?
+            .into_iter()
+            .map(|e| e.get_ids().to_vec())
+            .collect::<Vec<_>>();
+        let t5_max_tokens = unpadded_t5_tokens.iter().map(|x| x.len()).max().unwrap();
+        for mut tokenization in unpadded_t5_tokens {
+            tokenization.extend(vec![0; t5_max_tokens - tokenization.len()]);
+            t5_tokens.push(tokenization);
+        }
+
+        Ok(t5_tokens)
+    }
+}
+
 impl ModelPipeline for FluxPipeline {
     fn forward(
         &self,
@@ -179,12 +212,7 @@ impl ModelPipeline for FluxPipeline {
         params: DiffusionGenerationParams,
     ) -> diffuse_rs_common::core::Result<Tensor> {
         let mut t5_input_ids = Tensor::new(
-            self.t5_tokenizer
-                .encode_batch(prompts.clone(), true)
-                .map_err(|e| diffuse_rs_common::core::Error::Msg(e.to_string()))?
-                .into_iter()
-                .map(|e| e.get_ids().to_vec())
-                .collect::<Vec<_>>(),
+            Self::tokenize_and_pad(prompts.clone(), &self.t5_tokenizer)?,
             self.t5_model.device(),
         )?;
 
@@ -203,12 +231,7 @@ impl ModelPipeline for FluxPipeline {
         let t5_embed = self.t5_model.forward(&t5_input_ids)?;
 
         let clip_input_ids = Tensor::new(
-            self.clip_tokenizer
-                .encode_batch(prompts, true)
-                .map_err(|e| diffuse_rs_common::core::Error::Msg(e.to_string()))?
-                .into_iter()
-                .map(|e| e.get_ids().to_vec())
-                .collect::<Vec<_>>(),
+            Self::tokenize_and_pad(prompts, &self.clip_tokenizer)?,
             self.clip_model.device(),
         )?;
         let clip_embed = self.clip_model.forward(&clip_input_ids)?;

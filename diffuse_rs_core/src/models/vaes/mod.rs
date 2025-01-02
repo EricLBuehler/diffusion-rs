@@ -39,8 +39,9 @@ pub(crate) fn dispatch_load_vae_model(
     cfg_json: &FileData,
     safetensor_files: Vec<FileData>,
     device: &Device,
+    silent: bool,
 ) -> anyhow::Result<Arc<dyn VAEModel>> {
-    let vb = from_mmaped_safetensors(safetensor_files, None, device, false)?;
+    let vb = from_mmaped_safetensors(safetensor_files, None, device, silent)?;
 
     let VaeConfigShim { name } = serde_json::from_str(&cfg_json.read_to_string()?)?;
     match name.as_str() {

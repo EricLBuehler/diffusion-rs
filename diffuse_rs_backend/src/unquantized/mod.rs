@@ -27,8 +27,8 @@ impl QuantMethod for UnquantLinear {
         }
     }
 
-    fn dequantize_w(&self) -> Result<Tensor> {
-        Ok(self.w.clone())
+    fn dequantize_w(&self, out_ty: DType) -> Result<Tensor> {
+        self.w.to_dtype(out_ty)
     }
 
     fn forward(&self, a: &Tensor) -> Result<Tensor> {

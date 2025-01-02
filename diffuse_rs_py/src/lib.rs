@@ -13,8 +13,8 @@ fn wrap_anyhow_error(e: anyhow::Error) -> pyo3::PyErr {
 #[pyclass]
 #[derive(Clone, Debug)]
 pub enum ModelSource {
-    ModelId(String),
-    DdufFile(String),
+    ModelId { model_id: String },
+    DdufFile { file: String },
 }
 
 #[pyclass]
@@ -81,10 +81,12 @@ impl Pipeline {
             .map(diffuse_rs_core::TokenSource::Literal)
             .unwrap_or(diffuse_rs_core::TokenSource::CacheToken);
         let source = match source {
-            ModelSource::DdufFile(file) => {
+            ModelSource::DdufFile { file } => {
                 diffuse_rs_core::ModelSource::dduf(file).map_err(wrap_anyhow_error)?
             }
-            ModelSource::ModelId(model_id) => diffuse_rs_core::ModelSource::from_model_id(model_id),
+            ModelSource::ModelId { model_id } => {
+                diffuse_rs_core::ModelSource::from_model_id(model_id)
+            }
         };
         Ok(Self(
             diffuse_rs_core::Pipeline::load(source, silent, token, revision)

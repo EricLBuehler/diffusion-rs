@@ -280,6 +280,7 @@ kernel void fill_##NAME(                                \
 #define FILL_OPS(NAME, T) \
 FILL_OP(NAME, T)          \
 
+FILL_OPS(i8, int8_t)
 FILL_OPS(u8, uchar)
 FILL_OPS(u32, uint)
 FILL_OPS(i64, long)

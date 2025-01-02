@@ -310,6 +310,7 @@ kernel void FN_NAME_STRIDED( \
 BINARY(FN, float, float, NAME##_f32, NAME##_f32_strided); \
 BINARY(FN, half, half, NAME##_f16, NAME##_f16_strided); \
 BINARY(FN, uint32_t, uint32_t, NAME##_u32, NAME##_u32_strided); \
+BINARY(FN, int8_t, int8_t, NAME##_i8, NAME##_i8_strided); \
 BINARY(FN, uint8_t, uint8_t, NAME##_u8, NAME##_u8_strided); \
 BINARY(FN, int16_t, int16_t, NAME##_i16, NAME##_i16_strided); \
 BINARY(FN, int32_t, int32_t, NAME##_i32, NAME##_i32_strided);
@@ -318,6 +319,7 @@ BINARY(FN, int32_t, int32_t, NAME##_i32, NAME##_i32_strided);
 BINARY(FN, float, uint8_t, NAME##_f32, NAME##_f32_strided); \
 BINARY(FN, half, uint8_t, NAME##_f16, NAME##_f16_strided); \
 BINARY(FN, uint32_t, uint8_t, NAME##_u32, NAME##_u32_strided); \
+BINARY(FN, int8_t, int8_t, NAME##_i8, NAME##_i8_strided); \
 BINARY(FN, uint8_t, uint8_t, NAME##_u8, NAME##_u8_strided); \
 BINARY(FN, int16_t, uint8_t, NAME##_i16, NAME##_i16_strided); \
 BINARY(FN, int32_t, uint8_t, NAME##_i32, NAME##_i32_strided);

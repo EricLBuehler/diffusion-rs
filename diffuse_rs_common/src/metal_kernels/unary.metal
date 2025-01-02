@@ -388,6 +388,7 @@ kernel void FN_NAME( \
 
 COPY2D(copy2d_f32, float)
 COPY2D(copy2d_f16, half)
+COPY2D(copy2d_i8, int8_t)
 COPY2D(copy2d_u8, uint8_t)
 COPY2D(copy2d_u32, uint32_t)
 
@@ -413,6 +414,7 @@ UNARY_OP(sigmoid)
 UNARY(id, float, copy_f32, copy_f32_strided)
 UNARY(id, half, copy_f16, copy_f16_strided)
 UNARY(id, uint8_t, copy_u8, copy_u8_strided)
+UNARY(id, int8_t, copy_i8, copy_i8_strided)
 UNARY(id, uint32_t, copy_u32, copy_u32_strided)
 
 // tanh may create NaN on large values, e.g. 45 rather than outputing 1.

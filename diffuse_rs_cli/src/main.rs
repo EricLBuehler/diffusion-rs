@@ -1,5 +1,5 @@
 use cliclack::input;
-use std::time::Instant;
+use std::{path::PathBuf, time::Instant};
 
 use clap::{Parser, Subcommand};
 use diffuse_rs_core::{DiffusionGenerationParams, ModelSource, Pipeline, TokenSource};
@@ -116,9 +116,15 @@ fn main() -> anyhow::Result<()> {
         let out_file: String = input("Save image to:")
             .validate(|input: &String| {
                 if input.is_empty() {
-                    Err("Prompt is required!")
+                    Err("Image path is required!")
                 } else {
-                    Ok(())
+                    let path = PathBuf::from(input);
+                    let ext = path.extension().ok_or("Extension is required!")?;
+                    if !["png", "jpg"].contains(&ext.to_str().unwrap()) {
+                        Err(".png or .jpg extension is required!")
+                    } else {
+                        Ok(())
+                    }
                 }
             })
             .interact()?;

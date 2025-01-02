@@ -152,8 +152,11 @@ pub fn call_dequant_bnb_nf4(
     kernels: &Kernels,
     ty: DType,
     input: &Buffer,
+    input_offset: usize,
     absmax: &Buffer,
+    absmax_offset: usize,
     code: &Buffer,
+    code_offset: usize,
     output: &Buffer,
     blocksize: usize,
     n: usize,
@@ -177,10 +180,17 @@ pub fn call_dequant_bnb_nf4(
 
     set_params!(
         encoder,
-        (code, input, absmax, output, blocksize as i32, n as i32)
+        (
+            (code, code_offset),
+            (input, input_offset),
+            (absmax, absmax_offset),
+            output,
+            blocksize as i32,
+            n as i32
+        )
     );
 
-    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n.div_ceil(blocksize));
+    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n);
     encoder.dispatch_thread_groups(thread_group_count, thread_group_size);
     Ok(())
 }
@@ -192,8 +202,11 @@ pub fn call_dequant_bnb_fp4(
     kernels: &Kernels,
     ty: DType,
     input: &Buffer,
+    input_offset: usize,
     absmax: &Buffer,
+    absmax_offset: usize,
     code: &Buffer,
+    code_offset: usize,
     output: &Buffer,
     blocksize: usize,
     n: usize,
@@ -217,10 +230,17 @@ pub fn call_dequant_bnb_fp4(
 
     set_params!(
         encoder,
-        (code, input, absmax, output, blocksize as i32, n as i32)
+        (
+            (code, code_offset),
+            (input, input_offset),
+            (absmax, absmax_offset),
+            output,
+            blocksize as i32,
+            n as i32
+        )
     );
 
-    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n.div_ceil(blocksize));
+    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n);
     encoder.dispatch_thread_groups(thread_group_count, thread_group_size);
     Ok(())
 }
@@ -232,8 +252,11 @@ pub fn call_dequant_bnb_int8(
     kernels: &Kernels,
     ty: DType,
     input: &Buffer,
+    input_offset: usize,
     absmax: &Buffer,
+    absmax_offset: usize,
     code: &Buffer,
+    code_offset: usize,
     output: &Buffer,
     blocksize: usize,
     n: usize,
@@ -257,10 +280,66 @@ pub fn call_dequant_bnb_int8(
 
     set_params!(
         encoder,
-        (code, input, absmax, output, blocksize as i32, n as i32)
+        (
+            (code, code_offset),
+            (input, input_offset),
+            (absmax, absmax_offset),
+            output,
+            blocksize as i32,
+            n as i32
+        )
     );
 
-    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n.div_ceil(blocksize));
+    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n);
+    encoder.dispatch_thread_groups(thread_group_count, thread_group_size);
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn call_dequant_bnb_8bit(
+    device: &Device,
+    ep: impl EncoderProvider,
+    kernels: &Kernels,
+    ty: DType,
+    weight: &Buffer,
+    weight_offset: usize,
+    scb: &Buffer,
+    scb_offset: usize,
+    output: &Buffer,
+    row: usize,
+    col: usize,
+    n: usize,
+) -> Result<(), MetalKernelError> {
+    let name = match ty {
+        DType::F32 => "kernel_dequantize_8bit_float",
+        DType::BF16 => "kernel_dequantize_8bit_bfloat16_t",
+        DType::F16 => "kernel_dequantize_8bit_half",
+        other => {
+            return Err(MetalKernelError::DTypeMismatch {
+                expected: vec![DType::F32, DType::F16, DType::BF16],
+                got: other,
+            })
+        }
+    };
+    let pipeline = kernels.load_pipeline(device, Source::BnbDequant, name)?;
+
+    let encoder = ep.encoder();
+    let encoder: &ComputeCommandEncoderRef = encoder.as_ref();
+    encoder.set_compute_pipeline_state(&pipeline);
+
+    set_params!(
+        encoder,
+        (
+            (weight, weight_offset),
+            (scb, scb_offset),
+            output,
+            row,
+            col,
+            n
+        )
+    );
+
+    let (thread_group_count, thread_group_size) = linear_split(&pipeline, n);
     encoder.dispatch_thread_groups(thread_group_count, thread_group_size);
     Ok(())
 }
