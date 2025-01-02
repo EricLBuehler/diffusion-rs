@@ -1,4 +1,5 @@
 mod flux;
+mod scheduler;
 
 use std::{collections::HashMap, fmt::Display, sync::Arc};
 

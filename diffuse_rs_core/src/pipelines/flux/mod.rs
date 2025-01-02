@@ -3,7 +3,6 @@ use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 use anyhow::Result;
 use diffuse_rs_common::core::{DType, Device, Tensor, D};
 use diffuse_rs_common::nn::Module;
-use serde::Deserialize;
 use tokenizers::{models::bpe::BPE, ModelWrapper, Tokenizer};
 use tracing::info;
 
@@ -16,21 +15,12 @@ use crate::{
 };
 use diffuse_rs_common::from_mmaped_safetensors;
 
+use super::scheduler::SchedulerConfig;
 use super::{ComponentElem, DiffusionGenerationParams, Loader, ModelPipeline};
 
 mod sampling;
 
 pub struct FluxLoader;
-
-#[derive(Clone, Debug, Deserialize)]
-struct SchedulerConfig {
-    base_image_seq_len: usize,
-    base_shift: f64,
-    max_image_seq_len: usize,
-    max_shift: f64,
-    // shift: f64,
-    // use_dynamic_shifting: bool,
-}
 
 impl Loader for FluxLoader {
     fn name(&self) -> &'static str {
@@ -245,21 +235,16 @@ impl ModelPipeline for FluxPipeline {
         .to_dtype(t5_embed.dtype())?;
 
         let state = sampling::State::new(&t5_embed, &clip_embed, &img)?;
-        let shift = if self.flux_model.is_guidance() {
-            Some((
-                state.img.dims()[1],
-                self.scheduler_config.base_shift,
-                self.scheduler_config.max_shift,
-            ))
-        } else {
-            None
-        };
-        let timesteps = sampling::get_schedule(
-            params.num_steps,
-            shift,
+        let mu = sampling::calculate_shift(
+            img.dims()[1],
             self.scheduler_config.base_image_seq_len,
             self.scheduler_config.max_image_seq_len,
+            self.scheduler_config.base_shift,
+            self.scheduler_config.max_shift,
         );
+        let timesteps = self
+            .scheduler_config
+            .get_timesteps(params.num_steps, Some(mu))?;
 
         img = if self.flux_model.is_guidance() {
             sampling::denoise(

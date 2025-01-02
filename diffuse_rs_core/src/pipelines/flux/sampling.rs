@@ -61,37 +61,6 @@ impl State {
     }
 }
 
-fn time_shift(mu: f64, sigma: f64, t: f64) -> f64 {
-    let e = mu.exp();
-    e / (e + (1. / t - 1.).powf(sigma))
-}
-
-/// `shift` is a triple `(image_seq_len, base_shift, max_shift)`.
-pub fn get_schedule(
-    num_steps: usize,
-    shift: Option<(usize, f64, f64)>,
-    base_seq_len: usize,
-    max_seq_len: usize,
-) -> Vec<f64> {
-    let timesteps: Vec<f64> = (0..=num_steps)
-        .map(|v| v as f64 / num_steps as f64)
-        .rev()
-        .collect();
-    match shift {
-        None => timesteps,
-        Some((image_seq_len, y1, y2)) => {
-            let (x1, x2) = (base_seq_len as f64, max_seq_len as f64);
-            let m = (y2 - y1) / (x2 - x1);
-            let b = y1 - m * x1;
-            let mu = m * image_seq_len as f64 + b;
-            timesteps
-                .into_iter()
-                .map(|v| time_shift(mu, 1., v))
-                .collect()
-        }
-    }
-}
-
 pub fn unpack(xs: &Tensor, height: usize, width: usize) -> Result<Tensor> {
     let (b, _h_w, c_ph_pw) = xs.dims3()?;
     let height = (height + 15) / 16;
@@ -166,4 +135,16 @@ pub fn denoise_no_guidance(
     timesteps: &[f64],
 ) -> Result<Tensor> {
     denoise_inner(model, img, img_ids, txt, txt_ids, vec_, timesteps, None)
+}
+
+pub fn calculate_shift(
+    image_seq_len: usize,
+    base_seq_len: usize,
+    max_seq_len: usize,
+    base_shift: f64,
+    max_shift: f64,
+) -> f64 {
+    let m = (max_shift - base_shift) / (max_seq_len - base_seq_len) as f64;
+    let b = base_shift - m * base_seq_len as f64;
+    image_seq_len as f64 * m + b
 }
