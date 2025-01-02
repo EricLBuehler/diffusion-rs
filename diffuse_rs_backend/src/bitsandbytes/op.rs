@@ -728,7 +728,7 @@ impl CustomOp2 for Dequantize8BitOp {
         let col = weight_l.dim(1)?;
         let n = weight_l.shape().elem_count();
 
-        let output = device.new_buffer(n, self.out_ty.into(), "dequant-8bit-bnb")?;
+        let output = device.new_buffer(n, self.out_ty, "dequant-8bit-bnb")?;
 
         if weight_s.dtype() != DType::I8 {
             diffuse_rs_common::bail!("input must be i8");
@@ -745,7 +745,7 @@ impl CustomOp2 for Dequantize8BitOp {
             device.device(),
             &command_buffer,
             &crate::metal_kernels::Kernels::new(),
-            self.out_ty.into(),
+            self.out_ty,
             weight_s.buffer(),
             weight_l.start_offset() * weight_s.dtype().size_in_bytes(),
             scb_s.buffer(),

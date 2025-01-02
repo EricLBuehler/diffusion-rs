@@ -633,7 +633,7 @@ impl crate::core::InplaceOp2 for AttnSoftmaxLastDim {
             a_l.dims(),
             self.scale,
             ty,
-            &a_s.buffer(),
+            a_s.buffer(),
             0,
         )
         .map_err(crate::core::Error::wrap)?;

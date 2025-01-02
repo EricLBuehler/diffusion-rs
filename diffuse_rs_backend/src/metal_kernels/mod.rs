@@ -443,7 +443,7 @@ pub fn call_sdpa_full(
         }
     };
 
-    let pipeline = kernels.load_pipeline(device, Source::Sdpa, &name)?;
+    let pipeline = kernels.load_pipeline(device, Source::Sdpa, name)?;
     let encoder = ep.encoder();
     let encoder: &ComputeCommandEncoderRef = encoder.as_ref();
     encoder.set_compute_pipeline_state(&pipeline);
@@ -467,16 +467,16 @@ pub fn call_sdpa_full(
     let ldo = dk;
 
     let tn = 1;
-    let tm = (m + BM - 1) / BM;
+    let tm = m.div_ceil(BM);
 
     let b_stride_q = dk * qseq;
     let b_stride_k = dk * qseq;
     let b_stride_v = dk * qseq;
     let b_stride_o = dk * qseq;
     let swizzle_log = 0;
-    let gemm_n_iterations_aligned = (n + BN - 1) / BN;
-    let gemm_k_iterations_aligned = (k + bk - 1) / bk;
-    let gemm_sv_m_block_iterations = (m + BM - 1) / BM;
+    let gemm_n_iterations_aligned = n.div_ceil(BN);
+    let gemm_k_iterations_aligned = k.div_ceil(*bk);
+    let gemm_sv_m_block_iterations = m.div_ceil(BM);
     let batch_ndim = batch_shape.len();
 
     let alpha = if softcapping != 1. {
@@ -614,7 +614,7 @@ pub fn call_sdpa_vector(
         alpha
     };
 
-    let pipeline = kernels.load_pipeline(device, Source::Sdpa, &name)?;
+    let pipeline = kernels.load_pipeline(device, Source::Sdpa, name)?;
     let encoder = ep.encoder();
     let encoder: &ComputeCommandEncoderRef = encoder.as_ref();
     encoder.set_compute_pipeline_state(&pipeline);
@@ -641,7 +641,7 @@ pub fn call_sdpa_vector(
     let grid_dims = MTLSize {
         width: 1,
         height: b as u64,
-        depth: 1 as u64,
+        depth: 1,
     };
     let group_dims = MTLSize {
         width: 1024,
@@ -726,7 +726,7 @@ pub fn call_sdpa_vector_2pass(
             alpha
         };
 
-        let pipeline = kernels.load_pipeline(device, Source::Sdpa, &name_pass1)?;
+        let pipeline = kernels.load_pipeline(device, Source::Sdpa, name_pass1)?;
         let encoder = ep.encoder();
         let encoder: &ComputeCommandEncoderRef = encoder.as_ref();
         encoder.set_compute_pipeline_state(&pipeline);
@@ -801,7 +801,7 @@ pub fn call_sdpa_vector_2pass(
 
         let b = (q_shape[0] * q_shape[1]) as i32;
 
-        let pipeline = kernels.load_pipeline(device, Source::Sdpa, &name_pass2)?;
+        let pipeline = kernels.load_pipeline(device, Source::Sdpa, name_pass2)?;
         let encoder = ep.encoder();
         let encoder: &ComputeCommandEncoderRef = encoder.as_ref();
         encoder.set_compute_pipeline_state(&pipeline);
