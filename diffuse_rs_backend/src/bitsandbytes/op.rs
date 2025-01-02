@@ -555,7 +555,7 @@ impl Dequantize8BitOp {
     ) -> Vec<T> {
         let mut out = vec![T::zero(); weight.len()];
 
-        for (i, w) in weight.into_iter().enumerate() {
+        for (i, w) in weight.iter().enumerate() {
             let local_scb = scb[i / col];
             out[i] = T::from_f64((*w as f64 * local_scb as f64) / 127.);
         }
@@ -617,15 +617,15 @@ impl CustomOp2 for Dequantize8BitOp {
 
         match (weight_s, scb_s, self.out_ty) {
             (CpuStorage::I8(weight), CpuStorage::F32(scb), DType::BF16) => Ok((
-                CpuStorage::BF16(self.dequantize_cpu(&weight, &scb, col)),
+                CpuStorage::BF16(self.dequantize_cpu(weight, scb, col)),
                 weight_l.shape().clone(),
             )),
             (CpuStorage::I8(weight), CpuStorage::F32(scb), DType::F16) => Ok((
-                CpuStorage::F16(self.dequantize_cpu(&weight, &scb, col)),
+                CpuStorage::F16(self.dequantize_cpu(weight, scb, col)),
                 weight_l.shape().clone(),
             )),
             (CpuStorage::I8(weight), CpuStorage::F32(scb), DType::F32) => Ok((
-                CpuStorage::F32(self.dequantize_cpu(&weight, &scb, col)),
+                CpuStorage::F32(self.dequantize_cpu(weight, scb, col)),
                 weight_l.shape().clone(),
             )),
             (w, s, t) => diffuse_rs_common::bail!(
