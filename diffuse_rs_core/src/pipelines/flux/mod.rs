@@ -15,6 +15,7 @@ use crate::{
 };
 use diffuse_rs_common::from_mmaped_safetensors;
 
+use super::sampling::Sampler;
 use super::scheduler::SchedulerConfig;
 use super::{ComponentElem, DiffusionGenerationParams, Loader, ModelPipeline};
 
@@ -246,28 +247,27 @@ impl ModelPipeline for FluxPipeline {
             .scheduler_config
             .get_timesteps(params.num_steps, Some(mu))?;
 
-        img = if self.flux_model.is_guidance() {
-            sampling::denoise(
-                &self.flux_model,
-                &state.img,
-                &state.img_ids,
-                &state.txt,
-                &state.txt_ids,
-                &state.vec,
-                &timesteps,
-                params.guidance_scale,
-            )?
+        let bs = img.dim(0)?;
+        let dev = img.device();
+        let guidance = if self.flux_model.is_guidance() {
+            Some(Tensor::full(params.guidance_scale as f32, bs, dev)?)
         } else {
-            sampling::denoise_no_guidance(
-                &self.flux_model,
-                &state.img,
+            None
+        };
+        let step = |img: &Tensor, t_vec: &Tensor| -> diffuse_rs_common::core::Result<Tensor> {
+            self.flux_model.forward(
+                img,
                 &state.img_ids,
                 &state.txt,
                 &state.txt_ids,
+                t_vec,
                 &state.vec,
-                &timesteps,
-            )?
+                guidance.as_ref(),
+            )
         };
+
+        let sampler = Sampler::new(&self.scheduler_config.scheduler_type);
+        img = sampler.sample(&timesteps, &state.img, step)?;
 
         img = sampling::unpack(&img, params.height, params.width)?;
 

@@ -2,9 +2,6 @@
 
 use diffuse_rs_common::core::{Device, Result, Tensor};
 
-use crate::models::FluxModel;
-use diffuse_rs_common::NiceProgressBar;
-
 pub fn get_noise(
     num_samples: usize,
     height: usize,
@@ -68,73 +65,6 @@ pub fn unpack(xs: &Tensor, height: usize, width: usize) -> Result<Tensor> {
     xs.reshape((b, height, width, c_ph_pw / 4, 2, 2))? // (b, h, w, c, ph, pw)
         .permute((0, 3, 1, 4, 2, 5))? // (b, c, h, ph, w, pw)
         .reshape((b, c_ph_pw / 4, height * 2, width * 2))
-}
-
-#[allow(clippy::too_many_arguments)]
-fn denoise_inner(
-    model: &FluxModel,
-    img: &Tensor,
-    img_ids: &Tensor,
-    txt: &Tensor,
-    txt_ids: &Tensor,
-    vec_: &Tensor,
-    timesteps: &[f64],
-    guidance: Option<f64>,
-) -> Result<Tensor> {
-    let b_sz = img.dim(0)?;
-    let dev = img.device();
-    let guidance = if let Some(guidance) = guidance {
-        Some(Tensor::full(guidance as f32, b_sz, dev)?)
-    } else {
-        None
-    };
-    let mut img = img.clone();
-    for window in NiceProgressBar::<_, 'g'>(timesteps.windows(2), "Denoise loop") {
-        let (t_curr, t_prev) = match window {
-            [a, b] => (a, b),
-            _ => continue,
-        };
-        let t_vec = Tensor::full(*t_curr as f32, b_sz, dev)?;
-        let pred = model.forward(&img, img_ids, txt, txt_ids, &t_vec, vec_, guidance.as_ref())?;
-        img = (img + pred * (t_prev - t_curr))?
-    }
-    Ok(img)
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn denoise(
-    model: &FluxModel,
-    img: &Tensor,
-    img_ids: &Tensor,
-    txt: &Tensor,
-    txt_ids: &Tensor,
-    vec_: &Tensor,
-    timesteps: &[f64],
-    guidance: f64,
-) -> Result<Tensor> {
-    denoise_inner(
-        model,
-        img,
-        img_ids,
-        txt,
-        txt_ids,
-        vec_,
-        timesteps,
-        Some(guidance),
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn denoise_no_guidance(
-    model: &FluxModel,
-    img: &Tensor,
-    img_ids: &Tensor,
-    txt: &Tensor,
-    txt_ids: &Tensor,
-    vec_: &Tensor,
-    timesteps: &[f64],
-) -> Result<Tensor> {
-    denoise_inner(model, img, img_ids, txt, txt_ids, vec_, timesteps, None)
 }
 
 pub fn calculate_shift(

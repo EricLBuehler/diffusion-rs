@@ -1,7 +1,7 @@
 use diffuse_rs_common::core::{Context, Result};
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct SchedulerConfig {
     #[serde(rename = "_class_name")]
     pub scheduler_type: SchedulerType,
@@ -13,7 +13,7 @@ pub struct SchedulerConfig {
     pub use_dynamic_shifting: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub enum SchedulerType {
     #[serde(rename = "FlowMatchEulerDiscreteScheduler")]
     FlowMatchEulerDiscrete,
