@@ -32,8 +32,6 @@ use half::{bf16, f16};
 
 pub use k_quants::GgmlType;
 
-use super::backend::BackendDevice;
-
 pub struct QTensor {
     storage: QStorage,
     shape: Shape,
@@ -732,30 +730,56 @@ impl QMatMul {
                         QStorage::Cpu(new_data)
                     }
 
-                    (QStorage::Cpu(s), Device::Cuda(d)) => {
-                        todo!()
+                    #[cfg(feature = "cuda")]
+                    (QStorage::Cpu(_) | QStorage::Metal(_), Device::Cuda(d)) => {
+                        use crate::core::cuda_backend::WrapErr;
+                        let slice = d.htod_sync_copy(&data).w()?;
+                        QStorage::Cuda(cuda::QCudaStorage::from_buffer(slice, d, q.dtype())?)
                     }
-                    (QStorage::Metal(s), Device::Cuda(d)) => {
-                        todo!()
+                    #[cfg(not(feature = "cuda"))]
+                    (QStorage::Cpu(_) | QStorage::Metal(_), Device::Cuda(_)) => {
+                        return Err(crate::core::Error::NotCompiledWithCudaSupport);
                     }
-                    (QStorage::Cuda(s), Device::Cuda(d)) => {
+                    #[cfg(feature = "cuda")]
+                    (QStorage::Cuda(_), Device::Cuda(d)) => {
+                        use super::backend::BackendDevice;
+                        use crate::core::cuda_backend::WrapErr;
+
                         if d.same_device(q.device().as_cuda_device()?) {
                             return Ok(Self::QTensor(q.clone()));
                         }
-                        todo!()
+                        // If the devices don't match, we just do a manual copy
+                        let slice = d.htod_sync_copy(&data).w()?;
+                        QStorage::Cuda(cuda::QCudaStorage::from_buffer(slice, d, q.dtype())?)
+                    }
+                    #[cfg(not(feature = "cuda"))]
+                    (QStorage::Cuda(_), Device::Cuda(_)) => {
+                        return Err(crate::core::Error::NotCompiledWithCudaSupport);
                     }
 
+                    #[cfg(feature = "metal")]
                     (QStorage::Cpu(_) | QStorage::Cuda(_), Device::Metal(d)) => {
                         let buffer = d.new_buffer_with_data(&data)?;
                         QStorage::Metal(metal::QMetalStorage::from_buffer(buffer, d, q.dtype())?)
                     }
+                    #[cfg(not(feature = "metal"))]
+                    (QStorage::Cpu(_) | QStorage::Cuda(_), Device::Metal(_)) => {
+                        return Err(crate::core::Error::NotCompiledWithMetalSupport);
+                    }
+                    #[cfg(feature = "metal")]
                     (QStorage::Metal(_), Device::Metal(d)) => {
+                        use super::backend::BackendDevice;
+
                         if d.same_device(q.device().as_metal_device()?) {
                             return Ok(Self::QTensor(q.clone()));
                         }
                         // If the devices don't match, we just do a manual copy
                         let buffer = d.new_buffer_with_data(&data)?;
                         QStorage::Metal(metal::QMetalStorage::from_buffer(buffer, d, q.dtype())?)
+                    }
+                    #[cfg(not(feature = "metal"))]
+                    (QStorage::Metal(_), Device::Metal(_)) => {
+                        return Err(crate::core::Error::NotCompiledWithMetalSupport);
                     }
                 };
                 Ok(Self::QTensor(Arc::new(QTensor::new(new_s, shape)?)))
