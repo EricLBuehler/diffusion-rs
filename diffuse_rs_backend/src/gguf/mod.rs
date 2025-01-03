@@ -61,4 +61,14 @@ impl QuantMethod for GgufMatMul {
         };
         Ok(Arc::new(Self { w, b }))
     }
+
+    fn size_in_bytes(&self) -> Result<usize> {
+        let w_size = self.w.size_in_bytes()?;
+        let b_size = if let Some(b) = self.b.as_ref() {
+            b.dtype().size_in_bytes() * b.elem_count()
+        } else {
+            0
+        };
+        Ok(w_size + b_size)
+    }
 }

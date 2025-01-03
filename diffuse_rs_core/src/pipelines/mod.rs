@@ -2,7 +2,11 @@ mod flux;
 mod sampling;
 mod scheduler;
 
-use std::{collections::HashMap, fmt::Display, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::Result;
 use diffuse_rs_common::core::{Device, Tensor};
@@ -70,12 +74,12 @@ pub(crate) trait Loader {
         components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
         silent: bool,
-    ) -> Result<Arc<dyn ModelPipeline>>;
+    ) -> Result<Arc<Mutex<dyn ModelPipeline>>>;
 }
 
 pub trait ModelPipeline: Send + Sync {
     fn forward(
-        &self,
+        &mut self,
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
     ) -> diffuse_rs_common::core::Result<Tensor>;
@@ -87,7 +91,7 @@ struct ModelIndex {
     name: String,
 }
 
-pub struct Pipeline(Arc<dyn ModelPipeline>);
+pub struct Pipeline(Arc<Mutex<dyn ModelPipeline>>);
 
 impl Pipeline {
     pub fn load(
@@ -193,10 +197,11 @@ impl Pipeline {
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
     ) -> anyhow::Result<Vec<DynamicImage>> {
+        let mut model = self.0.lock().expect("Could not lock model!");
         #[cfg(feature = "metal")]
-        let img = objc::rc::autoreleasepool(|| self.0.forward(prompts, params))?;
+        let img = objc::rc::autoreleasepool(|| model.forward(prompts, params))?;
         #[cfg(not(feature = "metal"))]
-        let img = self.0.forward(prompts, params)?;
+        let img = model.forward(prompts, params)?;
 
         let (_b, c, h, w) = img.dims4()?;
         let mut images = Vec::new();

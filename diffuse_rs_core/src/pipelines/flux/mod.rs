@@ -1,3 +1,4 @@
+use std::sync::Mutex;
 use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 
 use anyhow::Result;
@@ -6,6 +7,7 @@ use diffuse_rs_common::nn::Module;
 use tokenizers::{models::bpe::BPE, ModelWrapper, Tokenizer};
 use tracing::info;
 
+use crate::models::QuantizedModel;
 use crate::{
     models::{
         dispatch_load_vae_model, ClipTextConfig, ClipTextTransformer, FluxConfig, FluxModel,
@@ -45,7 +47,7 @@ impl Loader for FluxLoader {
         mut components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
         silent: bool,
-    ) -> Result<Arc<dyn ModelPipeline>> {
+    ) -> Result<Arc<Mutex<dyn ModelPipeline>>> {
         let scheduler = components.remove(&ComponentName::Scheduler).unwrap();
         let clip_component = components.remove(&ComponentName::TextEncoder(1)).unwrap();
         let t5_component = components.remove(&ComponentName::TextEncoder(2)).unwrap();
@@ -160,7 +162,7 @@ impl Loader for FluxLoader {
             scheduler_config,
         };
 
-        Ok(Arc::new(pipeline))
+        Ok(Arc::new(Mutex::new(pipeline)))
     }
 }
 
@@ -198,7 +200,7 @@ impl FluxPipeline {
 
 impl ModelPipeline for FluxPipeline {
     fn forward(
-        &self,
+        &mut self,
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
     ) -> diffuse_rs_common::core::Result<Tensor> {

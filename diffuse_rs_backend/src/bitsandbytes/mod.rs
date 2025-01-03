@@ -80,6 +80,17 @@ impl BnbQuantParmas {
             dtype: self.dtype,
         })
     }
+
+    fn size_in_bytes(&self) -> Result<usize> {
+        let absmax = self.absmax.dtype().size_in_bytes() * self.absmax.elem_count();
+        let code = self.code.dtype().size_in_bytes() * self.code.elem_count();
+        let nested = if let Some(nested) = &self.nested {
+            nested.size_in_bytes()?
+        } else {
+            0
+        };
+        Ok(absmax + code + nested)
+    }
 }
 
 #[derive(Debug)]
@@ -335,6 +346,36 @@ impl QuantMethod for BnbLinear {
                     None
                 };
                 Ok(Arc::new(Self::Int8 { weight, scb, bias }))
+            }
+        }
+    }
+
+    fn size_in_bytes(&self) -> Result<usize> {
+        match self {
+            Self::Fp4Nf4 {
+                weight,
+                bias,
+                params,
+                quant_ty: _,
+            } => {
+                let w_size = weight.dtype().size_in_bytes() * weight.elem_count();
+                let params_size = params.size_in_bytes()?;
+                let b_size = if let Some(b) = bias {
+                    b.dtype().size_in_bytes() * b.elem_count()
+                } else {
+                    0
+                };
+                Ok(w_size + params_size + b_size)
+            }
+            Self::Int8 { weight, scb, bias } => {
+                let w_size = weight.dtype().size_in_bytes() * weight.elem_count();
+                let scb_size = scb.dtype().size_in_bytes() * scb.elem_count();
+                let b_size = if let Some(b) = bias {
+                    b.dtype().size_in_bytes() * b.elem_count()
+                } else {
+                    0
+                };
+                Ok(w_size + scb_size + b_size)
             }
         }
     }

@@ -788,6 +788,20 @@ impl QMatMul {
             Self::TensorF16(t) => Ok(Self::TensorF16(t.to_device(dev)?)),
         }
     }
+
+    pub fn size_in_bytes(&self) -> Result<usize> {
+        match self {
+            Self::Tensor(t) | Self::TensorF16(t) => Ok(t.dtype().size_in_bytes() * t.elem_count()),
+            Self::QTensor(q) => {
+                let len = match &q.storage {
+                    QStorage::Cpu(_) => q.data()?.len(),
+                    QStorage::Cuda(c) => c.storage_size_in_bytes(),
+                    QStorage::Metal(m) => m.storage_size_in_bytes(),
+                };
+                Ok(len)
+            }
+        }
+    }
 }
 
 impl crate::core::CustomOp1 for QTensor {
