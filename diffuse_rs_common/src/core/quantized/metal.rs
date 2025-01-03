@@ -11,6 +11,18 @@ pub struct QMetalStorage {
 }
 
 impl QMetalStorage {
+    pub fn from_buffer(
+        buffer: Arc<Buffer>,
+        device: &MetalDevice,
+        dtype: GgmlDType,
+    ) -> Result<Self> {
+        Ok(Self {
+            buffer,
+            device: device.clone(),
+            dtype,
+        })
+    }
+
     pub fn zeros(device: &MetalDevice, elem_count: usize, dtype: GgmlDType) -> Result<Self> {
         let size = elem_count * dtype.type_size() / dtype.block_size();
         let buffer = device.allocate_zeros(size)?;

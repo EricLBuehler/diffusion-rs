@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use clap::Parser;
-use diffuse_rs_core::{DiffusionGenerationParams, ModelSource, Pipeline, TokenSource};
+use diffuse_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -22,6 +22,10 @@ struct Args {
     /// Number of denoising steps
     #[arg(short, long)]
     num_steps: usize,
+
+    /// Offloading setting to use for this model
+    #[arg(short, long)]
+    offloading: Option<Offloading>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -37,6 +41,7 @@ fn main() -> anyhow::Result<()> {
         false,
         TokenSource::CacheToken,
         None,
+        args.offloading,
     )?;
 
     let start = Instant::now();

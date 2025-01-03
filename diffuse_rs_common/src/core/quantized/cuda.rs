@@ -365,6 +365,19 @@ fn mul_mat_via_q8_1(
 }
 
 impl QCudaStorage {
+    pub fn from_buffer(
+        inner: CudaSlice<u8>,
+        device: &CudaDevice,
+        dtype: GgmlDType,
+    ) -> Result<Self> {
+        let len = inner.len();
+        Ok(QCudaStorage {
+            data: PaddedCudaSlice { inner, len },
+            device: device.clone(),
+            dtype,
+        })
+    }
+
     pub fn zeros(device: &CudaDevice, el_count: usize, dtype: GgmlDType) -> Result<Self> {
         let size_in_bytes = ceil_div(el_count, dtype.block_size()) * dtype.type_size();
         let padded_size_in_bytes =

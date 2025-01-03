@@ -1,3 +1,4 @@
+use std::sync::Mutex;
 use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 
 use anyhow::Result;
@@ -6,6 +7,7 @@ use diffuse_rs_common::nn::Module;
 use tokenizers::{models::bpe::BPE, ModelWrapper, Tokenizer};
 use tracing::info;
 
+use crate::models::QuantizedModel;
 use crate::{
     models::{
         dispatch_load_vae_model, ClipTextConfig, ClipTextTransformer, FluxConfig, FluxModel,
@@ -17,7 +19,7 @@ use diffuse_rs_common::from_mmaped_safetensors;
 
 use super::sampling::Sampler;
 use super::scheduler::SchedulerConfig;
-use super::{ComponentElem, DiffusionGenerationParams, Loader, ModelPipeline};
+use super::{ComponentElem, DiffusionGenerationParams, Loader, ModelPipeline, Offloading};
 
 mod sampling;
 
@@ -45,7 +47,8 @@ impl Loader for FluxLoader {
         mut components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
         silent: bool,
-    ) -> Result<Arc<dyn ModelPipeline>> {
+        offloading_type: Option<Offloading>,
+    ) -> Result<Arc<Mutex<dyn ModelPipeline>>> {
         let scheduler = components.remove(&ComponentName::Scheduler).unwrap();
         let clip_component = components.remove(&ComponentName::TextEncoder(1)).unwrap();
         let t5_component = components.remove(&ComponentName::TextEncoder(2)).unwrap();
@@ -53,6 +56,11 @@ impl Loader for FluxLoader {
         let t5_tok_component = components.remove(&ComponentName::Tokenizer(2)).unwrap();
         let flux_component = components.remove(&ComponentName::Transformer).unwrap();
         let vae_component = components.remove(&ComponentName::Vae).unwrap();
+
+        let t5_flux_device = match offloading_type {
+            Some(Offloading::Full) => Device::Cpu,
+            None => device.clone(),
+        };
 
         let scheduler_config = if let ComponentElem::Config { files } = scheduler {
             serde_json::from_str::<SchedulerConfig>(
@@ -109,9 +117,13 @@ impl Loader for FluxLoader {
         } = t5_component
         {
             let cfg: T5Config = serde_json::from_str(&config.read_to_string()?)?;
-            let vb =
-                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, silent)?;
-            T5EncoderModel::new(vb, &cfg, device)?
+            let vb = from_mmaped_safetensors(
+                safetensors.into_values().collect(),
+                None,
+                &t5_flux_device,
+                silent,
+            )?;
+            T5EncoderModel::new(vb, &cfg)?
         } else {
             anyhow::bail!("incorrect storage of t5 model")
         };
@@ -136,8 +148,12 @@ impl Loader for FluxLoader {
         } = flux_component
         {
             let cfg: FluxConfig = serde_json::from_str(&config.read_to_string()?)?;
-            let vb =
-                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, silent)?;
+            let vb = from_mmaped_safetensors(
+                safetensors.into_values().collect(),
+                None,
+                &t5_flux_device,
+                silent,
+            )?;
             FluxModel::new(&cfg, vb)?
         } else {
             anyhow::bail!("incorrect storage of flux model")
@@ -158,9 +174,10 @@ impl Loader for FluxLoader {
             vae_model: vae_component,
             flux_model: flux_component,
             scheduler_config,
+            device: device.clone(),
         };
 
-        Ok(Arc::new(pipeline))
+        Ok(Arc::new(Mutex::new(pipeline)))
     }
 }
 
@@ -172,6 +189,7 @@ pub struct FluxPipeline {
     vae_model: Arc<dyn VAEModel>,
     flux_model: FluxModel,
     scheduler_config: SchedulerConfig,
+    device: Device,
 }
 
 impl FluxPipeline {
@@ -198,13 +216,21 @@ impl FluxPipeline {
 
 impl ModelPipeline for FluxPipeline {
     fn forward(
-        &self,
+        &mut self,
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
+        offloading_type: Option<Offloading>,
     ) -> diffuse_rs_common::core::Result<Tensor> {
+        match offloading_type {
+            Some(Offloading::Full) => {
+                self.t5_model.to_device(&self.device)?;
+            }
+            None => (),
+        }
+
         let mut t5_input_ids = Tensor::new(
             Self::tokenize_and_pad(prompts.clone(), &self.t5_tokenizer)?,
-            self.t5_model.device(),
+            &self.device,
         )?;
 
         if !self.flux_model.is_guidance() {
@@ -220,6 +246,13 @@ impl ModelPipeline for FluxPipeline {
         }
 
         let t5_embed = self.t5_model.forward(&t5_input_ids)?;
+
+        match offloading_type {
+            Some(Offloading::Full) => {
+                self.t5_model.to_device(&Device::Cpu)?;
+            }
+            None => (),
+        }
 
         let clip_input_ids = Tensor::new(
             Self::tokenize_and_pad(prompts, &self.clip_tokenizer)?,
@@ -249,6 +282,14 @@ impl ModelPipeline for FluxPipeline {
 
         let bs = img.dim(0)?;
         let dev = img.device();
+
+        match offloading_type {
+            Some(Offloading::Full) => {
+                self.flux_model.to_device(&self.device)?;
+            }
+            None => (),
+        }
+
         let guidance = if self.flux_model.is_guidance() {
             Some(Tensor::full(params.guidance_scale as f32, bs, dev)?)
         } else {
@@ -268,6 +309,13 @@ impl ModelPipeline for FluxPipeline {
 
         let sampler = Sampler::new(&self.scheduler_config.scheduler_type);
         img = sampler.sample(&timesteps, &state.img, step)?;
+
+        match offloading_type {
+            Some(Offloading::Full) => {
+                self.flux_model.to_device(&Device::Cpu)?;
+            }
+            None => (),
+        }
 
         img = sampling::unpack(&img, params.height, params.width)?;
 

@@ -10,6 +10,12 @@ fn wrap_anyhow_error(e: anyhow::Error) -> pyo3::PyErr {
     pyo3::exceptions::PyValueError::new_err(e.to_string())
 }
 
+#[pyclass(eq, eq_int)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Offloading {
+    Full,
+}
+
 #[pyclass]
 #[derive(Clone, Debug)]
 pub enum ModelSource {
@@ -69,13 +75,15 @@ impl Pipeline {
         source,
         silent = false,
         token = None,
-        revision = None
+        revision = None,
+        offloading = None,
     ))]
     pub fn new(
         source: ModelSource,
         silent: bool,
         token: Option<String>,
         revision: Option<String>,
+        offloading: Option<Offloading>,
     ) -> PyResult<Self> {
         let token = token
             .map(diffuse_rs_core::TokenSource::Literal)
@@ -88,8 +96,11 @@ impl Pipeline {
                 diffuse_rs_core::ModelSource::from_model_id(model_id)
             }
         };
+        let offloading = offloading.map(|offloading| match offloading {
+            Offloading::Full => diffuse_rs_core::Offloading::Full,
+        });
         Ok(Self(
-            diffuse_rs_core::Pipeline::load(source, silent, token, revision)
+            diffuse_rs_core::Pipeline::load(source, silent, token, revision, offloading)
                 .map_err(wrap_anyhow_error)?,
         ))
     }

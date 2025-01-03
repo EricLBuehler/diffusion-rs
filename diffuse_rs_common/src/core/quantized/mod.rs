@@ -1,6 +1,6 @@
 use crate::core::{CpuStorage, DType, Device, Result, Shape, Storage, Tensor, D};
 use k_quants::*;
-use std::borrow::Cow;
+use std::{borrow::Cow, mem, sync::Arc};
 
 #[cfg(target_feature = "avx")]
 pub mod avx;
@@ -601,6 +601,16 @@ thread_local! {
     }
 }
 
+/// # SAFETY
+/// - The data must be able to be transmutable into Vec<T>
+unsafe fn transmute_to_blocks<T: GgmlType>(data: Vec<u8>, elem_count: usize) -> Vec<T> {
+    let raw_ptr = data.as_ptr();
+    let capacity = data.capacity();
+    mem::forget(data); // Prevent `vec` from being dropped.
+
+    unsafe { Vec::from_raw_parts(raw_ptr as *mut T, elem_count / T::BLCK_SIZE, capacity) }
+}
+
 impl QMatMul {
     pub fn from_arc(qtensor: std::sync::Arc<QTensor>) -> Result<Self> {
         let dequantize = match qtensor.dtype() {
@@ -640,6 +650,157 @@ impl QMatMul {
             _ => w.t()?,
         };
         xs.to_dtype(DType::F16)?.matmul(&w)?.to_dtype(in_dtype)
+    }
+
+    pub fn to_device(&self, dev: &Device) -> Result<Self> {
+        match self {
+            Self::QTensor(q) => {
+                let storage = &q.storage;
+                let shape = q.shape.clone();
+
+                let data = q.data()?;
+                let elem_count = shape.elem_count();
+
+                let new_s = match (storage, dev) {
+                    (QStorage::Cpu(_), Device::Cpu) => {
+                        return Ok(Self::QTensor(q.clone()));
+                    }
+                    (QStorage::Metal(_), Device::Cpu) | (QStorage::Cuda(_), Device::Cpu) => {
+                        let new_data: Box<dyn QuantizedType> = unsafe {
+                            match q.dtype() {
+                                GgmlDType::F32 => {
+                                    Box::new(transmute_to_blocks::<f32>(data.to_vec(), elem_count))
+                                }
+                                GgmlDType::F16 => {
+                                    Box::new(transmute_to_blocks::<f16>(data.to_vec(), elem_count))
+                                }
+                                GgmlDType::Q4_0 => Box::new(transmute_to_blocks::<BlockQ4_0>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::Q4_1 => Box::new(transmute_to_blocks::<BlockQ4_1>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::Q5_0 => Box::new(transmute_to_blocks::<BlockQ5_0>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::Q5_1 => Box::new(transmute_to_blocks::<BlockQ5_1>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::Q8_0 => Box::new(transmute_to_blocks::<BlockQ8_0>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::Q8_1 => Box::new(transmute_to_blocks::<BlockQ8_1>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::Q2K => Box::new(transmute_to_blocks::<BlockQ2K>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::Q3K => Box::new(transmute_to_blocks::<BlockQ3K>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::Q4K => Box::new(transmute_to_blocks::<BlockQ4K>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::Q5K => Box::new(transmute_to_blocks::<BlockQ5K>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::Q6K => Box::new(transmute_to_blocks::<BlockQ6K>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::Q8K => Box::new(transmute_to_blocks::<BlockQ8K>(
+                                    data.to_vec(),
+                                    elem_count,
+                                )),
+                                GgmlDType::BF16 => {
+                                    Box::new(transmute_to_blocks::<bf16>(data.to_vec(), elem_count))
+                                }
+                            }
+                        };
+                        QStorage::Cpu(new_data)
+                    }
+
+                    #[cfg(feature = "cuda")]
+                    (QStorage::Cpu(_) | QStorage::Metal(_), Device::Cuda(d)) => {
+                        use crate::core::cuda_backend::WrapErr;
+                        let slice = d.htod_sync_copy(&data).w()?;
+                        QStorage::Cuda(cuda::QCudaStorage::from_buffer(slice, d, q.dtype())?)
+                    }
+                    #[cfg(not(feature = "cuda"))]
+                    (QStorage::Cpu(_) | QStorage::Metal(_), Device::Cuda(_)) => {
+                        return Err(crate::core::Error::NotCompiledWithCudaSupport);
+                    }
+                    #[cfg(feature = "cuda")]
+                    (QStorage::Cuda(_), Device::Cuda(d)) => {
+                        use super::backend::BackendDevice;
+                        use crate::core::cuda_backend::WrapErr;
+
+                        if d.same_device(q.device().as_cuda_device()?) {
+                            return Ok(Self::QTensor(q.clone()));
+                        }
+                        // If the devices don't match, we just do a manual copy
+                        let slice = d.htod_sync_copy(&data).w()?;
+                        QStorage::Cuda(cuda::QCudaStorage::from_buffer(slice, d, q.dtype())?)
+                    }
+                    #[cfg(not(feature = "cuda"))]
+                    (QStorage::Cuda(_), Device::Cuda(_)) => {
+                        return Err(crate::core::Error::NotCompiledWithCudaSupport);
+                    }
+
+                    #[cfg(feature = "metal")]
+                    (QStorage::Cpu(_) | QStorage::Cuda(_), Device::Metal(d)) => {
+                        let buffer = d.new_buffer_with_data(&data)?;
+                        QStorage::Metal(metal::QMetalStorage::from_buffer(buffer, d, q.dtype())?)
+                    }
+                    #[cfg(not(feature = "metal"))]
+                    (QStorage::Cpu(_) | QStorage::Cuda(_), Device::Metal(_)) => {
+                        return Err(crate::core::Error::NotCompiledWithMetalSupport);
+                    }
+                    #[cfg(feature = "metal")]
+                    (QStorage::Metal(_), Device::Metal(d)) => {
+                        use super::backend::BackendDevice;
+
+                        if d.same_device(q.device().as_metal_device()?) {
+                            return Ok(Self::QTensor(q.clone()));
+                        }
+                        // If the devices don't match, we just do a manual copy
+                        let buffer = d.new_buffer_with_data(&data)?;
+                        QStorage::Metal(metal::QMetalStorage::from_buffer(buffer, d, q.dtype())?)
+                    }
+                    #[cfg(not(feature = "metal"))]
+                    (QStorage::Metal(_), Device::Metal(_)) => {
+                        return Err(crate::core::Error::NotCompiledWithMetalSupport);
+                    }
+                };
+                Ok(Self::QTensor(Arc::new(QTensor::new(new_s, shape)?)))
+            }
+            Self::Tensor(t) => Ok(Self::Tensor(t.to_device(dev)?)),
+            Self::TensorF16(t) => Ok(Self::TensorF16(t.to_device(dev)?)),
+        }
+    }
+
+    pub fn size_in_bytes(&self) -> Result<usize> {
+        match self {
+            Self::Tensor(t) | Self::TensorF16(t) => Ok(t.dtype().size_in_bytes() * t.elem_count()),
+            Self::QTensor(q) => {
+                let len = match &q.storage {
+                    QStorage::Cpu(_) => q.data()?.len(),
+                    QStorage::Cuda(c) => c.storage_size_in_bytes(),
+                    QStorage::Metal(m) => m.storage_size_in_bytes(),
+                };
+                Ok(len)
+            }
+        }
     }
 }
 
