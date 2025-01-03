@@ -555,7 +555,7 @@ impl Dequantize8BitOp {
     ) -> Vec<T> {
         let mut out = vec![T::zero(); weight.len()];
 
-        for (i, w) in weight.into_iter().enumerate() {
+        for (i, w) in weight.iter().enumerate() {
             let local_scb = scb[i / col];
             out[i] = T::from_f64((*w as f64 * local_scb as f64) / 127.);
         }
@@ -617,15 +617,15 @@ impl CustomOp2 for Dequantize8BitOp {
 
         match (weight_s, scb_s, self.out_ty) {
             (CpuStorage::I8(weight), CpuStorage::F32(scb), DType::BF16) => Ok((
-                CpuStorage::BF16(self.dequantize_cpu(&weight, &scb, col)),
+                CpuStorage::BF16(self.dequantize_cpu(weight, scb, col)),
                 weight_l.shape().clone(),
             )),
             (CpuStorage::I8(weight), CpuStorage::F32(scb), DType::F16) => Ok((
-                CpuStorage::F16(self.dequantize_cpu(&weight, &scb, col)),
+                CpuStorage::F16(self.dequantize_cpu(weight, scb, col)),
                 weight_l.shape().clone(),
             )),
             (CpuStorage::I8(weight), CpuStorage::F32(scb), DType::F32) => Ok((
-                CpuStorage::F32(self.dequantize_cpu(&weight, &scb, col)),
+                CpuStorage::F32(self.dequantize_cpu(weight, scb, col)),
                 weight_l.shape().clone(),
             )),
             (w, s, t) => diffuse_rs_common::bail!(
@@ -728,7 +728,7 @@ impl CustomOp2 for Dequantize8BitOp {
         let col = weight_l.dim(1)?;
         let n = weight_l.shape().elem_count();
 
-        let output = device.new_buffer(n, self.out_ty.into(), "dequant-8bit-bnb")?;
+        let output = device.new_buffer(n, self.out_ty, "dequant-8bit-bnb")?;
 
         if weight_s.dtype() != DType::I8 {
             diffuse_rs_common::bail!("input must be i8");
@@ -745,7 +745,7 @@ impl CustomOp2 for Dequantize8BitOp {
             device.device(),
             &command_buffer,
             &crate::metal_kernels::Kernels::new(),
-            self.out_ty.into(),
+            self.out_ty,
             weight_s.buffer(),
             weight_l.start_offset() * weight_s.dtype().size_in_bytes(),
             scb_s.buffer(),

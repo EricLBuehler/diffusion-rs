@@ -403,7 +403,7 @@ impl crate::core::InplaceOp1 for SoftmaxLastDim {
             last_dim,
             storage.buffer(),
             layout.start_offset() * storage.dtype().size_in_bytes(),
-            &storage.buffer(),
+            storage.buffer(),
             layout.start_offset() * storage.dtype().size_in_bytes(),
         )
         .map_err(crate::core::Error::wrap)?;
@@ -633,7 +633,7 @@ impl crate::core::InplaceOp2 for AttnSoftmaxLastDim {
             a_l.dims(),
             self.scale,
             ty,
-            &a_s.buffer(),
+            a_s.buffer(),
             0,
         )
         .map_err(crate::core::Error::wrap)?;

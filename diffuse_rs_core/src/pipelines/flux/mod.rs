@@ -3,7 +3,6 @@ use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 use anyhow::Result;
 use diffuse_rs_common::core::{DType, Device, Tensor, D};
 use diffuse_rs_common::nn::Module;
-use serde::Deserialize;
 use tokenizers::{models::bpe::BPE, ModelWrapper, Tokenizer};
 use tracing::info;
 
@@ -16,21 +15,13 @@ use crate::{
 };
 use diffuse_rs_common::from_mmaped_safetensors;
 
+use super::sampling::Sampler;
+use super::scheduler::SchedulerConfig;
 use super::{ComponentElem, DiffusionGenerationParams, Loader, ModelPipeline};
 
 mod sampling;
 
 pub struct FluxLoader;
-
-#[derive(Clone, Debug, Deserialize)]
-struct SchedulerConfig {
-    base_image_seq_len: usize,
-    base_shift: f64,
-    max_image_seq_len: usize,
-    max_shift: f64,
-    // shift: f64,
-    // use_dynamic_shifting: bool,
-}
 
 impl Loader for FluxLoader {
     fn name(&self) -> &'static str {
@@ -245,44 +236,38 @@ impl ModelPipeline for FluxPipeline {
         .to_dtype(t5_embed.dtype())?;
 
         let state = sampling::State::new(&t5_embed, &clip_embed, &img)?;
-        let shift = if self.flux_model.is_guidance() {
-            Some((
-                state.img.dims()[1],
-                self.scheduler_config.base_shift,
-                self.scheduler_config.max_shift,
-            ))
+        let mu = sampling::calculate_shift(
+            img.dims()[1],
+            self.scheduler_config.base_image_seq_len,
+            self.scheduler_config.max_image_seq_len,
+            self.scheduler_config.base_shift,
+            self.scheduler_config.max_shift,
+        );
+        let timesteps = self
+            .scheduler_config
+            .get_timesteps(params.num_steps, Some(mu))?;
+
+        let bs = img.dim(0)?;
+        let dev = img.device();
+        let guidance = if self.flux_model.is_guidance() {
+            Some(Tensor::full(params.guidance_scale as f32, bs, dev)?)
         } else {
             None
         };
-        let timesteps = sampling::get_schedule(
-            params.num_steps,
-            shift,
-            self.scheduler_config.base_image_seq_len,
-            self.scheduler_config.max_image_seq_len,
-        );
-
-        img = if self.flux_model.is_guidance() {
-            sampling::denoise(
-                &self.flux_model,
-                &state.img,
+        let step = |img: &Tensor, t_vec: &Tensor| -> diffuse_rs_common::core::Result<Tensor> {
+            self.flux_model.forward(
+                img,
                 &state.img_ids,
                 &state.txt,
                 &state.txt_ids,
+                t_vec,
                 &state.vec,
-                &timesteps,
-                params.guidance_scale,
-            )?
-        } else {
-            sampling::denoise_no_guidance(
-                &self.flux_model,
-                &state.img,
-                &state.img_ids,
-                &state.txt,
-                &state.txt_ids,
-                &state.vec,
-                &timesteps,
-            )?
+                guidance.as_ref(),
+            )
         };
+
+        let sampler = Sampler::new(&self.scheduler_config.scheduler_type);
+        img = sampler.sample(&timesteps, &state.img, step)?;
 
         img = sampling::unpack(&img, params.height, params.width)?;
 
