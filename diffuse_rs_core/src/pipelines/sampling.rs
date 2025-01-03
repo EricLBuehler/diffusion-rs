@@ -19,7 +19,7 @@ impl Sampler {
     /// Run the denoising process over the given image.
     ///
     /// Expects a step closure:
-    /// ```no_run
+    /// ```ignore
     /// fn(img: &Tensor, t_vec: &Tensor) -> Result<Tensor>;
     /// ``````
     pub fn sample(
