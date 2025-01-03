@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use diffuse_rs_common::core::{quantized::QMatMul, DType, Result, Tensor};
 use diffuse_rs_common::nn::Module;
 
@@ -49,9 +47,5 @@ impl QuantMethod for GgufMatMul {
 
     fn quantized_act_type(&self) -> Option<DType> {
         Some(DType::F32)
-    }
-
-    fn maybe_to_gguf_quant(self: Arc<Self>) -> Result<Arc<dyn QuantMethod>> {
-        Ok(self.clone())
     }
 }
