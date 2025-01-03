@@ -180,7 +180,7 @@ pub trait QuantMethod: Send + Sync + Debug {
     /// If a quantized method, return the activation dtype.
     fn quantized_act_type(&self) -> Option<DType>;
 
-    /// If a quantized method, return the activation dtype.
+    /// Cast this layer to the given device.
     fn to_device(&self, dev: &Device) -> Result<Arc<dyn QuantMethod>>;
 }
 

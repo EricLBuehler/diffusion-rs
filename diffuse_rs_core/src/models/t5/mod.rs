@@ -10,6 +10,8 @@ use diffuse_rs_common::{embedding, VarBuilder};
 use serde::Deserialize;
 use std::sync::Arc;
 
+use super::{QuantizedModel, QuantizedModelLayer};
+
 fn default_relative_attention_max_distance() -> usize {
     128
 }
@@ -649,5 +651,39 @@ impl T5EncoderModel {
 
     pub fn device(&self) -> &Device {
         &self.encoder.device
+    }
+}
+
+impl QuantizedModel for T5EncoderModel {
+    fn aggregate_layers(&mut self) -> Result<Vec<QuantizedModelLayer>> {
+        let mut layers = Vec::new();
+        for block in &mut self.encoder.block {
+            let mut layer_ct = Vec::new();
+            // FF
+            if let Some(layer) = &mut block.ff.dense_act {
+                layer_ct.push(&mut layer.wi);
+                layer_ct.push(&mut layer.wo);
+            }
+            if let Some(layer) = &mut block.ff.gated_dense_act {
+                layer_ct.push(&mut layer.wi_1);
+                layer_ct.push(&mut layer.wi_0);
+                layer_ct.push(&mut layer.wo);
+            }
+
+            // Attention
+            layer_ct.push(&mut block.self_attn.self_attention.q);
+            layer_ct.push(&mut block.self_attn.self_attention.k);
+            layer_ct.push(&mut block.self_attn.self_attention.v);
+            layer_ct.push(&mut block.self_attn.self_attention.o);
+            if let Some(layer) = &mut block.cross_attn {
+                layer_ct.push(&mut layer.cross_attention.q);
+                layer_ct.push(&mut layer.cross_attention.k);
+                layer_ct.push(&mut layer.cross_attention.v);
+                layer_ct.push(&mut layer.cross_attention.o);
+            }
+
+            layers.push(QuantizedModelLayer(layer_ct));
+        }
+        Ok(layers)
     }
 }
