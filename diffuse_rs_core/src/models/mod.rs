@@ -26,7 +26,7 @@ pub trait QuantizedModel {
         let layers = self.aggregate_layers()?;
         for layer in layers {
             for x in layer.0 {
-                *x = x.to_device(&dev)?;
+                *x = x.to_device(dev)?;
             }
         }
         self.match_devices_all_layers(dev)?;
