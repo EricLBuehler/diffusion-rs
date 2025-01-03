@@ -23,6 +23,10 @@ struct Args {
     /// Prompt to use
     #[arg(short, long)]
     prompt: String,
+
+    /// Offloading setting to use for this model
+    #[arg(short, long)]
+    offloading: Option<Offloading>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -43,7 +47,7 @@ fn main() -> anyhow::Result<()> {
         false,
         TokenSource::CacheToken,
         None,
-        Offloading::None,
+        args.offloading,
     )?;
     let num_steps = match args.which {
         Which::Dev => 50,

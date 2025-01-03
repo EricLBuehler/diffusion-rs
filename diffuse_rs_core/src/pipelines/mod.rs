@@ -66,10 +66,9 @@ impl Display for ComponentName {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum Offloading {
     Full,
-    None,
 }
 
 pub(crate) trait Loader {
@@ -80,7 +79,7 @@ pub(crate) trait Loader {
         components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
         silent: bool,
-        offloading_type: Offloading,
+        offloading_type: Option<Offloading>,
     ) -> Result<Arc<Mutex<dyn ModelPipeline>>>;
 }
 
@@ -89,7 +88,7 @@ pub trait ModelPipeline: Send + Sync {
         &mut self,
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
-        offloading_type: Offloading,
+        offloading_type: Option<Offloading>,
     ) -> diffuse_rs_common::core::Result<Tensor>;
 }
 
@@ -101,7 +100,7 @@ struct ModelIndex {
 
 pub struct Pipeline {
     model: Arc<Mutex<dyn ModelPipeline>>,
-    offloading_type: Offloading,
+    offloading_type: Option<Offloading>,
 }
 
 impl Pipeline {
@@ -110,7 +109,7 @@ impl Pipeline {
         silent: bool,
         token: TokenSource,
         revision: Option<String>,
-        offloading_type: Offloading,
+        offloading_type: Option<Offloading>,
     ) -> Result<Self> {
         info!("loading from source: {source}.");
 

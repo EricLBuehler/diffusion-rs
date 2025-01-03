@@ -22,6 +22,10 @@ struct Args {
     /// Number of denoising steps
     #[arg(short, long)]
     num_steps: usize,
+
+    /// Offloading setting to use for this model
+    #[arg(short, long)]
+    offloading: Option<Offloading>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -37,7 +41,7 @@ fn main() -> anyhow::Result<()> {
         false,
         TokenSource::CacheToken,
         None,
-        Offloading::Full,
+        args.offloading,
     )?;
 
     let start = Instant::now();

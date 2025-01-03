@@ -42,6 +42,10 @@ struct Args {
     /// Number of denoising steps. This is model specific. A higher number of steps often means higher quality.
     #[arg(short, long)]
     num_steps: usize,
+
+    /// Offloading setting to use for this model
+    #[arg(short, long)]
+    offloading: Option<Offloading>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -61,7 +65,7 @@ fn main() -> anyhow::Result<()> {
         .map(TokenSource::Literal)
         .unwrap_or(TokenSource::CacheToken);
 
-    let pipeline = Pipeline::load(source, false, token, None, Offloading::None)?;
+    let pipeline = Pipeline::load(source, false, token, None, args.offloading)?;
 
     let height: usize = input("Height:")
         .default_input("720")

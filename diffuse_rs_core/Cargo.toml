@@ -26,6 +26,7 @@ thiserror.workspace = true
 image.workspace = true
 tracing.workspace = true
 objc = { workspace = true, optional = true }
+clap.workspace = true
 
 [features]
 cuda = ["diffuse_rs_common/cuda", "diffuse_rs_backend/cuda"]

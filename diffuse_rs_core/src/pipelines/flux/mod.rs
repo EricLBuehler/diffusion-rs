@@ -47,7 +47,7 @@ impl Loader for FluxLoader {
         mut components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
         silent: bool,
-        offloading_type: Offloading,
+        offloading_type: Option<Offloading>,
     ) -> Result<Arc<Mutex<dyn ModelPipeline>>> {
         let scheduler = components.remove(&ComponentName::Scheduler).unwrap();
         let clip_component = components.remove(&ComponentName::TextEncoder(1)).unwrap();
@@ -58,8 +58,8 @@ impl Loader for FluxLoader {
         let vae_component = components.remove(&ComponentName::Vae).unwrap();
 
         let t5_flux_device = match offloading_type {
-            Offloading::Full => Device::Cpu,
-            Offloading::None => device.clone(),
+            Some(Offloading::Full) => Device::Cpu,
+            None => device.clone(),
         };
 
         let scheduler_config = if let ComponentElem::Config { files } = scheduler {
@@ -219,13 +219,13 @@ impl ModelPipeline for FluxPipeline {
         &mut self,
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
-        offloading_type: Offloading,
+        offloading_type: Option<Offloading>,
     ) -> diffuse_rs_common::core::Result<Tensor> {
         match offloading_type {
-            Offloading::Full => {
+            Some(Offloading::Full) => {
                 self.t5_model.to_device(&self.device)?;
             }
-            Offloading::None => (),
+            None => (),
         }
 
         let mut t5_input_ids = Tensor::new(
@@ -248,10 +248,10 @@ impl ModelPipeline for FluxPipeline {
         let t5_embed = self.t5_model.forward(&t5_input_ids)?;
 
         match offloading_type {
-            Offloading::Full => {
+            Some(Offloading::Full) => {
                 self.t5_model.to_device(&Device::Cpu)?;
             }
-            Offloading::None => (),
+            None => (),
         }
 
         let clip_input_ids = Tensor::new(
@@ -284,10 +284,10 @@ impl ModelPipeline for FluxPipeline {
         let dev = img.device();
 
         match offloading_type {
-            Offloading::Full => {
+            Some(Offloading::Full) => {
                 self.flux_model.to_device(&self.device)?;
             }
-            Offloading::None => (),
+            None => (),
         }
 
         let guidance = if self.flux_model.is_guidance() {
@@ -311,10 +311,10 @@ impl ModelPipeline for FluxPipeline {
         img = sampler.sample(&timesteps, &state.img, step)?;
 
         match offloading_type {
-            Offloading::Full => {
+            Some(Offloading::Full) => {
                 self.flux_model.to_device(&Device::Cpu)?;
             }
-            Offloading::None => (),
+            None => (),
         }
 
         img = sampling::unpack(&img, params.height, params.width)?;
