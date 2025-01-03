@@ -17,6 +17,7 @@ Blazingly fast inference of diffusion models.
 - AVX support for x86 CPUs
 - 🚧 LoRA support
 - 🚧 CPU + GPU inference with automatic offloading to allow partial acceleration of models larger than the total VRAM
+- Allow acceleration of models larger than the total VRAM size with offloading
 
 ## Installation
 Check out the [installation guide](INSTALL.md) for details about installation.
