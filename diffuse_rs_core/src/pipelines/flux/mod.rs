@@ -7,7 +7,6 @@ use diffuse_rs_common::nn::Module;
 use tokenizers::{models::bpe::BPE, ModelWrapper, Tokenizer};
 use tracing::info;
 
-use crate::models::QuantizedModel;
 use crate::{
     models::{
         dispatch_load_vae_model, ClipTextConfig, ClipTextTransformer, FluxConfig, FluxModel,

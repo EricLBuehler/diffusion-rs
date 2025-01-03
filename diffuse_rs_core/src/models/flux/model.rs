@@ -830,18 +830,16 @@ impl QuantizedModel for Flux {
         let mut layers = Vec::new();
 
         {
-            let mut pre_layer_ct = Vec::new();
-            pre_layer_ct.push(&mut self.txt_in);
-            pre_layer_ct.push(&mut self.img_in);
-
-            pre_layer_ct.push(&mut self.final_layer.ada_ln_modulation);
-            pre_layer_ct.push(&mut self.final_layer.linear);
-
-            pre_layer_ct.push(&mut self.time_in.in_layer);
-            pre_layer_ct.push(&mut self.time_in.out_layer);
-
-            pre_layer_ct.push(&mut self.vector_in.in_layer);
-            pre_layer_ct.push(&mut self.vector_in.out_layer);
+            let mut pre_layer_ct = vec![
+                &mut self.txt_in,
+                &mut self.img_in,
+                &mut self.final_layer.ada_ln_modulation,
+                &mut self.final_layer.linear,
+                &mut self.time_in.in_layer,
+                &mut self.time_in.out_layer,
+                &mut self.vector_in.in_layer,
+                &mut self.vector_in.out_layer,
+            ];
 
             if let Some(layer) = &mut self.guidance_in {
                 pre_layer_ct.push(&mut layer.in_layer);
@@ -851,43 +849,35 @@ impl QuantizedModel for Flux {
         }
 
         for block in &mut self.double_blocks {
-            let mut layer_ct = Vec::new();
-
-            layer_ct.push(&mut block.img_attn.q);
-            layer_ct.push(&mut block.img_attn.k);
-            layer_ct.push(&mut block.img_attn.v);
-            layer_ct.push(&mut block.img_attn.proj);
-
-            layer_ct.push(&mut block.img_mlp.lin1);
-            layer_ct.push(&mut block.img_mlp.lin2);
-
-            layer_ct.push(&mut block.img_mod.lin);
-
-            layer_ct.push(&mut block.txt_attn.q);
-            layer_ct.push(&mut block.txt_attn.k);
-            layer_ct.push(&mut block.txt_attn.v);
-            layer_ct.push(&mut block.txt_attn.proj);
-
-            layer_ct.push(&mut block.txt_mlp.lin1);
-            layer_ct.push(&mut block.txt_mlp.lin2);
-
-            layer_ct.push(&mut block.txt_mod.lin);
+            let layer_ct = vec![
+                &mut block.img_attn.q,
+                &mut block.img_attn.k,
+                &mut block.img_attn.v,
+                &mut block.img_attn.proj,
+                &mut block.img_mlp.lin1,
+                &mut block.img_mlp.lin2,
+                &mut block.img_mod.lin,
+                &mut block.txt_attn.q,
+                &mut block.txt_attn.k,
+                &mut block.txt_attn.v,
+                &mut block.txt_attn.proj,
+                &mut block.txt_mlp.lin1,
+                &mut block.txt_mlp.lin2,
+                &mut block.txt_mod.lin,
+            ];
 
             layers.push(QuantizedModelLayer(layer_ct));
         }
 
         for block in &mut self.single_blocks {
-            let mut layer_ct = Vec::new();
-
-            layer_ct.push(&mut block.q);
-            layer_ct.push(&mut block.k);
-            layer_ct.push(&mut block.v);
-
-            layer_ct.push(&mut block.modulation.lin);
-
-            layer_ct.push(&mut block.proj_mlp);
-
-            layer_ct.push(&mut block.linear2);
+            let layer_ct = vec![
+                &mut block.q,
+                &mut block.k,
+                &mut block.v,
+                &mut block.modulation.lin,
+                &mut block.proj_mlp,
+                &mut block.linear2,
+            ];
 
             layers.push(QuantizedModelLayer(layer_ct));
         }
