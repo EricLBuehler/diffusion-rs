@@ -1,13 +1,10 @@
 use std::sync::Arc;
 
-use diffuse_rs_common::core::{
-    quantized::{GgmlDType, QTensor},
-    DType, Result, Shape, Tensor, D,
-};
+use diffuse_rs_common::core::{DType, Result, Shape, Tensor};
 use diffuse_rs_common::VarBuilder;
 use serde::Deserialize;
 
-use crate::{GgufMatMul, QuantMethod, QuantMethodConfig};
+use crate::{QuantMethod, QuantMethodConfig};
 
 #[cfg(feature = "cuda")]
 mod ffi;
@@ -284,42 +281,5 @@ impl QuantMethod for BnbLinear {
 
     fn quantized_act_type(&self) -> Option<DType> {
         None
-    }
-
-    fn maybe_to_gguf_quant(self: Arc<Self>) -> Result<Arc<dyn QuantMethod>> {
-        let weight = self.dequantize_w(DType::F32)?;
-
-        match &*self {
-            Self::Fp4Nf4 { bias, quant_ty, .. } => {
-                let last_dim = weight.dim(D::Minus1)?;
-                let dtype = match quant_ty {
-                    BnbQuantType::Fp4 | BnbQuantType::Nf4 if last_dim % 256 == 0 => GgmlDType::Q4K,
-                    BnbQuantType::Fp4 | BnbQuantType::Nf4
-                        if last_dim % 64 == 0 && last_dim % 256 != 0 =>
-                    {
-                        GgmlDType::Q4_0
-                    }
-                    BnbQuantType::Fp4 | BnbQuantType::Nf4
-                        if last_dim % 64 != 0 && last_dim % 256 != 0 =>
-                    {
-                        GgmlDType::F32
-                    }
-                    BnbQuantType::Int8 => GgmlDType::Q8_0,
-                    _ => unreachable!(),
-                };
-                let qmatmul = QTensor::quantize(&weight, dtype)?;
-                Ok(Arc::new(GgufMatMul::new(QuantMethodConfig::Gguf {
-                    q_weight: Arc::new(qmatmul),
-                    b: bias.clone(),
-                })?))
-            }
-            Self::Int8 { bias, .. } => {
-                let qmatmul = QTensor::quantize(&weight, GgmlDType::Q8_0)?;
-                Ok(Arc::new(GgufMatMul::new(QuantMethodConfig::Gguf {
-                    q_weight: Arc::new(qmatmul),
-                    b: bias.clone(),
-                })?))
-            }
-        }
     }
 }

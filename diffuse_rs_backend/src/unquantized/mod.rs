@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use diffuse_rs_common::core::{DType, Device, DeviceLocation, Result, Shape, Tensor, D};
 
 use crate::{
@@ -78,9 +76,5 @@ impl QuantMethod for UnquantLinear {
 
     fn quantized_act_type(&self) -> Option<DType> {
         None
-    }
-
-    fn maybe_to_gguf_quant(self: Arc<Self>) -> Result<Arc<dyn QuantMethod>> {
-        Ok(self.clone())
     }
 }

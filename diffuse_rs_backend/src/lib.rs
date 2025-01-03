@@ -179,10 +179,6 @@ pub trait QuantMethod: Send + Sync + Debug {
 
     /// If a quantized method, return the activation dtype.
     fn quantized_act_type(&self) -> Option<DType>;
-
-    #[deprecated(note = "do not use")]
-    /// Convert to an equivalent gguf quantization, if applicable.
-    fn maybe_to_gguf_quant(self: Arc<Self>) -> Result<Arc<dyn QuantMethod>>;
 }
 
 impl Module for dyn QuantMethod {
