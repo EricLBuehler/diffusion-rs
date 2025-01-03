@@ -12,7 +12,12 @@ Blazingly fast inference of diffusion models.
   - `bitsandbytes` format (fp4, nf4, and int8)
   - `GGUF` (2-8 bit quantization)
 - Easy: Strong support for running 🤗 DDUF models.
-- Many devices: NVIDIA GPUs (CUDA), Apple M-series GPUs (Metal), CPU SIMD
+- Strong Apple Silicon support: support for the Metal, Accelerate, and ARM NEON frameworks
+- Support for NVIDIA GPUs with CUDA
+- AVX support for x86 CPUs
+- 🚧 LoRA support
+- 🚧 CPU + GPU inference with automatic offloading to allow partial acceleration of models larger than the total VRAM
+- Allow acceleration of models larger than the total VRAM size with offloading
 
 ## Installation
 Check out the [installation guide](INSTALL.md) for details about installation.
@@ -54,3 +59,9 @@ Examples with the Rust crate: [here](diffuse_rs_examples/examples).
 | Model | Supports DDUF | Supports quantized DDUF |
 | -- | -- | -- |
 | FLUX.1 Dev/Schnell | ✅ | ✅ |
+
+## Contributing
+
+- Anyone is welcome to contribute by opening PRs
+  - See [good first issues](https://github.com/EricLBuehler/diffuse-rs/labels/good%20first%20issue) for a starting point!
+- Collaborators will be invited based on past contributions
