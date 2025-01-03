@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use diffuse_rs_common::core::Device;
 use diffuse_rs_common::core::{quantized::QMatMul, DType, Result, Tensor};
 use diffuse_rs_common::nn::Module;
 
@@ -47,5 +50,15 @@ impl QuantMethod for GgufMatMul {
 
     fn quantized_act_type(&self) -> Option<DType> {
         Some(DType::F32)
+    }
+
+    fn to_device(&self, dev: &Device) -> Result<Arc<dyn QuantMethod>> {
+        let w = self.w.to_device(dev)?;
+        let b = if let Some(b) = self.b.as_ref() {
+            Some(b.to_device(dev)?)
+        } else {
+            None
+        };
+        Ok(Arc::new(Self { w, b }))
     }
 }

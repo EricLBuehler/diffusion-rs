@@ -5,7 +5,7 @@ use std::{
 
 use diffuse_rs_common::core::{
     quantized::{GgmlDType, QTensor},
-    DType, Result, Tensor,
+    DType, Device, Result, Tensor,
 };
 
 #[cfg(feature = "metal")]
@@ -179,6 +179,9 @@ pub trait QuantMethod: Send + Sync + Debug {
 
     /// If a quantized method, return the activation dtype.
     fn quantized_act_type(&self) -> Option<DType>;
+
+    /// If a quantized method, return the activation dtype.
+    fn to_device(&self, dev: &Device) -> Result<Arc<dyn QuantMethod>>;
 }
 
 impl Module for dyn QuantMethod {

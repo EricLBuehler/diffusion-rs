@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use diffuse_rs_common::core::{DType, Result, Shape, Tensor};
+use diffuse_rs_common::core::{DType, Device, Result, Shape, Tensor};
 use diffuse_rs_common::VarBuilder;
 use serde::Deserialize;
 
@@ -59,6 +59,27 @@ pub struct BnbQuantParmas {
     pub nested: Option<Arc<BnbQuantParmas>>,
     pub offset: Option<f64>,
     pub dtype: BnbDType,
+}
+
+impl BnbQuantParmas {
+    fn to_device(&self, dev: &Device) -> Result<Self> {
+        let absmax = self.absmax.to_device(dev)?;
+        let code = self.code.to_device(dev)?;
+        let nested = if let Some(nested) = &self.nested {
+            Some(Arc::new(nested.to_device(dev)?))
+        } else {
+            None
+        };
+        Ok(Self {
+            absmax,
+            code,
+            blocksize: self.blocksize,
+            shape: self.shape.clone(),
+            nested,
+            offset: self.offset,
+            dtype: self.dtype,
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -281,5 +302,40 @@ impl QuantMethod for BnbLinear {
 
     fn quantized_act_type(&self) -> Option<DType> {
         None
+    }
+
+    fn to_device(&self, dev: &Device) -> Result<Arc<dyn QuantMethod>> {
+        match self {
+            Self::Fp4Nf4 {
+                weight,
+                bias,
+                params,
+                quant_ty,
+            } => {
+                let weight = weight.to_device(dev)?;
+                let bias = if let Some(bias) = bias {
+                    Some(bias.to_device(dev)?)
+                } else {
+                    None
+                };
+                let params = params.to_device(dev)?;
+                Ok(Arc::new(Self::Fp4Nf4 {
+                    weight,
+                    bias,
+                    params,
+                    quant_ty: *quant_ty,
+                }))
+            }
+            Self::Int8 { weight, scb, bias } => {
+                let weight = weight.to_device(dev)?;
+                let scb = scb.to_device(dev)?;
+                let bias = if let Some(bias) = bias {
+                    Some(bias.to_device(dev)?)
+                } else {
+                    None
+                };
+                Ok(Arc::new(Self::Int8 { weight, scb, bias }))
+            }
+        }
     }
 }
