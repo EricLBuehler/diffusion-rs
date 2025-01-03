@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use diffuse_rs_backend::{QuantMethod, QuantizedConfig};
-use diffuse_rs_common::core::{DType, IndexOp, Result, Tensor, D};
+use diffuse_rs_common::core::{DType, Device, IndexOp, Result, Tensor, D};
 use diffuse_rs_common::nn::{layer_norm::RmsNormNonQuantized, LayerNorm, RmsNorm};
 use diffuse_rs_common::VarBuilder;
 use serde::Deserialize;
@@ -197,6 +197,13 @@ impl QkNorm {
         Ok(Self {
             query_norm,
             key_norm,
+        })
+    }
+
+    fn to_device(&self, dev: &Device) -> Result<Self> {
+        Ok(Self {
+            query_norm: self.query_norm.to_device(dev)?,
+            key_norm: self.key_norm.to_device(dev)?,
         })
     }
 }
@@ -826,6 +833,31 @@ impl Flux {
 }
 
 impl QuantizedModel for Flux {
+    fn match_devices_all_layers(&mut self, dev: &Device) -> Result<()> {
+        self.final_layer = LastLayer {
+            norm_final: self.final_layer.norm_final.to_device(dev)?,
+            linear: self.final_layer.linear.clone(),
+            ada_ln_modulation: self.final_layer.ada_ln_modulation.clone(),
+        };
+
+        for block in &mut self.double_blocks {
+            block.img_attn.norm = block.img_attn.norm.to_device(dev)?;
+            block.txt_attn.norm = block.txt_attn.norm.to_device(dev)?;
+
+            block.img_norm1 = block.img_norm1.to_device(dev)?;
+            block.img_norm2 = block.img_norm2.to_device(dev)?;
+            block.txt_norm1 = block.txt_norm1.to_device(dev)?;
+            block.txt_norm2 = block.txt_norm2.to_device(dev)?;
+        }
+
+        for block in &mut self.single_blocks {
+            block.norm = block.norm.to_device(dev)?;
+
+            block.pre_norm = block.pre_norm.to_device(dev)?;
+        }
+        Ok(())
+    }
+
     fn aggregate_layers(&mut self) -> Result<Vec<QuantizedModelLayer>> {
         let mut layers = Vec::new();
 
@@ -833,8 +865,6 @@ impl QuantizedModel for Flux {
             let mut pre_layer_ct = vec![
                 &mut self.txt_in,
                 &mut self.img_in,
-                &mut self.final_layer.ada_ln_modulation,
-                &mut self.final_layer.linear,
                 &mut self.time_in.in_layer,
                 &mut self.time_in.out_layer,
                 &mut self.vector_in.in_layer,
@@ -846,6 +876,14 @@ impl QuantizedModel for Flux {
                 pre_layer_ct.push(&mut layer.out_layer);
             }
             layers.push(QuantizedModelLayer(pre_layer_ct));
+        }
+
+        {
+            let layer_ct = vec![
+                &mut self.final_layer.ada_ln_modulation,
+                &mut self.final_layer.linear,
+            ];
+            layers.push(QuantizedModelLayer(layer_ct));
         }
 
         for block in &mut self.double_blocks {

@@ -43,7 +43,7 @@ use crate::core::{
     WithDType,
 };
 
-use crate::core::{DType, Module, Result, Tensor, D};
+use crate::core::{DType, Device, Module, Result, Tensor, D};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LayerNormConfig {
@@ -118,6 +118,15 @@ impl LayerNorm {
     pub fn bias(&self) -> &Tensor {
         &self.bias
     }
+
+    pub fn to_device(&self, dev: &Device) -> Result<Self> {
+        Ok(Self {
+            weight: self.weight.to_device(dev)?,
+            bias: self.bias.to_device(dev)?,
+            remove_mean: self.remove_mean,
+            eps: self.eps,
+        })
+    }
 }
 
 impl Module for LayerNorm {
@@ -184,6 +193,13 @@ impl RmsNorm<RmsNormNonQuantized> {
             inner: LayerNorm::rms_norm(weight, eps),
             _ghost: PhantomData,
         }
+    }
+
+    pub fn to_device(&self, dev: &Device) -> Result<Self> {
+        Ok(Self {
+            inner: self.inner.to_device(dev)?,
+            _ghost: PhantomData,
+        })
     }
 }
 

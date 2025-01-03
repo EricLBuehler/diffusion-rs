@@ -2,7 +2,7 @@ use cliclack::input;
 use std::{path::PathBuf, time::Instant};
 
 use clap::{Parser, Subcommand};
-use diffuse_rs_core::{DiffusionGenerationParams, ModelSource, Pipeline, TokenSource};
+use diffuse_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -61,7 +61,7 @@ fn main() -> anyhow::Result<()> {
         .map(TokenSource::Literal)
         .unwrap_or(TokenSource::CacheToken);
 
-    let pipeline = Pipeline::load(source, false, token, None)?;
+    let pipeline = Pipeline::load(source, false, token, None, Offloading::None)?;
 
     let height: usize = input("Height:")
         .default_input("720")

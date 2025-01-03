@@ -99,4 +99,8 @@ impl QuantMethod for UnquantLinear {
         };
         Ok(w_size + b_size)
     }
+
+    fn device(&self) -> Device {
+        self.w.device().clone()
+    }
 }

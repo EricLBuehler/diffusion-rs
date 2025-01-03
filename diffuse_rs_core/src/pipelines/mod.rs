@@ -66,6 +66,12 @@ impl Display for ComponentName {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Offloading {
+    Full,
+    None,
+}
+
 pub(crate) trait Loader {
     fn name(&self) -> &'static str;
     fn required_component_names(&self) -> Vec<ComponentName>;
@@ -74,6 +80,7 @@ pub(crate) trait Loader {
         components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
         silent: bool,
+        offloading_type: Offloading,
     ) -> Result<Arc<Mutex<dyn ModelPipeline>>>;
 }
 
@@ -82,6 +89,7 @@ pub trait ModelPipeline: Send + Sync {
         &mut self,
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
+        offloading_type: Offloading,
     ) -> diffuse_rs_common::core::Result<Tensor>;
 }
 
@@ -91,7 +99,10 @@ struct ModelIndex {
     name: String,
 }
 
-pub struct Pipeline(Arc<Mutex<dyn ModelPipeline>>);
+pub struct Pipeline {
+    model: Arc<Mutex<dyn ModelPipeline>>,
+    offloading_type: Offloading,
+}
 
 impl Pipeline {
     pub fn load(
@@ -99,6 +110,7 @@ impl Pipeline {
         silent: bool,
         token: TokenSource,
         revision: Option<String>,
+        offloading_type: Offloading,
     ) -> Result<Self> {
         info!("loading from source: {source}.");
 
@@ -187,9 +199,13 @@ impl Pipeline {
         #[cfg(feature = "metal")]
         let device = Device::new_metal(0)?;
 
-        let model = model_loader.load_from_components(components, &device, silent)?;
+        let model =
+            model_loader.load_from_components(components, &device, silent, offloading_type)?;
 
-        Ok(Self(model))
+        Ok(Self {
+            model,
+            offloading_type,
+        })
     }
 
     pub fn forward(
@@ -197,11 +213,12 @@ impl Pipeline {
         prompts: Vec<String>,
         params: DiffusionGenerationParams,
     ) -> anyhow::Result<Vec<DynamicImage>> {
-        let mut model = self.0.lock().expect("Could not lock model!");
+        let mut model = self.model.lock().expect("Could not lock model!");
         #[cfg(feature = "metal")]
-        let img = objc::rc::autoreleasepool(|| model.forward(prompts, params))?;
+        let img =
+            objc::rc::autoreleasepool(|| model.forward(prompts, params, self.offloading_type))?;
         #[cfg(not(feature = "metal"))]
-        let img = model.forward(prompts, params)?;
+        let img = model.forward(prompts, params, self.offloading_type)?;
 
         let (_b, c, h, w) = img.dims4()?;
         let mut images = Vec::new();

@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use diffuse_rs_core::{DiffusionGenerationParams, ModelSource, Pipeline, TokenSource};
+use diffuse_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
 
 use clap::{Parser, ValueEnum};
 use tracing::level_filters::LevelFilter;
@@ -43,6 +43,7 @@ fn main() -> anyhow::Result<()> {
         false,
         TokenSource::CacheToken,
         None,
+        Offloading::None,
     )?;
     let num_steps = match args.which {
         Which::Dev => 50,

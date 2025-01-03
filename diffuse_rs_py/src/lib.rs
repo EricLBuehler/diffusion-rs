@@ -1,5 +1,6 @@
 use std::io::Cursor;
 
+use diffuse_rs_core::Offloading;
 use pyo3::{
     pyclass, pymethods, pymodule,
     types::{PyBytes, PyModule, PyModuleMethods},
@@ -89,7 +90,7 @@ impl Pipeline {
             }
         };
         Ok(Self(
-            diffuse_rs_core::Pipeline::load(source, silent, token, revision)
+            diffuse_rs_core::Pipeline::load(source, silent, token, revision, Offloading::None)
                 .map_err(wrap_anyhow_error)?,
         ))
     }

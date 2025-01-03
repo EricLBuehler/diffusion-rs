@@ -379,4 +379,10 @@ impl QuantMethod for BnbLinear {
             }
         }
     }
+
+    fn device(&self) -> Device {
+        match self {
+            Self::Fp4Nf4 { weight, .. } | Self::Int8 { weight, .. } => weight.device().clone(),
+        }
+    }
 }

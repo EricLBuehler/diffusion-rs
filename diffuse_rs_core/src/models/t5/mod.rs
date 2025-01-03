@@ -579,7 +579,6 @@ struct T5Stack {
     block: Vec<T5Block>,
     shared: Arc<Embedding>,
     final_layer_norm: T5LayerNorm,
-    device: Device,
 }
 
 impl T5Stack {
@@ -588,7 +587,6 @@ impl T5Stack {
         vb: VarBuilder,
         shared: &Arc<Embedding>,
         cfg: &T5Config,
-        device: &Device,
     ) -> Result<Self> {
         let block = (0..cfg.num_layers)
             .map(|i| T5Block::load(i == 0, decoder, vb.pp(format!("block.{i}")), cfg))
@@ -602,7 +600,6 @@ impl T5Stack {
             block,
             shared: shared.clone(),
             final_layer_norm,
-            device: device.clone(),
         })
     }
 
@@ -631,7 +628,7 @@ pub struct T5EncoderModel {
 }
 
 impl T5EncoderModel {
-    pub fn new(vb: VarBuilder, cfg: &T5Config, device: &Device) -> Result<Self> {
+    pub fn new(vb: VarBuilder, cfg: &T5Config) -> Result<Self> {
         let shared_vb = if vb.contains_tensor("shared.weight") {
             vb.pp("shared")
         } else if vb.contains_tensor("decoder.embed_tokens") {
@@ -641,20 +638,52 @@ impl T5EncoderModel {
         };
         let shared = embedding(cfg.vocab_size, cfg.d_model, shared_vb)?;
         let shared = Arc::new(shared);
-        let encoder = T5Stack::load(false, vb.pp("encoder"), &shared, cfg, device)?;
+        let encoder = T5Stack::load(false, vb.pp("encoder"), &shared, cfg)?;
         Ok(Self { encoder })
     }
 
     pub fn forward(&self, input_ids: &Tensor) -> Result<Tensor> {
         self.encoder.forward(input_ids, None)
     }
-
-    pub fn device(&self) -> &Device {
-        &self.encoder.device
-    }
 }
 
 impl QuantizedModel for T5EncoderModel {
+    fn match_devices_all_layers(&mut self, dev: &Device) -> Result<()> {
+        self.encoder.shared = Arc::new(Embedding::new(
+            self.encoder.shared.embeddings().to_device(dev)?,
+            self.encoder.shared.hidden_size(),
+        ));
+        for block in &mut self.encoder.block {
+            block.ff.layer_norm = T5LayerNorm {
+                weight: block.ff.layer_norm.weight.to_device(dev)?,
+                variance_epsilon: block.ff.layer_norm.variance_epsilon,
+            };
+
+            // Attention
+            block.self_attn.layer_norm = T5LayerNorm {
+                weight: block.self_attn.layer_norm.weight.to_device(dev)?,
+                variance_epsilon: block.self_attn.layer_norm.variance_epsilon,
+            };
+            if let Some(emb) = &mut block.self_attn.self_attention.relative_attention_bias {
+                *emb = Embedding::new(emb.embeddings().to_device(dev)?, emb.hidden_size());
+            }
+            if let Some(layer) = &mut block.cross_attn {
+                layer.layer_norm = T5LayerNorm {
+                    weight: layer.layer_norm.weight.to_device(dev)?,
+                    variance_epsilon: layer.layer_norm.variance_epsilon,
+                };
+                if let Some(emb) = &mut layer.cross_attention.relative_attention_bias {
+                    *emb = Embedding::new(emb.embeddings().to_device(dev)?, emb.hidden_size());
+                }
+            }
+        }
+        self.encoder.final_layer_norm = T5LayerNorm {
+            weight: self.encoder.final_layer_norm.weight.to_device(dev)?,
+            variance_epsilon: self.encoder.final_layer_norm.variance_epsilon,
+        };
+        Ok(())
+    }
+
     fn aggregate_layers(&mut self) -> Result<Vec<QuantizedModelLayer>> {
         let mut layers = Vec::new();
         for block in &mut self.encoder.block {

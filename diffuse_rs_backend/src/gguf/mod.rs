@@ -71,4 +71,11 @@ impl QuantMethod for GgufMatMul {
         };
         Ok(w_size + b_size)
     }
+
+    fn device(&self) -> Device {
+        match &self.w {
+            QMatMul::QTensor(q) => q.device(),
+            QMatMul::Tensor(t) | QMatMul::TensorF16(t) => t.device().clone(),
+        }
+    }
 }

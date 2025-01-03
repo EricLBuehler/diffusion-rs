@@ -183,6 +183,8 @@ pub trait QuantMethod: Send + Sync + Debug {
     /// Cast this layer to the given device.
     fn to_device(&self, dev: &Device) -> Result<Arc<dyn QuantMethod>>;
 
+    fn device(&self) -> Device;
+
     fn size_in_bytes(&self) -> Result<usize>;
 }
 
