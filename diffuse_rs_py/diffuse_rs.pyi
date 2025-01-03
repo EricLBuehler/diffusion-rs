@@ -2,6 +2,14 @@ from dataclasses import dataclass
 from enum import Enum
 
 @dataclass
+class Offloading(Enum):
+    """
+    Offloading settings for the model.
+    """
+
+    Full = 0
+
+@dataclass
 class ModelSource(Enum):
     """
     Source of the model: either a Hugging Face model ID (including local paths) or a DDUF file

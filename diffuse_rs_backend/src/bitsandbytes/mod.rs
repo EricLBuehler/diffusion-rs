@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use diffuse_rs_common::core::{DType, Result, Shape, Tensor};
+use diffuse_rs_common::core::{DType, Device, Result, Shape, Tensor};
 use diffuse_rs_common::VarBuilder;
 use serde::Deserialize;
 
@@ -59,6 +59,38 @@ pub struct BnbQuantParmas {
     pub nested: Option<Arc<BnbQuantParmas>>,
     pub offset: Option<f64>,
     pub dtype: BnbDType,
+}
+
+impl BnbQuantParmas {
+    fn to_device(&self, dev: &Device) -> Result<Self> {
+        let absmax = self.absmax.to_device(dev)?;
+        let code = self.code.to_device(dev)?;
+        let nested = if let Some(nested) = &self.nested {
+            Some(Arc::new(nested.to_device(dev)?))
+        } else {
+            None
+        };
+        Ok(Self {
+            absmax,
+            code,
+            blocksize: self.blocksize,
+            shape: self.shape.clone(),
+            nested,
+            offset: self.offset,
+            dtype: self.dtype,
+        })
+    }
+
+    fn size_in_bytes(&self) -> Result<usize> {
+        let absmax = self.absmax.dtype().size_in_bytes() * self.absmax.elem_count();
+        let code = self.code.dtype().size_in_bytes() * self.code.elem_count();
+        let nested = if let Some(nested) = &self.nested {
+            nested.size_in_bytes()?
+        } else {
+            0
+        };
+        Ok(absmax + code + nested)
+    }
 }
 
 #[derive(Debug)]
@@ -281,5 +313,76 @@ impl QuantMethod for BnbLinear {
 
     fn quantized_act_type(&self) -> Option<DType> {
         None
+    }
+
+    fn to_device(&self, dev: &Device) -> Result<Arc<dyn QuantMethod>> {
+        match self {
+            Self::Fp4Nf4 {
+                weight,
+                bias,
+                params,
+                quant_ty,
+            } => {
+                let weight = weight.to_device(dev)?;
+                let bias = if let Some(bias) = bias {
+                    Some(bias.to_device(dev)?)
+                } else {
+                    None
+                };
+                let params = params.to_device(dev)?;
+                Ok(Arc::new(Self::Fp4Nf4 {
+                    weight,
+                    bias,
+                    params,
+                    quant_ty: *quant_ty,
+                }))
+            }
+            Self::Int8 { weight, scb, bias } => {
+                let weight = weight.to_device(dev)?;
+                let scb = scb.to_device(dev)?;
+                let bias = if let Some(bias) = bias {
+                    Some(bias.to_device(dev)?)
+                } else {
+                    None
+                };
+                Ok(Arc::new(Self::Int8 { weight, scb, bias }))
+            }
+        }
+    }
+
+    fn size_in_bytes(&self) -> Result<usize> {
+        match self {
+            Self::Fp4Nf4 {
+                weight,
+                bias,
+                params,
+                quant_ty: _,
+            } => {
+                let w_size = weight.dtype().size_in_bytes() * weight.elem_count();
+                let params_size = params.size_in_bytes()?;
+                let b_size = if let Some(b) = bias {
+                    b.dtype().size_in_bytes() * b.elem_count()
+                } else {
+                    0
+                };
+                Ok(w_size + params_size + b_size)
+            }
+            Self::Int8 { weight, scb, bias } => {
+                let w_size = weight.dtype().size_in_bytes() * weight.elem_count();
+                let scb_size = scb.dtype().size_in_bytes() * scb.elem_count();
+                let b_size = if let Some(b) = bias {
+                    b.dtype().size_in_bytes() * b.elem_count()
+                } else {
+                    0
+                };
+                Ok(w_size + scb_size + b_size)
+            }
+        }
+    }
+
+    fn device(&self) -> Device {
+        match self {
+            Self::Fp4Nf4 { weight, .. } | Self::Int8 { weight, .. } => weight.device().clone(),
+        }
     }
 }

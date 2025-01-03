@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use diffuse_rs_common::core::{DType, Device, DeviceLocation, Result, Shape, Tensor, D};
 
 use crate::{
@@ -76,5 +78,29 @@ impl QuantMethod for UnquantLinear {
 
     fn quantized_act_type(&self) -> Option<DType> {
         None
+    }
+
+    fn to_device(&self, dev: &Device) -> Result<Arc<dyn QuantMethod>> {
+        let w = self.w.to_device(dev)?;
+        let b = if let Some(b) = self.b.as_ref() {
+            Some(b.to_device(dev)?)
+        } else {
+            None
+        };
+        Ok(Arc::new(Self { w, b }))
+    }
+
+    fn size_in_bytes(&self) -> Result<usize> {
+        let w_size = self.w.dtype().size_in_bytes() * self.w.elem_count();
+        let b_size = if let Some(b) = self.b.as_ref() {
+            b.dtype().size_in_bytes() * b.elem_count()
+        } else {
+            0
+        };
+        Ok(w_size + b_size)
+    }
+
+    fn device(&self) -> Device {
+        self.w.device().clone()
     }
 }

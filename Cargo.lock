@@ -733,6 +733,7 @@ name = "diffuse_rs_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
  "diffuse_rs_backend",
  "diffuse_rs_common",
  "float8",
