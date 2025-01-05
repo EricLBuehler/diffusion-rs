@@ -4,7 +4,7 @@ use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 use anyhow::Result;
 use diffuse_rs_common::core::{DType, Device, Tensor, D};
 use diffuse_rs_common::nn::Module;
-use tokenizers::{models::bpe::BPE, ModelWrapper, Tokenizer};
+use tokenizers::Tokenizer;
 use tracing::info;
 
 use crate::models::QuantizedModel;
@@ -72,17 +72,8 @@ impl Loader for FluxLoader {
         let clip_tokenizer = if let ComponentElem::Other { files } = clip_tok_component {
             let vocab_file = &files["tokenizer/vocab.json"];
             let merges_file = &files["tokenizer/merges.txt"];
-            let vocab: HashMap<String, u32> = serde_json::from_str(&vocab_file.read_to_string()?)?;
-            let merges: Vec<(String, String)> = merges_file
-                .read_to_string()?
-                .split('\n')
-                .skip(1)
-                .map(|x| x.split(' ').collect::<Vec<_>>())
-                .filter(|x| x.len() == 2)
-                .map(|x| (x[0].to_string(), x[1].to_string()))
-                .collect();
 
-            Tokenizer::new(ModelWrapper::BPE(BPE::new(vocab, merges)))
+            diffuse_rs_common::load_bpe_tokenizer(vocab_file, merges_file)?
         } else {
             anyhow::bail!("incorrect storage of clip tokenizer")
         };
