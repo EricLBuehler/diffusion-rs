@@ -1,3 +1,4 @@
+mod memory_usage;
 mod model_source;
 mod nn_wrap;
 mod progress;
@@ -14,6 +15,7 @@ pub mod cuda_kernels;
 #[cfg(feature = "metal")]
 pub mod metal_kernels;
 
+pub use memory_usage::MemoryUsage;
 pub use model_source::*;
 pub use nn_wrap::*;
 pub use progress::NiceProgressBar;
