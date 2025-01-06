@@ -103,5 +103,5 @@ image.show()
     - Install the necessary tool: `pip install huggingface_hub`
     - Login: `huggingface_cli login`
 
-3) Add this dependency to your `Cargo.toml`
-    - `diffuse_rs_core = { git = "https://github.com/EricLBuehler/diffuse-rs.git" }`
+3) Add the dependency to your `Cargo.toml`
+    - Run: `cargo add diffuse_rs_core`
