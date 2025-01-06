@@ -80,6 +80,7 @@ pub(crate) trait Loader {
         device: &Device,
         silent: bool,
         offloading_type: Option<Offloading>,
+        source: &ModelSource,
     ) -> Result<Arc<Mutex<dyn ModelPipeline>>>;
 }
 
@@ -105,7 +106,7 @@ pub struct Pipeline {
 
 impl Pipeline {
     pub fn load(
-        source: ModelSource,
+        mut source: ModelSource,
         silent: bool,
         token: TokenSource,
         revision: Option<String>,
@@ -113,93 +114,102 @@ impl Pipeline {
     ) -> Result<Self> {
         info!("loading from source: {source}.");
 
-        let mut loader = FileLoader::from_model_source(source, silent, token, revision)?;
-        let files = loader.list_files()?;
-        let transformer_files = loader.list_transformer_files()?;
-
-        if !files.contains(&"model_index.json".to_string()) {
-            anyhow::bail!("Expected `model_index.json` file present.");
-        }
-
-        let ModelIndex { name } = serde_json::from_str(
-            &loader
-                .read_file("model_index.json", false)?
-                .read_to_string()?,
-        )?;
-
-        let model_loader: Box<dyn Loader> = match name.as_str() {
-            "FluxPipeline" => Box::new(FluxLoader),
-            other => anyhow::bail!("Unexpected loader type `{other:?}`."),
-        };
-
-        info!("model architecture is: {}", model_loader.name());
-
         let mut components = HashMap::new();
-        for component in NiceProgressBar::<_, 'g'>(
-            model_loader.required_component_names().into_iter(),
-            "Loading components",
-        ) {
-            let (files, from_transformer, dir) =
-                if component == ComponentName::Transformer && transformer_files.is_some() {
-                    (transformer_files.clone().unwrap(), true, "".to_string())
-                } else {
-                    (files.clone(), false, format!("{component}/"))
-                };
-            let files_for_component = files
-                .iter()
-                .filter(|file| file.starts_with(&dir))
-                .filter(|file| !file.ends_with('/'))
-                .cloned()
-                .collect::<Vec<_>>();
+        let model_loader = {
+            let mut loader = FileLoader::from_model_source(&mut source, silent, token, revision)?;
+            let files = loader.list_files()?;
+            let transformer_files = loader.list_transformer_files()?;
 
-            // Try to determine the component's type.
-            // 1) Model: models contain .safetensors and potentially a config.json
-            // 2) Config: general config, a file ends with .json
-            // 3) Other: doesn't have safetensors and is not all json
-            let component_elem = if files_for_component
-                .iter()
-                .any(|file| file.ends_with(".safetensors"))
-            {
-                let mut safetensors = HashMap::new();
-                for file in files_for_component
-                    .iter()
-                    .filter(|file| file.ends_with(".safetensors"))
-                {
-                    safetensors.insert(file.clone(), loader.read_file(file, from_transformer)?);
-                }
-                ComponentElem::Model {
-                    safetensors,
-                    config: loader.read_file(&format!("{dir}config.json"), from_transformer)?,
-                }
-            } else if files_for_component
-                .iter()
-                .all(|file| file.ends_with(".json"))
-            {
-                let mut files = HashMap::new();
-                for file in files_for_component
-                    .iter()
-                    .filter(|file| file.ends_with(".json"))
-                {
-                    files.insert(file.clone(), loader.read_file(file, from_transformer)?);
-                }
-                ComponentElem::Config { files }
-            } else {
-                let mut files = HashMap::new();
-                for file in files_for_component {
-                    files.insert(file.clone(), loader.read_file(&file, from_transformer)?);
-                }
-                ComponentElem::Other { files }
+            if !files.contains(&"model_index.json".to_string()) {
+                anyhow::bail!("Expected `model_index.json` file present.");
+            }
+
+            let ModelIndex { name } = serde_json::from_str(
+                &loader
+                    .read_file_copied("model_index.json", false)?
+                    .read_to_string_owned()?,
+            )?;
+
+            let model_loader: Box<dyn Loader> = match name.as_str() {
+                "FluxPipeline" => Box::new(FluxLoader),
+                other => anyhow::bail!("Unexpected loader type `{other:?}`."),
             };
-            components.insert(component, component_elem);
-        }
+
+            info!("model architecture is: {}", model_loader.name());
+
+            for component in NiceProgressBar::<_, 'g'>(
+                model_loader.required_component_names().into_iter(),
+                "Loading components",
+            ) {
+                let (files, from_transformer, dir) =
+                    if component == ComponentName::Transformer && transformer_files.is_some() {
+                        (transformer_files.clone().unwrap(), true, "".to_string())
+                    } else {
+                        (files.clone(), false, format!("{component}/"))
+                    };
+                let files_for_component = files
+                    .iter()
+                    .filter(|file| file.starts_with(&dir))
+                    .filter(|file| !file.ends_with('/'))
+                    .cloned()
+                    .collect::<Vec<_>>();
+
+                // Try to determine the component's type.
+                // 1) Model: models contain .safetensors and potentially a config.json
+                // 2) Config: general config, a file ends with .json
+                // 3) Other: doesn't have safetensors and is not all json
+                let component_elem = if files_for_component
+                    .iter()
+                    .any(|file| file.ends_with(".safetensors"))
+                {
+                    let mut safetensors = HashMap::new();
+                    for file in files_for_component
+                        .iter()
+                        .filter(|file| file.ends_with(".safetensors"))
+                    {
+                        safetensors.insert(file.clone(), loader.read_file(file, from_transformer)?);
+                    }
+                    ComponentElem::Model {
+                        safetensors,
+                        config: loader.read_file(&format!("{dir}config.json"), from_transformer)?,
+                    }
+                } else if files_for_component
+                    .iter()
+                    .all(|file| file.ends_with(".json"))
+                {
+                    let mut files = HashMap::new();
+                    for file in files_for_component
+                        .iter()
+                        .filter(|file| file.ends_with(".json"))
+                    {
+                        files.insert(file.clone(), loader.read_file(file, from_transformer)?);
+                    }
+                    ComponentElem::Config { files }
+                } else {
+                    let mut files = HashMap::new();
+                    for file in files_for_component {
+                        files.insert(file.clone(), loader.read_file(&file, from_transformer)?);
+                    }
+                    ComponentElem::Other { files }
+                };
+                components.insert(component, component_elem);
+            }
+
+            model_loader
+        };
 
         #[cfg(not(feature = "metal"))]
         let device = Device::cuda_if_available(0)?;
         #[cfg(feature = "metal")]
         let device = Device::new_metal(0)?;
 
-        let model =
-            model_loader.load_from_components(components, &device, silent, offloading_type)?;
+        let model = model_loader.load_from_components(
+            components,
+            &device,
+            silent,
+            offloading_type,
+            &source,
+        )?;
 
         Ok(Self {
             model,

@@ -5,7 +5,10 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use crate::core::{safetensors::MmapedSafetensors, DType, Device, Result, Tensor};
+use crate::{
+    core::{safetensors::MmapedSafetensors, DType, Device, Result, Tensor},
+    ModelSource,
+};
 use crate::{
     safetensors::BytesSafetensors,
     varbuilder::{SimpleBackend, VarBuilderArgs},
@@ -70,23 +73,31 @@ pub fn from_mmaped_safetensors<'a>(
     dtype: Option<DType>,
     device: &Device,
     silent: bool,
+    src: &ModelSource,
 ) -> Result<VarBuilderArgs<'a, Box<dyn SimpleBackend>>> {
-    #[allow(clippy::type_complexity)]
-    let mut handles: Vec<JoinHandle<Result<HashMap<String, Tensor>>>> = Vec::new();
+    // #[allow(clippy::type_complexity)]
+    // let mut handles: Vec<JoinHandle<Result<HashMap<String, Tensor>>>> = Vec::new();
 
+    // for path in paths {
+    //     let device = device.clone();
+    //     let loader = Common;
+    //     handles.push(thread::spawn(Box::new(move || {
+    //         loader.load_tensors_from_path(&path, &device, dtype, silent, src)
+    //     })));
+    // }
+
+    // let mut ws = HashMap::new();
+    // // Wait until all spawned threads have finished loading tensors:
+    // while !handles.iter().all(|h| h.is_finished()) {}
+    // for h in handles {
+    //     ws.extend(h.join().unwrap()?);
+    // }
+
+    let mut ws = HashMap::new();
     for path in paths {
         let device = device.clone();
         let loader = Common;
-        handles.push(thread::spawn(Box::new(move || {
-            loader.load_tensors_from_path(&path, &device, dtype, silent)
-        })));
-    }
-
-    let mut ws = HashMap::new();
-    // Wait until all spawned threads have finished loading tensors:
-    while !handles.iter().all(|h| h.is_finished()) {}
-    for h in handles {
-        ws.extend(h.join().unwrap()?);
+        ws.extend(loader.load_tensors_from_path(&path, &device, dtype, silent, src)?);
     }
 
     let first_dtype = DType::BF16; //ws.values().next().unwrap().dtype();
@@ -104,6 +115,7 @@ trait LoadTensors {
         device: &Device,
         dtype: Option<DType>,
         silent: bool,
+        src: &ModelSource,
     ) -> Result<HashMap<String, Tensor>> {
         let tensors: Box<dyn TensorLoaderBackend> = match path
             .extension()
@@ -112,8 +124,14 @@ trait LoadTensors {
             .expect("Expected to convert")
         {
             "safetensors" => match path {
-                FileData::Dduf { name: _, data } => {
-                    Box::new(BytesSafetensorBackend(BytesSafetensors::new(data)?))
+                FileData::Dduf { name: _, start, end } => {
+                    let ModelSource::Dduf { file, name: _ } = src else {
+                        crate::bail!("expected dduf model source!");
+                    };
+                    Box::new(BytesSafetensorBackend(BytesSafetensors::new(&file.get_ref()[*start..*end])?))
+                }
+                FileData::DdufOwned { name: _, data } => {
+                    Box::new(BytesSafetensorBackend(BytesSafetensors::new(&data)?))
                 }
                 FileData::Path(path) => {Box::new(SafetensorBackend(unsafe {
                     crate::core::safetensors::MmapedSafetensors::new(path)?
