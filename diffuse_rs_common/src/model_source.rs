@@ -173,6 +173,11 @@ impl<'a> FileLoader<'a> {
         }
     }
 
+    /// Read a file.
+    ///
+    /// - If loading from a DDUF file, this returns indices to the file data instead of owned data.
+    /// - For non-DDUF model sources, a path is returned
+    /// - File data should be read with `read_to_string`
     pub fn read_file(&mut self, name: &str, from_transformer: bool) -> anyhow::Result<FileData> {
         if from_transformer && !matches!(self, Self::ApiWithTransformer { .. }) {
             anyhow::bail!("This model source has no transformer files.")
@@ -212,6 +217,11 @@ impl<'a> FileLoader<'a> {
         }
     }
 
+    /// Read a file, always returning owned data.
+    ///
+    /// - If loading from a DDUF file, this copies the file data.
+    /// - For non-DDUF model sources, this is equivalent to `read_file`
+    /// - File data can always be read with `read_to_string_owned`, unlike from `read_file`
     pub fn read_file_copied(
         &mut self,
         name: &str,
