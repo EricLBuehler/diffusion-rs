@@ -1,7 +1,9 @@
 [package]
 name = "diffuse_rs_examples"
-version = "0.1.0"
-edition = "2021"
+readme.workspace = true
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
 description = "Examples of diffuse_rs"
 repository.workspace = true
 keywords.workspace = true

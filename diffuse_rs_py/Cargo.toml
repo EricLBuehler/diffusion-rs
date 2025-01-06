@@ -1,6 +1,7 @@
 [package]
 name = "diffuse_rs_py"
-authors = ["Eric Buehler"]
+readme.workspace = true
+authors.workspace = true
 version.workspace = true
 edition.workspace = true
 description.workspace = true

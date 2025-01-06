@@ -12,12 +12,14 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
+authors = ["Eric Buehler"]
 description = "Blazingly fast inference of diffusion models."
 homepage = "https://github.com/EricLBuehler/diffuse-rs"
 repository = "https://github.com/EricLBuehler/diffuse-rs"
 keywords = ["machine-learning"]
 categories = ["science"]
 license = "MIT"
+readme = "README.md"
 
 [workspace.dependencies]
 clap = { version = "4.5.23", features = ["derive"] }
