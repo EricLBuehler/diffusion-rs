@@ -11,13 +11,15 @@ Blazingly fast inference of diffusion models.
 - Quantization
   - `bitsandbytes` format (fp4, nf4, and int8)
   - `GGUF` (2-8 bit quantization)
-- Easy: Strong support for running 🤗 DDUF models.
+- Easy: Strong support for running [🤗 DDUF](https://huggingface.co/DDUF) models.
 - Strong Apple Silicon support: support for the Metal, Accelerate, and ARM NEON frameworks
 - Support for NVIDIA GPUs with CUDA
 - AVX support for x86 CPUs
+- Allow acceleration of models larger than the total VRAM size with offloading
+
+## Upcoming features
 - 🚧 LoRA support
 - 🚧 CPU + GPU inference with automatic offloading to allow partial acceleration of models larger than the total VRAM
-- Allow acceleration of models larger than the total VRAM size with offloading
 
 ## Installation
 Check out the [installation guide](INSTALL.md) for details about installation.
