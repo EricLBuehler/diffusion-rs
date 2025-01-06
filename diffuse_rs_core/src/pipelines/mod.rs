@@ -80,7 +80,7 @@ pub(crate) trait Loader {
         device: &Device,
         silent: bool,
         offloading_type: Option<Offloading>,
-        source: &ModelSource,
+        source: Arc<ModelSource>,
     ) -> Result<Arc<Mutex<dyn ModelPipeline>>>;
 }
 
@@ -208,7 +208,7 @@ impl Pipeline {
             &device,
             silent,
             offloading_type,
-            &source,
+            Arc::new(source),
         )?;
 
         Ok(Self {

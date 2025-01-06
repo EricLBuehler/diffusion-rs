@@ -36,9 +36,9 @@ struct VaeConfigShim {
 fn load_autoencoder_kl(
     cfg_json: &FileData,
     vb: VarBuilder,
-    source: &ModelSource,
+    source: Arc<ModelSource>,
 ) -> anyhow::Result<Arc<dyn VAEModel>> {
-    let cfg: AutencoderKlConfig = serde_json::from_str(&cfg_json.read_to_string(source)?)?;
+    let cfg: AutencoderKlConfig = serde_json::from_str(&cfg_json.read_to_string(&source)?)?;
     Ok(Arc::new(AutoEncoderKl::new(&cfg, vb)?))
 }
 
@@ -47,11 +47,11 @@ pub(crate) fn dispatch_load_vae_model(
     safetensor_files: Vec<FileData>,
     device: &Device,
     silent: bool,
-    source: &ModelSource,
+    source: Arc<ModelSource>,
 ) -> anyhow::Result<Arc<dyn VAEModel>> {
-    let vb = from_mmaped_safetensors(safetensor_files, None, device, silent, source)?;
+    let vb = from_mmaped_safetensors(safetensor_files, None, device, silent, source.clone())?;
 
-    let VaeConfigShim { name } = serde_json::from_str(&cfg_json.read_to_string(source)?)?;
+    let VaeConfigShim { name } = serde_json::from_str(&cfg_json.read_to_string(&source)?)?;
     match name.as_str() {
         "AutoencoderKL" => load_autoencoder_kl(cfg_json, vb, source),
         other => anyhow::bail!("Unexpected VAE type `{other:?}`."),

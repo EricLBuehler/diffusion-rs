@@ -48,7 +48,7 @@ impl Loader for FluxLoader {
         device: &Device,
         silent: bool,
         offloading_type: Option<Offloading>,
-        source: &ModelSource,
+        source: Arc<ModelSource>,
     ) -> Result<Arc<Mutex<dyn ModelPipeline>>> {
         let scheduler = components.remove(&ComponentName::Scheduler).unwrap();
         let clip_component = components.remove(&ComponentName::TextEncoder(1)).unwrap();
@@ -99,7 +99,7 @@ impl Loader for FluxLoader {
                 None,
                 device,
                 silent,
-                &source,
+                source.clone(),
             )?;
             ClipTextTransformer::new(vb.pp("text_model"), &cfg)?
         } else {
@@ -119,7 +119,7 @@ impl Loader for FluxLoader {
                 None,
                 &t5_flux_device,
                 silent,
-                &source,
+                source.clone(),
             )?;
             T5EncoderModel::new(vb, &cfg)?
         } else {
@@ -138,7 +138,7 @@ impl Loader for FluxLoader {
                 safetensors.into_values().collect(),
                 device,
                 silent,
-                source,
+                source.clone(),
             )?
         } else {
             anyhow::bail!("incorrect storage of vae model")
@@ -157,7 +157,7 @@ impl Loader for FluxLoader {
                 None,
                 &t5_flux_device,
                 silent,
-                &source,
+                source,
             )?;
             FluxModel::new(&cfg, vb)?
         } else {
