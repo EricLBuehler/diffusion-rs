@@ -21,7 +21,7 @@ pub enum ModelSource {
         transformer_model_id: String,
     },
     Dduf {
-        file: File,
+        file: Cursor<Mmap>,
         name: String,
     },
 }
@@ -58,25 +58,28 @@ impl ModelSource {
     }
 
     pub fn dduf<S: ToString>(filename: S) -> anyhow::Result<Self> {
+        let file = File::open(filename.to_string())?;
+        let mmap = unsafe { Mmap::map(&file)? };
+        let cursor = Cursor::new(mmap);
         Ok(Self::Dduf {
-            file: File::open(filename.to_string())?,
+            file: cursor,
             name: filename.to_string(),
         })
     }
 }
 
-pub enum FileLoader {
+pub enum FileLoader<'a> {
     Api(Box<ApiRepo>),
     ApiWithTransformer {
         base: Box<ApiRepo>,
         transformer: Box<ApiRepo>,
     },
-    Dduf(ZipArchive<Cursor<Mmap>>),
+    Dduf(ZipArchive<&'a mut Cursor<Mmap>>),
 }
 
-impl FileLoader {
+impl<'a> FileLoader<'a> {
     pub fn from_model_source(
-        source: ModelSource,
+        source: &'a mut ModelSource,
         silent: bool,
         token: TokenSource,
         revision: Option<String>,
@@ -89,18 +92,14 @@ impl FileLoader {
                     .build()?;
                 let revision = revision.unwrap_or("main".to_string());
                 let api = api_builder.repo(Repo::with_revision(
-                    model_id,
+                    model_id.clone(),
                     RepoType::Model,
                     revision.clone(),
                 ));
 
                 Ok(Self::Api(Box::new(api)))
             }
-            ModelSource::Dduf { file, name: _ } => {
-                let mmap = unsafe { Mmap::map(&file)? };
-                let cursor = Cursor::new(mmap);
-                Ok(Self::Dduf(ZipArchive::new(cursor)?))
-            }
+            ModelSource::Dduf { file, name: _ } => Ok(Self::Dduf(ZipArchive::new(file)?)),
             ModelSource::ModelIdWithTransformer {
                 model_id,
                 transformer_model_id,
@@ -111,12 +110,12 @@ impl FileLoader {
                     .build()?;
                 let revision = revision.unwrap_or("main".to_string());
                 let api = api_builder.repo(Repo::with_revision(
-                    model_id,
+                    model_id.clone(),
                     RepoType::Model,
                     revision.clone(),
                 ));
                 let transformer_api = api_builder.repo(Repo::with_revision(
-                    transformer_model_id,
+                    transformer_model_id.clone(),
                     RepoType::Model,
                     revision.clone(),
                 ));
@@ -174,6 +173,11 @@ impl FileLoader {
         }
     }
 
+    /// Read a file.
+    ///
+    /// - If loading from a DDUF file, this returns indices to the file data instead of owned data.
+    /// - For non-DDUF model sources, a path is returned
+    /// - File data should be read with `read_to_string`
     pub fn read_file(&mut self, name: &str, from_transformer: bool) -> anyhow::Result<FileData> {
         if from_transformer && !matches!(self, Self::ApiWithTransformer { .. }) {
             anyhow::bail!("This model source has no transformer files.")
@@ -203,42 +207,105 @@ impl FileLoader {
             )),
             (Self::Api(_), true) => anyhow::bail!("This model source has no transformer files."),
             (Self::Dduf(dduf), _) => {
-                let mut file = dduf.by_name(name)?;
-                let mut data = Vec::new();
-                std::io::copy(&mut file, &mut data)?;
-                let name = PathBuf::from(file.name().to_string());
-                Ok(FileData::Dduf { name, data })
+                let file = dduf.by_name(name)?;
+                let start = file.data_start() as usize;
+                let len = file.size() as usize;
+                let end = start + len;
+                let name = file.name().into();
+                Ok(FileData::Dduf { name, start, end })
             }
         }
+    }
+
+    /// Read a file, always returning owned data.
+    ///
+    /// - If loading from a DDUF file, this copies the file data.
+    /// - For non-DDUF model sources, this is equivalent to `read_file`
+    /// - File data can always be read with `read_to_string_owned`, unlike from `read_file`
+    pub fn read_file_copied(
+        &mut self,
+        name: &str,
+        from_transformer: bool,
+    ) -> anyhow::Result<FileData> {
+        if matches!(self, Self::Api(_) | Self::ApiWithTransformer { .. }) {
+            return self.read_file(name, from_transformer);
+        }
+
+        let Self::Dduf(dduf) = self else {
+            anyhow::bail!("expected dduf model source!");
+        };
+        let mut file = dduf.by_name(name)?;
+        let mut data = Vec::new();
+        std::io::copy(&mut file, &mut data)?;
+        let name = PathBuf::from(file.name().to_string());
+        Ok(FileData::DdufOwned { name, data })
     }
 }
 
 pub enum FileData {
     Path(PathBuf),
-    Dduf { name: PathBuf, data: Vec<u8> },
+    Dduf {
+        name: PathBuf,
+        start: usize,
+        end: usize,
+    },
+    DdufOwned {
+        name: PathBuf,
+        data: Vec<u8>,
+    },
 }
 
 impl Debug for FileData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Path(p) => write!(f, "path: {}", p.display()),
-            Self::Dduf { name, data: _ } => write!(f, "dduf: {}", name.display()),
+            Self::Dduf {
+                name,
+                start: _,
+                end: _,
+            } => write!(f, "dduf: {}", name.display()),
+            Self::DdufOwned { name, data: _ } => write!(f, "dduf owned: {}", name.display()),
         }
     }
 }
 
 impl FileData {
-    pub fn read_to_string(&self) -> anyhow::Result<String> {
+    pub fn read_to_string(&self, src: &ModelSource) -> anyhow::Result<String> {
         match self {
             Self::Path(p) => Ok(fs::read_to_string(p)?),
-            Self::Dduf { name: _, data } => Ok(String::from_utf8(data.to_vec())?),
+            Self::Dduf {
+                name: _,
+                start,
+                end,
+            } => {
+                let ModelSource::Dduf { file, name: _ } = src else {
+                    anyhow::bail!("expected dduf model source!");
+                };
+                Ok(String::from_utf8(file.get_ref()[*start..*end].to_vec())?)
+            }
+            Self::DdufOwned { name: _, data } => Ok(String::from_utf8(data.to_vec())?),
+        }
+    }
+
+    pub fn read_to_string_owned(&self) -> anyhow::Result<String> {
+        match self {
+            Self::Path(p) => Ok(fs::read_to_string(p)?),
+            Self::Dduf { .. } => {
+                anyhow::bail!("dduf file data is not owned !");
+            }
+            Self::DdufOwned { name: _, data } => Ok(String::from_utf8(data.to_vec())?),
         }
     }
 
     pub fn extension(&self) -> Option<&OsStr> {
         match self {
             Self::Path(p) => p.extension(),
-            Self::Dduf { name, data: _ } => name.extension(),
+            Self::Dduf {
+                name,
+                start: _,
+                end: _,
+            } => name.extension(),
+            Self::DdufOwned { name, data: _ } => name.extension(),
         }
     }
 }

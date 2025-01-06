@@ -4,7 +4,7 @@ use std::{cmp::Ordering, collections::HashMap, sync::Arc};
 use anyhow::Result;
 use diffuse_rs_common::core::{DType, Device, Tensor, D};
 use diffuse_rs_common::nn::Module;
-use tokenizers::{models::bpe::BPE, ModelWrapper, Tokenizer};
+use tokenizers::Tokenizer;
 use tracing::info;
 
 use crate::models::QuantizedModel;
@@ -15,7 +15,7 @@ use crate::{
     },
     pipelines::ComponentName,
 };
-use diffuse_rs_common::from_mmaped_safetensors;
+use diffuse_rs_common::{from_mmaped_safetensors, ModelSource};
 
 use super::sampling::Sampler;
 use super::scheduler::SchedulerConfig;
@@ -48,6 +48,7 @@ impl Loader for FluxLoader {
         device: &Device,
         silent: bool,
         offloading_type: Option<Offloading>,
+        source: Arc<ModelSource>,
     ) -> Result<Arc<Mutex<dyn ModelPipeline>>> {
         let scheduler = components.remove(&ComponentName::Scheduler).unwrap();
         let clip_component = components.remove(&ComponentName::TextEncoder(1)).unwrap();
@@ -64,7 +65,7 @@ impl Loader for FluxLoader {
 
         let scheduler_config = if let ComponentElem::Config { files } = scheduler {
             serde_json::from_str::<SchedulerConfig>(
-                &files["scheduler/scheduler_config.json"].read_to_string()?,
+                &files["scheduler/scheduler_config.json"].read_to_string(&source)?,
             )?
         } else {
             anyhow::bail!("expected scheduler config")
@@ -72,22 +73,13 @@ impl Loader for FluxLoader {
         let clip_tokenizer = if let ComponentElem::Other { files } = clip_tok_component {
             let vocab_file = &files["tokenizer/vocab.json"];
             let merges_file = &files["tokenizer/merges.txt"];
-            let vocab: HashMap<String, u32> = serde_json::from_str(&vocab_file.read_to_string()?)?;
-            let merges: Vec<(String, String)> = merges_file
-                .read_to_string()?
-                .split('\n')
-                .skip(1)
-                .map(|x| x.split(' ').collect::<Vec<_>>())
-                .filter(|x| x.len() == 2)
-                .map(|x| (x[0].to_string(), x[1].to_string()))
-                .collect();
 
-            Tokenizer::new(ModelWrapper::BPE(BPE::new(vocab, merges)))
+            diffuse_rs_common::load_bpe_tokenizer(vocab_file, merges_file, &source)?
         } else {
             anyhow::bail!("incorrect storage of clip tokenizer")
         };
         let t5_tokenizer = if let ComponentElem::Other { files } = t5_tok_component {
-            Tokenizer::from_bytes(files["tokenizer_2/tokenizer.json"].read_to_string()?)
+            Tokenizer::from_bytes(files["tokenizer_2/tokenizer.json"].read_to_string(&source)?)
                 .map_err(anyhow::Error::msg)?
         } else {
             anyhow::bail!("incorrect storage of t5 tokenizer")
@@ -100,10 +92,15 @@ impl Loader for FluxLoader {
             config,
         } = clip_component
         {
-            let cfg: ClipTextConfig = serde_json::from_str(&config.read_to_string()?)?;
+            let cfg: ClipTextConfig = serde_json::from_str(&config.read_to_string(&source)?)?;
 
-            let vb =
-                from_mmaped_safetensors(safetensors.into_values().collect(), None, device, silent)?;
+            let vb = from_mmaped_safetensors(
+                safetensors.into_values().collect(),
+                None,
+                device,
+                silent,
+                source.clone(),
+            )?;
             ClipTextTransformer::new(vb.pp("text_model"), &cfg)?
         } else {
             anyhow::bail!("incorrect storage of clip model")
@@ -116,12 +113,13 @@ impl Loader for FluxLoader {
             config,
         } = t5_component
         {
-            let cfg: T5Config = serde_json::from_str(&config.read_to_string()?)?;
+            let cfg: T5Config = serde_json::from_str(&config.read_to_string(&source)?)?;
             let vb = from_mmaped_safetensors(
                 safetensors.into_values().collect(),
                 None,
                 &t5_flux_device,
                 silent,
+                source.clone(),
             )?;
             T5EncoderModel::new(vb, &cfg)?
         } else {
@@ -135,7 +133,13 @@ impl Loader for FluxLoader {
             config,
         } = vae_component
         {
-            dispatch_load_vae_model(&config, safetensors.into_values().collect(), device, silent)?
+            dispatch_load_vae_model(
+                &config,
+                safetensors.into_values().collect(),
+                device,
+                silent,
+                source.clone(),
+            )?
         } else {
             anyhow::bail!("incorrect storage of vae model")
         };
@@ -147,12 +151,13 @@ impl Loader for FluxLoader {
             config,
         } = flux_component
         {
-            let cfg: FluxConfig = serde_json::from_str(&config.read_to_string()?)?;
+            let cfg: FluxConfig = serde_json::from_str(&config.read_to_string(&source)?)?;
             let vb = from_mmaped_safetensors(
                 safetensors.into_values().collect(),
                 None,
                 &t5_flux_device,
                 silent,
+                source,
             )?;
             FluxModel::new(&cfg, vb)?
         } else {

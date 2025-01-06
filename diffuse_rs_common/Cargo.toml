@@ -40,6 +40,8 @@ yoke.workspace = true
 num_cpus.workspace = true
 gemm.workspace = true
 serde.workspace = true
+tokenizers.workspace = true
+serde_json.workspace = true
 
 [build-dependencies]
 bindgen_cuda = { version = "0.1.5", optional = true }

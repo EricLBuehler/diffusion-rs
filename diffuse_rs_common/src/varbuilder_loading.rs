@@ -2,10 +2,14 @@
 
 use std::{
     collections::HashMap,
+    sync::Arc,
     thread::{self, JoinHandle},
 };
 
-use crate::core::{safetensors::MmapedSafetensors, DType, Device, Result, Tensor};
+use crate::{
+    core::{safetensors::MmapedSafetensors, DType, Device, Result, Tensor},
+    ModelSource,
+};
 use crate::{
     safetensors::BytesSafetensors,
     varbuilder::{SimpleBackend, VarBuilderArgs},
@@ -70,6 +74,7 @@ pub fn from_mmaped_safetensors<'a>(
     dtype: Option<DType>,
     device: &Device,
     silent: bool,
+    src: Arc<ModelSource>,
 ) -> Result<VarBuilderArgs<'a, Box<dyn SimpleBackend>>> {
     #[allow(clippy::type_complexity)]
     let mut handles: Vec<JoinHandle<Result<HashMap<String, Tensor>>>> = Vec::new();
@@ -77,8 +82,9 @@ pub fn from_mmaped_safetensors<'a>(
     for path in paths {
         let device = device.clone();
         let loader = Common;
+        let src_clone = src.clone();
         handles.push(thread::spawn(Box::new(move || {
-            loader.load_tensors_from_path(&path, &device, dtype, silent)
+            loader.load_tensors_from_path(&path, &device, dtype, silent, src_clone)
         })));
     }
 
@@ -104,6 +110,7 @@ trait LoadTensors {
         device: &Device,
         dtype: Option<DType>,
         silent: bool,
+        src: Arc<ModelSource>,
     ) -> Result<HashMap<String, Tensor>> {
         let tensors: Box<dyn TensorLoaderBackend> = match path
             .extension()
@@ -112,7 +119,13 @@ trait LoadTensors {
             .expect("Expected to convert")
         {
             "safetensors" => match path {
-                FileData::Dduf { name: _, data } => {
+                FileData::Dduf { name: _, start, end } => {
+                    let ModelSource::Dduf { file, name: _ } = &*src else {
+                        crate::bail!("expected dduf model source!");
+                    };
+                    Box::new(BytesSafetensorBackend(BytesSafetensors::new(&file.get_ref()[*start..*end])?))
+                }
+                FileData::DdufOwned { name: _, data } => {
                     Box::new(BytesSafetensorBackend(BytesSafetensors::new(data)?))
                 }
                 FileData::Path(path) => {Box::new(SafetensorBackend(unsafe {
