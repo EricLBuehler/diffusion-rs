@@ -1,4 +1,4 @@
-# Installation guide for diffuse-rs
+# Installation guide for diffusion-rs
 
 **ToC**
 - [CLI](#cli)
@@ -8,7 +8,7 @@
 - [Rust crate](#rust-crate)
 
 ## CLI
-1) Installing diffuse-rs via the CLI requires a few prerequisites:
+1) Installing diffusion-rs via the CLI requires a few prerequisites:
     - Install the Rust programming language
         - Follow the instructions on this site: https://rustup.rs/
     - (*Linux/Mac only*) Install OpenSSL (*Ubuntu:* `sudo apt install libssl-dev`, *Brew:* `brew install openssl`)
@@ -18,13 +18,13 @@
     - Install the necessary tool: `pip install huggingface_hub`
     - Login: `huggingface_cli login`
 
-3) Install the `diffuse_rs_cli` CLI
+3) Install the `diffusion_rs_cli` CLI
 
 > [!NOTE]
 > Replace the `...` below with [feature flags](FEATURE_FLAGS.md) to build for Nvidia GPUs (CUDA) or Apple Silicon GPUs (Metal)
 
 ```
-cargo install diffuse_rs_cli --features ...
+cargo install diffusion_rs_cli --features ...
 ```
 
 4) Try the CLI!
@@ -32,11 +32,11 @@ cargo install diffuse_rs_cli --features ...
 > Download the DDUF file here: `wget https://huggingface.co/DDUF/FLUX.1-dev-DDUF/resolve/main/FLUX.1-dev-Q4-bnb.dduf`
 
 ```
-diffuse_rs_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
+diffusion_rs_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
 ```
 
 ## CLI from source
-1) Installing diffuse-rs via the CLI requires a few prerequisites:
+1) Installing diffusion-rs via the CLI requires a few prerequisites:
     - Install the Rust programming language
         - Follow the instructions on this site: https://rustup.rs/
     - (*Linux/Mac only*) Install OpenSSL (*Ubuntu:* `sudo apt install libssl-dev`, *Brew:* `brew install openssl`)
@@ -48,17 +48,17 @@ diffuse_rs_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
 
 3) Clone the repository
 ```
-git clone https://github.com/EricLBuehler/diffuse-rs.git
-cd diffuse-rs
+git clone https://github.com/EricLBuehler/diffusion-rs.git
+cd diffusion-rs
 ```
 
-4) Install the `diffuse_rs_cli` CLI
+4) Install the `diffusion_rs_cli` CLI
 
 > [!NOTE]
 > Replace the `...` below with [feature flags](FEATURE_FLAGS.md) to build for Nvidia GPUs (CUDA) or Apple Silicon GPUs (Metal)
 
 ```
-cargo install --path diffuse_rs_cli --release --features ...
+cargo install --path diffusion_rs_cli --release --features ...
 ```
 
 5) Try the CLI!
@@ -66,11 +66,11 @@ cargo install --path diffuse_rs_cli --release --features ...
 > Download the DDUF file here: `wget https://huggingface.co/DDUF/FLUX.1-dev-DDUF/resolve/main/FLUX.1-dev-Q4-bnb.dduf`
 
 ```
-diffuse_rs_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
+diffusion_rs_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
 ```
 
 ## Python bindings
-1) Installing diffuse-rs via the Python bindings requires a few prerequisites:
+1) Installing diffusion-rs via the Python bindings requires a few prerequisites:
     - Install the Rust programming language
         - Follow the instructions on this site: https://rustup.rs/
     - (*Linux/Mac only*) Install OpenSSL (*Ubuntu:* `sudo apt install libssl-dev`, *Brew:* `brew install openssl`)
@@ -84,18 +84,18 @@ diffuse_rs_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
 
 |Feature|Flag|
 |--|--|
-|Nvidia GPUs (CUDA)|`pip install diffuse_rs_cuda`|
-|Apple Silicon GPUs (Metal)|`pip install diffuse_rs_metal`|
-|Apple Accelerate (CPU)|`pip install diffuse_rs_accelerate`|
-|Intel MKL (CPU)|`pip install diffuse_rs_mkl`|
-|Use AVX or NEON automatically|`pip install diffuse_rs`|
+|Nvidia GPUs (CUDA)|`pip install diffusion_rs_cuda`|
+|Apple Silicon GPUs (Metal)|`pip install diffusion_rs_metal`|
+|Apple Accelerate (CPU)|`pip install diffusion_rs_accelerate`|
+|Intel MKL (CPU)|`pip install diffusion_rs_mkl`|
+|Use AVX or NEON automatically|`pip install diffusion_rs`|
 
 4) Try the Python bindings!
 
 > Download the DDUF file here: `wget https://huggingface.co/DDUF/FLUX.1-dev-DDUF/resolve/main/FLUX.1-dev-Q4-bnb.dduf`
 
 ```py
-from diffuse_rs import DiffusionGenerationParams, ModelSource, Pipeline
+from diffusion_rs import DiffusionGenerationParams, ModelSource, Pipeline
 from PIL import Image
 import io
 
@@ -113,7 +113,7 @@ image.show()
 ```
 
 ## Python bindings from source
-1) Installing diffuse-rs via the Python bindings requires a few prerequisites:
+1) Installing diffusion-rs via the Python bindings requires a few prerequisites:
     - Install the Rust programming language
         - Follow the instructions on this site: https://rustup.rs/
     - (*Linux/Mac only*) Install OpenSSL (*Ubuntu:* `sudo apt install libssl-dev`, *Brew:* `brew install openssl`)
@@ -125,8 +125,8 @@ image.show()
 
 3) Clone the repository
 ```
-git clone https://github.com/EricLBuehler/diffuse-rs.git
-cd diffuse-rs
+git clone https://github.com/EricLBuehler/diffusion-rs.git
+cd diffusion-rs
 ```
 
 4) Install the maturin build tool
@@ -140,7 +140,7 @@ pip install maturin
 > Replace the `...` below with [feature flags](FEATURE_FLAGS.md) to build for Nvidia GPUs (CUDA) or Apple Silicon GPUs (Metal)
 
 ```
-maturin develop -m diffuse_rs_py/Cargo.toml --release --features ...
+maturin develop -m diffusion_rs_py/Cargo.toml --release --features ...
 ``` 
 
 6) Try the Python bindings!
@@ -148,7 +148,7 @@ maturin develop -m diffuse_rs_py/Cargo.toml --release --features ...
 > Download the DDUF file here: `wget https://huggingface.co/DDUF/FLUX.1-dev-DDUF/resolve/main/FLUX.1-dev-Q4-bnb.dduf`
 
 ```py
-from diffuse_rs import DiffusionGenerationParams, ModelSource, Pipeline
+from diffusion_rs import DiffusionGenerationParams, ModelSource, Pipeline
 from PIL import Image
 import io
 
@@ -166,7 +166,7 @@ image.show()
 ```
 
 ## Rust crate
-1) Installing diffuse-rs for usage as a Rust crate requires a few prerequisites:
+1) Installing diffusion-rs for usage as a Rust crate requires a few prerequisites:
     - Install the Rust programming language
         - Follow the instructions on this site: https://rustup.rs/
     - (*Linux/Mac only*) Install OpenSSL (*Ubuntu:* `sudo apt install libssl-dev`, *Brew:* `brew install openssl`)
@@ -177,5 +177,5 @@ image.show()
     - Login: `huggingface_cli login`
 
 3) Add the dependency to your `Cargo.toml`
-    - Run: `cargo add diffuse_rs_core`
-    - Alternatively, you can add the git dependency to your Cargo.toml for the latest updates: `diffuse_rs_core = { git = "https://github.com/EricLBuehler/diffuse-rs.git", version = "0.1.0" }`
+    - Run: `cargo add diffusion_rs_core`
+    - Alternatively, you can add the git dependency to your Cargo.toml for the latest updates: `diffusion_rs_core = { git = "https://github.com/EricLBuehler/diffusion-rs.git", version = "0.1.0" }`

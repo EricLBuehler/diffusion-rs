@@ -1,0 +1,33 @@
+[package]
+name = "diffusion_rs_backend"
+readme = "README.md"
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+homepage.workspace = true
+
+[dependencies]
+half.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rayon.workspace = true
+float8.workspace = true
+once_cell.workspace = true
+metal = { workspace = true, optional = true }
+thiserror.workspace = true
+lazy_static.workspace = true
+paste.workspace = true
+byteorder.workspace = true
+diffusion_rs_common = { path = "../diffusion_rs_common" }
+
+[features]
+cuda = ["dep:bindgen_cuda", "diffusion_rs_common/cuda"]
+metal = ["dep:metal", "diffusion_rs_common/metal"]
+
+[build-dependencies]
+bindgen_cuda = { version = "0.1.5", optional = true }

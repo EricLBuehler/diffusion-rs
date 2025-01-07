@@ -1,0 +1,38 @@
+[package]
+name = "diffusion_rs_core"
+readme.workspace = true
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+description = "Core package of diffusion_rs"
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+homepage.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+float8.workspace = true
+half.workspace = true
+hf-hub.workspace = true
+diffusion_rs_backend = { path = "../diffusion_rs_backend" }
+diffusion_rs_common = { path = "../diffusion_rs_common" }
+serde.workspace = true
+serde_plain.workspace = true 
+serde_json.workspace = true 
+tokenizers.workspace = true
+tqdm.workspace = true
+indicatif.workspace = true
+thiserror.workspace = true
+image.workspace = true
+tracing.workspace = true
+objc = { workspace = true, optional = true }
+clap.workspace = true
+
+[features]
+cuda = ["diffusion_rs_common/cuda", "diffusion_rs_backend/cuda"]
+cudnn = ["diffusion_rs_common/cudnn"]
+metal = ["diffusion_rs_common/metal", "diffusion_rs_backend/metal", "dep:objc"]
+accelerate = ["diffusion_rs_common/accelerate"]
+mkl = ["diffusion_rs_common/mkl"]

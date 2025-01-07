@@ -1,0 +1,27 @@
+[package]
+name = "diffusion_rs_cli"
+readme = "README.md"
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+description = "CLI for diffusion_rs"
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+homepage.workspace = true
+
+[dependencies]
+diffusion_rs_core = { path = "../diffusion_rs_core" }
+clap.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+cliclack.workspace = true
+
+[features]
+cuda = ["diffusion_rs_core/cuda"]
+cudnn = ["diffusion_rs_core/cudnn"]
+metal = ["diffusion_rs_core/metal"]
+accelerate = ["diffusion_rs_core/accelerate"]
+mkl = ["diffusion_rs_core/mkl"]
