@@ -11,6 +11,7 @@ Blazingly fast inference of diffusion models.
 | <a href="https://ericlbuehler.github.io/diffuse-rs/diffuse_rs_core/"><b>Rust Documentation</b></a> | <a href="https://ericlbuehler.github.io/diffuse-rs/pyo3/diffuse_rs.html"><b>Python Documentation</b></a> | <a href="https://discord.gg/DRcvs6z5vu"><b>Discord</b></a> |
 </p>
 
+
 ## Features
 - Quantization
   - `bitsandbytes` format (fp4, nf4, and int8)
