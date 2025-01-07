@@ -22,9 +22,6 @@ hf-hub.workspace = true
 zip.workspace = true
 memmap2.workspace = true
 cudarc = { workspace = true, optional = true }
-ug = { workspace = true }
-ug-cuda = { workspace = true, optional = true }
-ug-metal = { workspace = true, optional = true }
 float8.workspace = true
 half.workspace = true
 intel-mkl-src = { workspace = true, optional = true }
@@ -48,8 +45,8 @@ bindgen_cuda = { version = "0.1.5", optional = true }
 
 [features]
 default = []
-cuda = ["cudarc", "float8/cuda", "dep:ug-cuda", "dep:bindgen_cuda"]
+cuda = ["cudarc", "float8/mistralrs_cudarc_fork", "dep:bindgen_cuda"]
 cudnn = ["cuda", "cudarc/cudnn"]
 mkl = ["dep:libc", "dep:intel-mkl-src"]
 accelerate = ["dep:libc", "dep:accelerate-src"]
-metal = ["dep:metal", "dep:ug-metal"]
+metal = ["dep:metal"]
