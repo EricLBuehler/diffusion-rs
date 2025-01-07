@@ -7,6 +7,10 @@
 Blazingly fast inference of diffusion models.
 </h3>
 
+<p align="center">
+| <a href="https://ericlbuehler.github.io/diffuse-rs/diffuse_rs_core/"><b>Rust Documentation</b></a> | <a href="https://ericlbuehler.github.io/diffuse-rs/pyo3/diffuse_rs.html"><b>Python Documentation</b></a> | <a href="https://discord.gg/DRcvs6z5vu"><b>Discord</b></a> |
+</p>
+
 ## Features
 - Quantization
   - `bitsandbytes` format (fp4, nf4, and int8)
@@ -16,6 +20,8 @@ Blazingly fast inference of diffusion models.
 - Support for NVIDIA GPUs with CUDA
 - AVX support for x86 CPUs
 - Allow acceleration of models larger than the total VRAM size with offloading
+
+Please do not hesitate to contact us with feature requests via [Github issues](https://github.com/EricLBuehler/diffuse-rs)!
 
 ## Upcoming features
 - 🚧 LoRA support
@@ -37,6 +43,9 @@ diffuse_rs_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
 More CLI examples [here](diffuse_rs_cli/README.md).
 
 **Python:**
+More Python examples [here](diffuse_rs_py/examples).
+Python documentation [here](diffuse_rs_py/examples).
+
 ```py
 from diffuse_rs import DiffusionGenerationParams, ModelSource, Pipeline
 from PIL import Image
@@ -58,6 +67,44 @@ image.show()
 **Rust crate:**
 
 Examples with the Rust crate: [here](diffuse_rs_examples/examples).
+
+```rust
+use std::time::Instant;
+
+use diffuse_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::EnvFilter;
+
+let filter = EnvFilter::builder()
+    .with_default_directive(LevelFilter::INFO.into())
+    .from_env_lossy();
+tracing_subscriber::fmt().with_env_filter(filter).init();
+
+let pipeline = Pipeline::load(
+    ModelSource::dduf("FLUX.1-dev-Q4-bnb.dduf")?,
+    false,
+    TokenSource::CacheToken,
+    None,
+    None,
+)?;
+
+let start = Instant::now();
+
+let images = pipeline.forward(
+    vec!["Draw a picture of a sunrise.".to_string()],
+    DiffusionGenerationParams {
+        height: 720,
+        width: 1280,
+        num_steps: 50,
+        guidance_scale: 3.5,
+    },
+)?;
+
+let end = Instant::now();
+println!("Took: {:.2}s", end.duration_since(start).as_secs_f32());
+
+images[0].save("image.png")?;
+```
 
 ## Support matrix
 | Model | Supports DDUF | Supports quantized DDUF |

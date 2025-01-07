@@ -10,3 +10,4 @@ These are set at compile time and are as follows:
 |Apple Silicon GPUs (Metal)|`--features metal`|
 |Apple Accelerate (CPU)|`--features accelerate`|
 |Intel MKL (CPU)|`--features mkl`|
+|Use AVX or NEON automatically|None specified|

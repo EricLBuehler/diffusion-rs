@@ -1,0 +1,55 @@
+name: docs
+#https://dev.to/deciduously/prepare-your-rust-api-docs-for-github-pages-2n5i
+on:
+  push:
+    branches: ["master"]
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --no-deps
+      - name: Build docs
+        run: |
+          rm -rf ./docs
+          echo "<meta http-equiv=\"refresh\" content=\"0; url=diffuse_rs_core\">" > target/doc/index.html
+          cp -r target/doc ./docs
+      - name: Build Python docs
+        run: |
+          python3 -m venv myenv
+          source myenv/bin/activate
+          pip install maturin[patchelf] pdoc
+          cd diffuse_rs_py
+          maturin develop
+          cd ..
+          pdoc diffuse_rs -o ./docs/pyo3
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: ./docs

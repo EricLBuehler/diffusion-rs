@@ -14,6 +14,7 @@ use hf_hub::{
 use memmap2::Mmap;
 use zip::ZipArchive;
 
+/// Source from which to load the model. This is easiest to create with the various constructor functions.
 pub enum ModelSource {
     ModelId(String),
     ModelIdWithTransformer {
@@ -43,10 +44,24 @@ impl Display for ModelSource {
 }
 
 impl ModelSource {
+    /// Load the model from a Hugging Face model ID or a local path.
     pub fn from_model_id<S: ToString>(model_id: S) -> Self {
         Self::ModelId(model_id.to_string())
     }
 
+    /// Load the transformer part of this model from a Hugging Face model ID or a local path.
+    ///
+    /// For example, this enables loading a quantized transformer model (for instance, [this](https://huggingface.co/sayakpaul/flux.1-dev-nf4-with-bnb-integration))
+    /// with the same [base model](https://huggingface.co/black-forest-labs/FLUX.1-dev) as the original model ID.
+    ///
+    /// ```rust
+    /// use diffuse_rs_common::ModelSource;
+    ///
+    /// let _ = ModelSource::from_model_id("black-forest-labs/FLUX.1-dev")
+    ///     .override_transformer_model_id("sayakpaul/flux.1-dev-nf4-with-bnb-integration")?;
+    ///
+    /// # Ok::<(), anyhow::Error>(())
+    /// ```
     pub fn override_transformer_model_id<S: ToString>(self, model_id: S) -> anyhow::Result<Self> {
         let Self::ModelId(base_id) = self else {
             anyhow::bail!("Expected model ID for the model source")
@@ -57,6 +72,7 @@ impl ModelSource {
         })
     }
 
+    /// Load a DDUF model from a .dduf file.
     pub fn dduf<S: ToString>(filename: S) -> anyhow::Result<Self> {
         let file = File::open(filename.to_string())?;
         let mmap = unsafe { Mmap::map(&file)? };
