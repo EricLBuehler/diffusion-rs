@@ -1,0 +1,66 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="One-hot/cold encoding."><title>one_hot in diffusion_rs_common::nn::encoding - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-b0742ba02757f159.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="diffusion_rs_common" data-themes="" data-resource-suffix="" data-rustdoc-version="1.83.0 (90b35a623 2024-11-26)" data-channel="1.83.0" data-search-js="search-f0d225181b97f9a4.js" data-settings-js="settings-805db61a62df4bd2.js" ><script src="../../../static.files/storage-1d39b6787ed640ff.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-f070b9041d14864c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-0111fcff984fae8f.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../diffusion_rs_common/index.html">diffusion_<wbr>rs_<wbr>common</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">one_hot</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#examples" title="Examples">Examples</a><ul><li><a href="#one-hot-encoding" title="One-hot encoding">One-hot encoding</a></li><li><a href="#one-cold-encoding" title="One-cold Encoding">One-cold Encoding</a></li></ul></li><li><a href="#bails" title="Bails">Bails</a></li><li><a href="#api-design" title="API Design">API Design</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="index.html">In diffusion_<wbr>rs_<wbr>common::<wbr>nn::<wbr>encoding</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../index.html">diffusion_rs_common</a>::<wbr><a href="../index.html">nn</a>::<wbr><a href="index.html">encoding</a></span><h1>Function <span class="fn">one_hot</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/diffusion_rs_common/nn/encoding.rs.html#88-122">source</a> </span></div><pre class="rust item-decl"><code>pub fn one_hot&lt;D: <a class="trait" href="../../core/trait.WithDType.html" title="trait diffusion_rs_common::core::WithDType">WithDType</a>&gt;(
+    indices: <a class="struct" href="../../core/struct.Tensor.html" title="struct diffusion_rs_common::core::Tensor">Tensor</a>,
+    depth: <a class="primitive" href="https://doc.rust-lang.org/1.83.0/std/primitive.usize.html">usize</a>,
+    on_value: D,
+    off_value: D,
+) -&gt; <a class="type" href="../../core/error/type.Result.html" title="type diffusion_rs_common::core::error::Result">Result</a>&lt;<a class="struct" href="../../core/struct.Tensor.html" title="struct diffusion_rs_common::core::Tensor">Tensor</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>One-hot/cold encoding.</p>
+<p>Given an input tensor of indices, this function returns a tensor of the same shape as the input
+tensor with an additional dimension of the given depth size. The values in the returned tensor are
+all set to the <code>off_value</code> except for the positions represented by the indices, which are set to the <code>on_value</code>.</p>
+<p>This method returns a tensor with a rank that is one rank larger than the input tensor.</p>
+<p>As an example, the following tensor will be encoded to a one-hot matrix:</p>
+<p><code>[[0i64, 2], [1, -1]]</code></p>
+<p>with a depth of 4 will be encoded to:</p>
+<p><code>[[[1, 0, 0, 0], [0, 0, 1, 0]], [[0, 1, 0, 0], [0, 0, 0, 0]]]</code></p>
+<p>When the input tensor index has a value of -1, the corresponding one-hot vector will be ignored,
+resulting in a vector of values set to the <code>off_value</code>.</p>
+<p>This method supports one-cold encoding by setting <code>on_value</code> to <code>0</code> and <code>off_value</code> to <code>1</code>.
+By default <code>on_value</code> is <code>1</code> and <code>off_value</code> is <code>0</code>.</p>
+<p>Other encoding values can be used by setting <code>on_value</code> and <code>off_value</code> to the desired values.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2><h3 id="one-hot-encoding"><a class="doc-anchor" href="#one-hot-encoding">§</a>One-hot encoding</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>diffusion_rs_common::core::{Shape, Tensor, Device};
+<span class="kw">use </span>diffusion_rs_common::nn::encoding::one_hot;
+
+<span class="kw">let </span>device = diffusion_rs_common::core::Device::Cpu;
+
+<span class="kw">let </span>indices = Tensor::new(<span class="macro">vec!</span>[<span class="macro">vec!</span>[<span class="number">0i64</span>, <span class="number">2</span>], <span class="macro">vec!</span>[<span class="number">1</span>, -<span class="number">1</span>]], <span class="kw-2">&amp;</span>device).unwrap();
+<span class="kw">let </span>depth = <span class="number">4</span>;
+<span class="kw">let </span>one_hot = one_hot(indices, depth, <span class="number">1f32</span>, <span class="number">0f32</span>).unwrap();
+
+<span class="kw">let </span>expected_matrix = [
+    [[<span class="number">1.0</span>, <span class="number">0.0</span>, <span class="number">0.0</span>, <span class="number">0.0</span>], [<span class="number">0.0</span>, <span class="number">0.0</span>, <span class="number">1.0</span>, <span class="number">0.0</span>]],
+    [[<span class="number">0.0</span>, <span class="number">1.0</span>, <span class="number">0.0</span>, <span class="number">0.0</span>], [<span class="number">0.0</span>, <span class="number">0.0</span>, <span class="number">0.0</span>, <span class="number">0.0</span>]],
+];
+
+<span class="macro">assert_eq!</span>(one_hot.shape(), <span class="kw-2">&amp;</span>Shape::from((<span class="number">2</span>, <span class="number">2</span>, depth)));
+
+<span class="kw">let </span>matrix = one_hot.to_vec3::&lt;f32&gt;().unwrap();
+
+<span class="macro">assert_eq!</span>(matrix, expected_matrix);</code></pre></div>
+<h3 id="one-cold-encoding"><a class="doc-anchor" href="#one-cold-encoding">§</a>One-cold Encoding</h3>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>diffusion_rs_common::core::{Shape, Tensor, Device};
+<span class="kw">use </span>diffusion_rs_common::nn::encoding::one_hot;
+
+
+<span class="kw">let </span>device = diffusion_rs_common::core::Device::Cpu;
+<span class="kw">let </span>depth = <span class="number">4</span>;
+<span class="kw">let </span>indices = Tensor::new(<span class="macro">vec!</span>[<span class="macro">vec!</span>[<span class="number">0u8</span>, <span class="number">2</span>], <span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">3</span>]], <span class="kw-2">&amp;</span>device).unwrap();
+<span class="kw">let </span>one_cold = one_hot(indices, depth, <span class="number">0u8</span>, <span class="number">1u8</span>).unwrap();
+
+<span class="kw">let </span>expected_matrix = [[[<span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>], [<span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>]], [[<span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>], [<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>]]];
+
+<span class="macro">assert_eq!</span>(one_cold.shape(), <span class="kw-2">&amp;</span>Shape::from((<span class="number">2</span>, <span class="number">2</span>, depth)));
+
+<span class="kw">let </span>matrix = one_cold.to_vec3::&lt;u8&gt;().unwrap();
+
+<span class="macro">assert_eq!</span>(matrix, expected_matrix);</code></pre></div>
+<h2 id="bails"><a class="doc-anchor" href="#bails">§</a>Bails</h2>
+<p>This method bails if:</p>
+<ul>
+<li>One of the index value is less than -1.</li>
+<li>One of the index value is greater than or equal to the depth value.</li>
+<li>The input data type is not <code>U8</code>, <code>U32</code>, or <code>I64</code>.</li>
+</ul>
+<h2 id="api-design"><a class="doc-anchor" href="#api-design">§</a>API Design</h2>
+<p>The api design for this method is loosely based on the <a href="https://www.tensorflow.org/api_docs/python/tf/one_hot">TensorFlow One-Hot</a> method.</p>
+</div></details></section></div></main></body></html>

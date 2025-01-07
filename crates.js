@@ -1,2 +1,2 @@
-window.ALL_CRATES = ["diffuse_rs_backend","diffuse_rs_cli","diffuse_rs_common","diffuse_rs_core"];
-//{"start":21,"fragment_lengths":[20,17,20,18]}
+window.ALL_CRATES = ["diffusion_rs_backend","diffusion_rs_cli","diffusion_rs_common","diffusion_rs_core"];
+//{"start":21,"fragment_lengths":[22,19,22,20]}
