@@ -111,7 +111,7 @@ pub struct Pipeline {
 
 impl Pipeline {
     /// Load the model.
-    /// 
+    ///
     /// Note:
     /// - `token` and `revision` are only applicable for Hugging Face models.
     pub fn load(
@@ -227,7 +227,7 @@ impl Pipeline {
     }
 
     /// Generate images based on prompts and generation parameters.
-    /// 
+    ///
     /// If a multiple prompts are specified, they are padded and run together as a batch.
     pub fn forward(
         &self,

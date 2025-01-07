@@ -55,7 +55,7 @@ impl ModelSource {
     /// with the same [base model](https://huggingface.co/black-forest-labs/FLUX.1-dev) as the original model ID.
     ///
     /// ```rust
-    /// use diffuse_rs_core::ModelSource;
+    /// use diffuse_rs_common::ModelSource;
     ///
     /// let _ = ModelSource::from_model_id("black-forest-labs/FLUX.1-dev")
     ///     .override_transformer_model_id("sayakpaul/flux.1-dev-nf4-with-bnb-integration")?;

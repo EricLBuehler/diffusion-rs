@@ -2,7 +2,7 @@
 //!
 //! The API is intentionally straightforward but strives to provide strong flexibility.
 //!
-//! ```rust
+//! ```rust,ignore
 //! use std::time::Instant;
 //!
 //! use diffuse_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
