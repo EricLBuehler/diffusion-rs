@@ -1,6 +1,6 @@
 # Feature flags
 
-Diffuse-rs controls building with GPU support or CPU SIMD acceleration with feature flags.
+diffusion-rs controls building with GPU support or CPU SIMD acceleration with feature flags.
 
 These are set at compile time and are as follows:
 

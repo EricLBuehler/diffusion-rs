@@ -1,6 +1,6 @@
 <a name="top"></a>
 <h1 align="center">
-  diffuse-rs
+  diffusion-rs
 </h1>
 
 <h3 align="center">
@@ -8,7 +8,7 @@ Blazingly fast inference of diffusion models.
 </h3>
 
 <p align="center">
-| <a href="https://ericlbuehler.github.io/diffuse-rs/diffuse_rs_core/"><b>Rust Documentation</b></a> | <a href="https://ericlbuehler.github.io/diffuse-rs/pyo3/diffuse_rs.html"><b>Python Documentation</b></a> | <a href="https://discord.gg/DRcvs6z5vu"><b>Discord</b></a> |
+| <a href="https://ericlbuehler.github.io/diffusion-rs/diffusion_rs_core/"><b>Rust Documentation</b></a> | <a href="https://ericlbuehler.github.io/diffusion-rs/pyo3/diffusion_rs.html"><b>Python Documentation</b></a> | <a href="https://discord.gg/DRcvs6z5vu"><b>Discord</b></a> |
 </p>
 
 
@@ -22,7 +22,7 @@ Blazingly fast inference of diffusion models.
 - AVX support for x86 CPUs
 - Allow acceleration of models larger than the total VRAM size with offloading
 
-Please do not hesitate to contact us with feature requests via [Github issues](https://github.com/EricLBuehler/diffuse-rs/issues)!
+Please do not hesitate to contact us with feature requests via [Github issues](https://github.com/EricLBuehler/diffusion-rs/issues)!
 
 ## Upcoming features
 - 🚧 LoRA support
@@ -38,17 +38,17 @@ After [installing](#installation), you can try out these examples!
 
 **CLI:**
 ```bash
-diffuse_rs_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
+diffusion_rs_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
 ```
 
-More CLI examples [here](diffuse_rs_cli/README.md).
+More CLI examples [here](diffusion_rs_cli/README.md).
 
 **Python:**
 
-More Python examples [here](diffuse_rs_py/examples).
+More Python examples [here](diffusion_rs_py/examples).
 
 ```py
-from diffuse_rs import DiffusionGenerationParams, ModelSource, Pipeline
+from diffusion_rs import DiffusionGenerationParams, ModelSource, Pipeline
 from PIL import Image
 import io
 
@@ -67,12 +67,12 @@ image.show()
 
 **Rust crate:**
 
-Examples with the Rust crate: [here](diffuse_rs_examples/examples).
+Examples with the Rust crate: [here](diffusion_rs_examples/examples).
 
 ```rust
 use std::time::Instant;
 
-use diffuse_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
+use diffusion_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -115,5 +115,5 @@ images[0].save("image.png")?;
 ## Contributing
 
 - Anyone is welcome to contribute by opening PRs
-  - See [good first issues](https://github.com/EricLBuehler/diffuse-rs/labels/good%20first%20issue) for a starting point!
+  - See [good first issues](https://github.com/EricLBuehler/diffusion-rs/labels/good%20first%20issue) for a starting point!
 - Collaborators will be invited based on past contributions

@@ -663,12 +663,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "diffuse_rs_backend"
+name = "diffusion_rs_backend"
 version = "0.1.3"
 dependencies = [
  "bindgen_cuda",
  "byteorder",
- "diffuse_rs_common",
+ "diffusion_rs_common",
  "float8",
  "half",
  "lazy_static",
@@ -682,19 +682,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "diffuse_rs_cli"
+name = "diffusion_rs_cli"
 version = "0.1.3"
 dependencies = [
  "anyhow",
  "clap",
  "cliclack",
- "diffuse_rs_core",
+ "diffusion_rs_core",
  "tracing",
  "tracing-subscriber",
 ]
 
 [[package]]
-name = "diffuse_rs_common"
+name = "diffusion_rs_common"
 version = "0.1.3"
 dependencies = [
  "accelerate-src",
@@ -731,13 +731,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "diffuse_rs_core"
+name = "diffusion_rs_core"
 version = "0.1.3"
 dependencies = [
  "anyhow",
  "clap",
- "diffuse_rs_backend",
- "diffuse_rs_common",
+ "diffusion_rs_backend",
+ "diffusion_rs_common",
  "float8",
  "half",
  "hf-hub",
@@ -754,22 +754,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "diffuse_rs_examples"
+name = "diffusion_rs_examples"
 version = "0.1.3"
 dependencies = [
  "anyhow",
  "clap",
- "diffuse_rs_core",
+ "diffusion_rs_core",
  "tracing",
  "tracing-subscriber",
 ]
 
 [[package]]
-name = "diffuse_rs_py"
+name = "diffusion_rs_py"
 version = "0.1.3"
 dependencies = [
  "anyhow",
- "diffuse_rs_core",
+ "diffusion_rs_core",
  "image",
  "pyo3",
  "pyo3-build-config",

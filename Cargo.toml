@@ -1,11 +1,11 @@
 [workspace]
 members = [
-    "diffuse_rs_core",
-    "diffuse_rs_examples",
-    "diffuse_rs_backend",
-    "diffuse_rs_common",
-    "diffuse_rs_cli",
-    "diffuse_rs_py",
+    "diffusion_rs_core",
+    "diffusion_rs_examples",
+    "diffusion_rs_backend",
+    "diffusion_rs_common",
+    "diffusion_rs_cli",
+    "diffusion_rs_py",
 ]
 resolver = "2"
 
@@ -14,8 +14,8 @@ version = "0.1.3"
 edition = "2021"
 authors = ["Eric Buehler"]
 description = "Blazingly fast inference of diffusion models."
-homepage = "https://github.com/EricLBuehler/diffuse-rs"
-repository = "https://github.com/EricLBuehler/diffuse-rs"
+homepage = "https://github.com/EricLBuehler/diffusion-rs"
+repository = "https://github.com/EricLBuehler/diffusion-rs"
 keywords = ["machine-learning"]
 categories = ["science"]
 license = "MIT"

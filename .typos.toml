@@ -9,8 +9,8 @@ extend-ignore-identifiers-re = [
 
 [files]
 extend-exclude = [
-    "diffuse_rs_common/src/core/*",
-    "diffuse_rs_common/src/nn/*",
-    "diffuse_rs_common/src/cuda_kernels/*",
-    "diffuse_rs_common/src/metal_kernels/*"
+    "diffusion_rs_common/src/core/*",
+    "diffusion_rs_common/src/nn/*",
+    "diffusion_rs_common/src/cuda_kernels/*",
+    "diffusion_rs_common/src/metal_kernels/*"
 ]

@@ -1,0 +1,33 @@
+[package]
+name = "diffusion_rs_py"
+readme.workspace = true
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+license.workspace = true
+homepage.workspace = true
+
+[lib]
+name = "diffusion_rs"
+crate-type = ["cdylib"]
+doc = false
+
+[dependencies]
+pyo3.workspace = true
+diffusion_rs_core = { path = "../diffusion_rs_core" }
+anyhow.workspace = true
+image.workspace = true
+
+[build-dependencies]
+pyo3-build-config = "0.23"
+
+[features]
+cuda = ["diffusion_rs_core/cuda"]
+cudnn = ["diffusion_rs_core/cudnn"]
+metal = ["diffusion_rs_core/metal"]
+accelerate = ["diffusion_rs_core/accelerate"]
+mkl = ["diffusion_rs_core/mkl"]
