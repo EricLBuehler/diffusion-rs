@@ -352,8 +352,7 @@
 <a href="#351" id="351">351</a>
 <a href="#352" id="352">352</a>
 <a href="#353" id="353">353</a>
-<a href="#354" id="354">354</a>
-<a href="#355" id="355">355</a></pre></div><pre class="rust"><code><span class="doccomment">//! Layer Normalization.
+<a href="#354" id="354">354</a></pre></div><pre class="rust"><code><span class="doccomment">//! Layer Normalization.
 //!
 //! This layer applies Layer Normalization over a mini-batch of inputs as described in [`Layer
 //! Normalization`]. The input is expected to have three dimensions: a batch dimension, a length,
@@ -394,8 +393,7 @@
 
 <span class="attr">#[cfg(feature = <span class="string">"cuda"</span>)]
 </span><span class="kw">use </span><span class="kw">crate</span>::core::{
-    backend::BackendStorage, from_storage_no_op, CudaDevice, CudaStorage, Device, Storage,
-    WithDType,
+    backend::BackendStorage, from_storage_no_op, CudaDevice, CudaStorage, Storage, WithDType,
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::core::{DType, Device, Module, <span class="prelude-ty">Result</span>, Tensor, D};
