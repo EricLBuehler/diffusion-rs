@@ -701,7 +701,6 @@ dependencies = [
  "anyhow",
  "bindgen_cuda",
  "byteorder",
- "cudarc",
  "dirs",
  "float8",
  "gemm",
@@ -712,6 +711,7 @@ dependencies = [
  "libc",
  "memmap2",
  "metal 0.27.0",
+ "mistralrs_cudarc_fork",
  "num-traits",
  "num_cpus",
  "rand",
@@ -1799,6 +1799,16 @@ dependencies = [
  "log",
  "wasi",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "mistralrs_cudarc_fork"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c82ee900a0e7080a2ff91042d070b0112a3533b32ebc6d8faaba96ee4f598e8d"
+dependencies = [
+ "half",
+ "libloading",
 ]
 
 [[package]]
