@@ -45,6 +45,7 @@ More CLI examples [here](diffuse_rs_cli/README.md).
 **Python:**
 
 More Python examples [here](diffuse_rs_py/examples).
+
 Python documentation [here](diffuse_rs_py/examples).
 
 ```py
