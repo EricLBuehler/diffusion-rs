@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CpuStorage","CpuStorageRef"],"fn":["binary_map","binary_map_vec","unary_map","unary_map_vec"],"struct":["CpuDevice"],"trait":["Map1","Map1Any","Map2","Map2Alpha","Map2U8","Map3"]};

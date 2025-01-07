@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_KAIMING_NORMAL","DEFAULT_KAIMING_UNIFORM","ONE","ZERO"],"enum":["FanInOut","Init","NonLinearity","NormalOrUniform"]};

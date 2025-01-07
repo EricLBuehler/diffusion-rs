@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["embedding"],"struct":["Embedding"]};

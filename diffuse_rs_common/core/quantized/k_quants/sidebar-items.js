@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["K_SCALE_SIZE","QK4_0","QK4_1","QK5_0","QK5_1","QK8_0","QK8_1","QK_K"],"fn":["matmul"],"struct":["BlockQ2K","BlockQ3K","BlockQ4K","BlockQ4_0","BlockQ4_1","BlockQ5K","BlockQ5_0","BlockQ5_1","BlockQ6K","BlockQ8K","BlockQ8_0","BlockQ8_1"],"trait":["GgmlType"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["batch_norm"],"struct":["BatchNorm","BatchNormConfig"]};

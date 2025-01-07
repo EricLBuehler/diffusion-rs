@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["scaled_dot_product_attention"]};

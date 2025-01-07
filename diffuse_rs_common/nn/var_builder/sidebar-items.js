@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Rename","SafeTensorWithRouting","Shard","ShardedSafeTensors","VarBuilderArgs"],"trait":["Backend","Renamer","SimpleBackend"],"type":["ShardedVarBuilder","VarBuilder"]};
