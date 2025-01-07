@@ -39,8 +39,7 @@ use crate::core::cuda_backend::{
 
 #[cfg(feature = "cuda")]
 use crate::core::{
-    backend::BackendStorage, from_storage_no_op, CudaDevice, CudaStorage, Device, Storage,
-    WithDType,
+    backend::BackendStorage, from_storage_no_op, CudaDevice, CudaStorage, Storage, WithDType,
 };
 
 use crate::core::{DType, Device, Module, Result, Tensor, D};
