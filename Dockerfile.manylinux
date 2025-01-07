@@ -30,7 +30,7 @@ RUN curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
     && python3.12 -m pip install --no-cache-dir cffi \
     && mkdir /io
 
-RUN python3.12 -m pip install maturin
+RUN python3.12 -m pip install maturin==1.7.0
 
 WORKDIR /io
 
