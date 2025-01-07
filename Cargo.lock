@@ -561,16 +561,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cudarc"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cd76de2aa3a7bdb9a65941ea5a3c688d941688f736a81b2fc5beb88747a7f25"
-dependencies = [
- "half",
- "libloading",
-]
-
-[[package]]
 name = "darling"
 version = "0.20.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -672,7 +662,7 @@ dependencies = [
  "float8",
  "half",
  "lazy_static",
- "metal 0.27.0",
+ "metal",
  "once_cell",
  "paste",
  "rayon",
@@ -710,7 +700,7 @@ dependencies = [
  "intel-mkl-src",
  "libc",
  "memmap2",
- "metal 0.27.0",
+ "metal",
  "mistralrs_cudarc_fork",
  "num-traits",
  "num_cpus",
@@ -723,9 +713,6 @@ dependencies = [
  "thiserror 2.0.8",
  "tokenizers",
  "tqdm",
- "ug",
- "ug-cuda",
- "ug-metal",
  "yoke",
  "zip",
 ]
@@ -940,12 +927,12 @@ dependencies = [
 
 [[package]]
 name = "float8"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7c3475274d374d263c4c40c43ad854c5bdf733c7db775bbd3c1ca2ad7427978"
+checksum = "ea7c017f762b1198f03787816240bd8d07eb3dcea71262f6646b86d319b71460"
 dependencies = [
- "cudarc",
  "half",
+ "mistralrs_cudarc_fork",
  "num-traits",
  "rand",
  "rand_distr",
@@ -1759,21 +1746,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "metal"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ecfd3296f8c56b7c1f6fbac3c71cefa9d78ce009850c45000015f206dc7fa21"
-dependencies = [
- "bitflags 2.6.0",
- "block",
- "core-graphics-types",
- "foreign-types 0.5.0",
- "log",
- "objc",
- "paste",
-]
-
-[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1882,20 +1854,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35bd024e8b2ff75562e5f34e7f4905839deb4b22955ef5e73d2fea1b9813cb23"
-dependencies = [
- "num-bigint",
- "num-complex",
- "num-integer",
- "num-iter",
- "num-rational",
- "num-traits",
-]
-
-[[package]]
 name = "num-bigint"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1938,17 +1896,6 @@ version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
 dependencies = [
- "num-traits",
-]
-
-[[package]]
-name = "num-iter"
-version = "0.1.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1429034a0490724d0075ebb2bc9e875d6503c3cf69e235a8941aa757d83ef5bf"
-dependencies = [
- "autocfg",
- "num-integer",
  "num-traits",
 ]
 
@@ -3237,48 +3184,6 @@ name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42ff0bf0c66b8238c6f3b578df37d0b7848e55df8577b3f74f92a69acceeb825"
-
-[[package]]
-name = "ug"
-version = "0.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4eef2ebfc18c67a6dbcacd9d8a4d85e0568cc58c82515552382312c2730ea13"
-dependencies = [
- "half",
- "num",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "ug-cuda"
-version = "0.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c4dcab280ad0ef3957e153a82dcad608c954d02cf253b695322f502d1f8902e"
-dependencies = [
- "cudarc",
- "half",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "ug",
-]
-
-[[package]]
-name = "ug-metal"
-version = "0.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e4ed1df2c20a1a138f993041f650cc84ff27aaefb4342b7f986e77d00e80799"
-dependencies = [
- "half",
- "metal 0.29.0",
- "objc",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "ug",
-]
 
 [[package]]
 name = "unicode-ident"
