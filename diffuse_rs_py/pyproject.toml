@@ -3,7 +3,7 @@ requires = ["maturin==1.7"]
 build-backend = "maturin"
 
 [project]
-name = "diffuse_rs_metal"
+name = "diffuse_rs"
 version = "0.1.0"
 requires-python = ">=3.10"
 classifiers = [
