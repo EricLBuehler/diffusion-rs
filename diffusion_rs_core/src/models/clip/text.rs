@@ -40,8 +40,11 @@ struct ClipTextEmbeddings {
 
 impl ClipTextEmbeddings {
     fn new(vs: diffusion_rs_common::VarBuilder, c: &ClipTextConfig) -> Result<Self> {
-        let token_embedding =
-            diffusion_rs_common::embedding(c.vocab_size, c.projection_dim, vs.pp("token_embedding"))?;
+        let token_embedding = diffusion_rs_common::embedding(
+            c.vocab_size,
+            c.projection_dim,
+            vs.pp("token_embedding"),
+        )?;
         let position_embedding = diffusion_rs_common::embedding(
             c.max_position_embeddings,
             c.projection_dim,

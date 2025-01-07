@@ -1,6 +1,8 @@
 use std::time::Instant;
 
-use diffusion_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
+use diffusion_rs_core::{
+    DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource,
+};
 
 use clap::{Parser, ValueEnum};
 use tracing::level_filters::LevelFilter;

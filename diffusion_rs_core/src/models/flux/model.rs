@@ -344,8 +344,12 @@ impl SelfAttention {
                 vb.pp("to_v"),
             )?;
             let norm = QkNorm::new(head_dim, vb.pp("norm_q"), vb.pp("norm_k"))?;
-            let proj =
-                diffusion_rs_backend::linear(dim, dim, &cfg.quantization_config, vb.pp("to_out.0"))?;
+            let proj = diffusion_rs_backend::linear(
+                dim,
+                dim,
+                &cfg.quantization_config,
+                vb.pp("to_out.0"),
+            )?;
 
             (q, k, v, norm, proj)
         } else {
@@ -441,7 +445,8 @@ impl Mlp {
     fn new(in_sz: usize, mlp_sz: usize, cfg: &Config, vb: VarBuilder) -> Result<Self> {
         let lin1 =
             diffusion_rs_backend::linear(in_sz, mlp_sz, &cfg.quantization_config, vb.pp("0.proj"))?;
-        let lin2 = diffusion_rs_backend::linear(mlp_sz, in_sz, &cfg.quantization_config, vb.pp("2"))?;
+        let lin2 =
+            diffusion_rs_backend::linear(mlp_sz, in_sz, &cfg.quantization_config, vb.pp("2"))?;
         Ok(Self {
             lin1,
             lin2,

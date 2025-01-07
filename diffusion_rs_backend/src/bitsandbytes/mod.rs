@@ -175,11 +175,9 @@ impl BnbLinear {
             Some(Arc::new(BnbQuantParmas {
                 absmax: vb_w.get_unchecked_dtype("nested_absmax", DType::F32)?,
                 code: vb_w.get_unchecked_dtype("nested_quant_map", DType::F32)?,
-                blocksize: state
-                    .nested_blocksize
-                    .ok_or(diffusion_rs_common::core::Error::debug(
-                        "`nested_blocksize` must be present.",
-                    ))?,
+                blocksize: state.nested_blocksize.ok_or(
+                    diffusion_rs_common::core::Error::debug("`nested_blocksize` must be present."),
+                )?,
                 shape: None,
                 nested: None,
                 offset: None, // Put it in the outer one!
@@ -233,9 +231,11 @@ impl BnbLinear {
         if let Some(nested) = &params.nested {
             absmax = Self::dequantize_4bit(&params.absmax, nested, BnbQuantType::Int8)?;
             absmax = (absmax
-                + params.offset.ok_or(diffusion_rs_common::core::Error::debug(
-                    "`offset` must be present.",
-                ))?)?;
+                + params
+                    .offset
+                    .ok_or(diffusion_rs_common::core::Error::debug(
+                        "`offset` must be present.",
+                    ))?)?;
         }
 
         let out_shape = params.shape.clone().unwrap_or(input.shape().clone());

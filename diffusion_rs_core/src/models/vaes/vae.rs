@@ -253,7 +253,9 @@ impl Encoder {
             .iter()
             .all(|x| x == "DownEncoderBlock2D")
         {
-            diffusion_rs_common::bail!("All down (encoder) block types must be `DownEncoderBlock2D`");
+            diffusion_rs_common::bail!(
+                "All down (encoder) block types must be `DownEncoderBlock2D`"
+            );
         }
         let conv_cfg = diffusion_rs_common::nn::Conv2dConfig {
             padding: 1,

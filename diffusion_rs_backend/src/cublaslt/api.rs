@@ -4,7 +4,9 @@ use std::ffi::c_int;
 
 use diffusion_rs_common::core::backend::BackendStorage;
 use diffusion_rs_common::core::cuda_backend::WrapErr;
-use diffusion_rs_common::core::{CpuStorage, DType, Device, Layout, Result, Shape, Storage, Tensor};
+use diffusion_rs_common::core::{
+    CpuStorage, DType, Device, Layout, Result, Shape, Storage, Tensor,
+};
 use half::{bf16, f16};
 use std::sync::Arc;
 
