@@ -47,8 +47,6 @@ More CLI examples [here](diffuse_rs_cli/README.md).
 
 More Python examples [here](diffuse_rs_py/examples).
 
-Python documentation [here](diffuse_rs_py/examples).
-
 ```py
 from diffuse_rs import DiffusionGenerationParams, ModelSource, Pipeline
 from PIL import Image
