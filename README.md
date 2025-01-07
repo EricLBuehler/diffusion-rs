@@ -37,6 +37,8 @@ diffuse_rs_cli --scale 3.5 --num-steps 50 dduf -f FLUX.1-dev-Q4-bnb.dduf
 More CLI examples [here](diffuse_rs_cli/README.md).
 
 **Python:**
+More Python examples [here](diffuse_rs_py/examples).
+
 ```py
 from diffuse_rs import DiffusionGenerationParams, ModelSource, Pipeline
 from PIL import Image

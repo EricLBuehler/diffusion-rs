@@ -178,4 +178,4 @@ image.show()
 
 3) Add the dependency to your `Cargo.toml`
     - Run: `cargo add diffuse_rs_core`
-    - Alternatively, you can add the git dependancy to your Cargo.toml for the latest updates: `diffuse_rs_core = { git = "https://github.com/EricLBuehler/diffuse-rs.git", version = "0.1.0" }`
+    - Alternatively, you can add the git dependency to your Cargo.toml for the latest updates: `diffuse_rs_core = { git = "https://github.com/EricLBuehler/diffuse-rs.git", version = "0.1.0" }`
