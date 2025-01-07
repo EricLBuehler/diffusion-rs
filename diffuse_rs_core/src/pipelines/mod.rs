@@ -17,6 +17,7 @@ use serde::Deserialize;
 use diffuse_rs_common::{FileData, FileLoader, ModelSource, NiceProgressBar, TokenSource};
 use tracing::info;
 
+/// Generation parameters.
 #[derive(Debug, Clone)]
 pub struct DiffusionGenerationParams {
     pub height: usize,
@@ -25,7 +26,7 @@ pub struct DiffusionGenerationParams {
     /// expense of slower inference but depends on the model being used.
     pub num_steps: usize,
     /// Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
-    /// usually at the expense of lower image quality. Defaults to 3.5.
+    /// usually at the expense of lower image quality.
     pub guidance_scale: f64,
 }
 
@@ -66,6 +67,9 @@ impl Display for ComponentName {
     }
 }
 
+/// Offloading setting during loading.
+///
+/// - Full: offload the largest components of the model to CPU memory and copy them into VRAM as necessary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum Offloading {
     Full,
@@ -99,12 +103,17 @@ struct ModelIndex {
     name: String,
 }
 
+/// Represents the model and provides methods to load and interact with it.
 pub struct Pipeline {
     model: Arc<Mutex<dyn ModelPipeline>>,
     offloading_type: Option<Offloading>,
 }
 
 impl Pipeline {
+    /// Load the model.
+    /// 
+    /// Note:
+    /// - `token` and `revision` are only applicable for Hugging Face models.
     pub fn load(
         mut source: ModelSource,
         silent: bool,
@@ -217,6 +226,9 @@ impl Pipeline {
         })
     }
 
+    /// Generate images based on prompts and generation parameters.
+    /// 
+    /// If a multiple prompts are specified, they are padded and run together as a batch.
     pub fn forward(
         &self,
         prompts: Vec<String>,
