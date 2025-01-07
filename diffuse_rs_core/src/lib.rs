@@ -2,21 +2,14 @@
 //!
 //! The API is intentionally straightforward but strives to provide strong flexibility.
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use std::time::Instant;
 //!
 //! use diffuse_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
-//! use tracing::level_filters::LevelFilter;
-//! use tracing_subscriber::EnvFilter;
-//!
-//! let filter = EnvFilter::builder()
-//!     .with_default_directive(LevelFilter::INFO.into())
-//!     .from_env_lossy();
-//! tracing_subscriber::fmt().with_env_filter(filter).init();
 //!
 //! let pipeline = Pipeline::load(
 //!     ModelSource::dduf("FLUX.1-dev-Q4-bnb.dduf")?,
-//!     false,
+//!     true,
 //!     TokenSource::CacheToken,
 //!     None,
 //!     None,

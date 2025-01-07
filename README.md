@@ -21,6 +21,8 @@ Blazingly fast inference of diffusion models.
 - AVX support for x86 CPUs
 - Allow acceleration of models larger than the total VRAM size with offloading
 
+Please do not hesitate to contact us with feature requests via [Github issues](https://github.com/EricLBuehler/diffuse-rs)!
+
 ## Upcoming features
 - 🚧 LoRA support
 - 🚧 CPU + GPU inference with automatic offloading to allow partial acceleration of models larger than the total VRAM
