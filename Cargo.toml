@@ -10,7 +10,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.3"
+version = "0.1.0"
 edition = "2021"
 authors = ["Eric Buehler"]
 description = "Blazingly fast inference of diffusion models."
