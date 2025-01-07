@@ -664,7 +664,7 @@ dependencies = [
 
 [[package]]
 name = "diffuse_rs_backend"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "bindgen_cuda",
  "byteorder",
@@ -683,7 +683,7 @@ dependencies = [
 
 [[package]]
 name = "diffuse_rs_cli"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -695,7 +695,7 @@ dependencies = [
 
 [[package]]
 name = "diffuse_rs_common"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "accelerate-src",
  "anyhow",
@@ -732,7 +732,7 @@ dependencies = [
 
 [[package]]
 name = "diffuse_rs_core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -755,7 +755,7 @@ dependencies = [
 
 [[package]]
 name = "diffuse_rs_examples"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -766,7 +766,7 @@ dependencies = [
 
 [[package]]
 name = "diffuse_rs_py"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "diffuse_rs_core",
