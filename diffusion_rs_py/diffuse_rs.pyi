@@ -52,6 +52,8 @@ class Pipeline:
         silent: bool = False,
         token: str | None = None,
         revision: str | None = None,
+        offloading: Offloading | None = None,
+        ModelDType: ModelDType = ModelDType.Auto,
     ) -> None:
         """
         Load a model.
@@ -59,7 +61,10 @@ class Pipeline:
         - `source`: the source of the model
         - `silent`: silent loading, defaults to `False`.
         - `token`: specifies a literal Hugging Face token for accessing gated models.
-        - `revision`: specifies a specific Hugging Face model revision, otherwise the default is used.     - `token_source` specifies where to load the HF token from.
+        - `revision`: specifies a specific Hugging Face model revision, otherwise the default is used.
+        - `token_source` specifies where to load the HF token from.
+        - `offloading`: offloading setting for the model.
+        - `dtype`: dtype selection for the model. The default is to use an automatic strategy with a fallback pattern: BF16 -> F16 -> F32
         """
         ...
 
