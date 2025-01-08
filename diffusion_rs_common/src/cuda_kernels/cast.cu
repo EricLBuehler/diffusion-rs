@@ -98,7 +98,30 @@ __device__ void cast_through(
 }
 
 template <typename T>
-__device__ void cast_bf16_dummy(
+__device__ void cast_to_bf16_dummy(
+    const size_t numel,
+    const size_t num_dims,
+    const size_t *info,
+    const T *inp,
+    uint16_t *out
+) {
+    const size_t *dims = info;
+    const size_t *strides = info + num_dims;
+    if (info == nullptr || is_contiguous(num_dims, dims, strides)) {
+        for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x; i < numel; i += blockDim.x * gridDim.x) {
+            out[i] = fallback_f32_to_bf16(static_cast<float>(inp[i]));
+        }
+    }
+    else {
+        for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x; i < numel; i += blockDim.x * gridDim.x) {
+            unsigned strided_i = get_strided_index(i, num_dims, dims, strides);
+            out[i] = fallback_f32_to_bf16(static_cast<float>(inp[strided_i]));
+        }
+    }
+}
+
+template <typename T>
+__device__ void cast_from_bf16_dummy(
     const size_t numel,
     const size_t num_dims,
     const size_t *info,
@@ -109,13 +132,13 @@ __device__ void cast_bf16_dummy(
     const size_t *strides = info + num_dims;
     if (info == nullptr || is_contiguous(num_dims, dims, strides)) {
         for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x; i < numel; i += blockDim.x * gridDim.x) {
-            out[i] = static_cast<T>(bf16_to_f32(inp[i]));
+            out[i] = static_cast<T>(fallback_bf16_to_f32(inp[i]));
         }
     }
     else {
         for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x; i < numel; i += blockDim.x * gridDim.x) {
             unsigned strided_i = get_strided_index(i, num_dims, dims, strides);
-            out[i] = static_cast<T>(bf16_to_f32(inp[strided_i]));
+            out[i] = static_cast<T>(fallback_bf16_to_f32(inp[strided_i]));
         }
     }
 }
@@ -167,7 +190,18 @@ extern "C" __global__ void FN_NAME( \
     cast_through<SRC_TYPENAME, DST_TYPENAME, INT_TYPENAME>(numel, num_dims, info, inp, out); \
 } \
 
-#define CAST_BF16_FALLBACK_OP(DST_TYPENAME, FN_NAME) \
+#define CAST_TO_BF16_FALLBACK_OP(SRC_TYPENAME, FN_NAME) \
+extern "C" __global__ void FN_NAME( \
+    const size_t numel, \
+    const size_t num_dims, \
+    const size_t *info, \
+    const SRC_TYPENAME *inp, \
+    uint16_t *out \
+) { \
+    cast_to_bf16_dummy<SRC_TYPENAME>(numel, num_dims, info, inp, out); \
+} \
+
+#define CAST_FROM_BF16_FALLBACK_OP(DST_TYPENAME, FN_NAME) \
 extern "C" __global__ void FN_NAME( \
     const size_t numel, \
     const size_t num_dims, \
@@ -175,7 +209,7 @@ extern "C" __global__ void FN_NAME( \
     const uint16_t *inp, \
     DST_TYPENAME *out \
 ) { \
-    cast_bf16_dummy<DST_TYPENAME>(numel, num_dims, info, inp, out); \
+    cast_from_bf16_dummy<DST_TYPENAME>(numel, num_dims, info, inp, out); \
 } \
 
 #if __CUDA_ARCH__ >= 800
@@ -232,11 +266,15 @@ CAST_OP(int32_t,  __half, cast_i32_f16 )
 CAST_THROUGH_OP(__half, int32_t,  float, cast_f16_i32)
 
 #if __CUDA_ARCH__ < 800
-CAST_BF16_FALLBACK_OP(uint32_t, cast_bf16_u32)
-CAST_BF16_FALLBACK_OP(float, cast_bf16_f32)
-CAST_BF16_FALLBACK_OP(double, cast_bf16_f64)
-CAST_BF16_FALLBACK_OP(__half, cast_bf16_f16)
-CAST_BF16_FALLBACK_OP(int32_t, cast_bf16_i32)
+CAST_FROM_BF16_FALLBACK_OP(uint32_t, cast_bf16_u32)
+CAST_FROM_BF16_FALLBACK_OP(float, cast_bf16_f32)
+CAST_FROM_BF16_FALLBACK_OP(double, cast_bf16_f64)
+CAST_FROM_BF16_FALLBACK_OP(__half, cast_bf16_f16)
+CAST_FROM_BF16_FALLBACK_OP(int32_t, cast_bf16_i32)
+
+CAST_TO_BF16_FALLBACK_OP(float, cast_f32_bf16)
+CAST_TO_BF16_FALLBACK_OP(__half, cast_f16_bf16)
+CAST_TO_BF16_FALLBACK_OP(double, cast_f64_bf16)
 #endif
 #endif
 

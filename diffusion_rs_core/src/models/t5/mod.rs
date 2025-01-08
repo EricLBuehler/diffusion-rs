@@ -7,6 +7,7 @@ use diffusion_rs_backend::{linear_no_bias, QuantMethod, QuantizedConfig};
 use diffusion_rs_common::core::{DType, Device, Module, Result, Tensor, D};
 use diffusion_rs_common::nn::{Activation, Embedding};
 use diffusion_rs_common::{embedding, VarBuilder};
+use float8::F8E4M3;
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -479,11 +480,17 @@ impl TensorInfExtend for Tensor {
     fn any(&self) -> Result<bool> {
         let sum = self.sum_all()?;
         match self.dtype() {
+            DType::I8 => Ok(sum.to_scalar::<u8>()? == 0),
+            DType::U8 => Ok(sum.to_scalar::<u8>()? == 0),
+            DType::U32 => Ok(sum.to_scalar::<u32>()? == 0),
+            DType::I16 => Ok(sum.to_scalar::<i16>()? == 0),
+            DType::I32 => Ok(sum.to_scalar::<i32>()? == 0),
+            DType::I64 => Ok(sum.to_scalar::<i64>()? == 0),
             DType::F16 => Ok(sum.to_scalar::<half::f16>()? == half::f16::from_f32_const(0.)),
             DType::BF16 => Ok(sum.to_scalar::<half::bf16>()? == half::bf16::from_f32_const(0.)),
             DType::F32 => Ok(sum.to_scalar::<f32>()? == 0.),
             DType::F64 => Ok(sum.to_scalar::<f64>()? == 0.),
-            _ => unreachable!(),
+            DType::F8E4M3 => Ok(sum.to_scalar::<F8E4M3>()? == F8E4M3::ZERO),
         }
     }
 }
