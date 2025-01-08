@@ -198,7 +198,7 @@ extern "C" __global__ void FN_NAME( \
     const SRC_TYPENAME *inp, \
     uint16_t *out \
 ) { \
-    cast_to_bf16_dummy<DST_TYPENAME>(numel, num_dims, info, inp, out); \
+    cast_to_bf16_dummy<SRC_TYPENAME>(numel, num_dims, info, inp, out); \
 } \
 
 #define CAST_FROM_BF16_FALLBACK_OP(DST_TYPENAME, FN_NAME) \
