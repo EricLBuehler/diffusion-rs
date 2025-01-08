@@ -60,3 +60,7 @@ float8 = { version = "0.1.2", features = ["num-traits", "rand_distr"] }
 num_cpus = "1.15.0"
 yoke = { version = "0.7.2", features = ["derive"] }
 gemm = { version = "0.17.0", features = ["wasm-simd128-enable"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
