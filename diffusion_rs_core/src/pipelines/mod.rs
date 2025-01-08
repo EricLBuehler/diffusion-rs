@@ -9,13 +9,15 @@ use std::{
 };
 
 use anyhow::Result;
-use diffusion_rs_common::core::{Device, Tensor};
+use diffusion_rs_common::core::{DType, Device, Tensor};
 use flux::FluxLoader;
 use image::{DynamicImage, RgbImage};
 use serde::Deserialize;
 
 use diffusion_rs_common::{FileData, FileLoader, ModelSource, NiceProgressBar, TokenSource};
 use tracing::info;
+
+use crate::TryIntoDType;
 
 /// Generation parameters.
 #[derive(Debug, Clone)]
@@ -82,6 +84,7 @@ pub(crate) trait Loader {
         &self,
         components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
+        dtype: DType,
         silent: bool,
         offloading_type: Option<Offloading>,
         source: Arc<ModelSource>,
@@ -120,6 +123,7 @@ impl Pipeline {
         token: TokenSource,
         revision: Option<String>,
         offloading_type: Option<Offloading>,
+        dtype: &dyn TryIntoDType,
     ) -> Result<Self> {
         info!("loading from source: {source}.");
 
@@ -212,9 +216,14 @@ impl Pipeline {
         #[cfg(feature = "metal")]
         let device = Device::new_metal(0)?;
 
+        // NOTE: we can set the device to be just the primary even in the offloading case.
+        // This will need to be updated!
+        let dtype = dtype.try_into_dtype(&[&device], silent)?;
+
         let model = model_loader.load_from_components(
             components,
             &device,
+            dtype,
             silent,
             offloading_type,
             Arc::new(source),

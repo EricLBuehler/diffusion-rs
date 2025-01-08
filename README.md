@@ -8,7 +8,7 @@ Blazingly fast inference of diffusion models.
 </h3>
 
 <p align="center">
-| <a href="https://ericlbuehler.github.io/diffusion-rs/diffusion_rs_core/"><b>Rust Documentation</b></a> | <a href="https://ericlbuehler.github.io/diffusion-rs/pyo3/diffusion_rs.html"><b>Python Documentation</b></a> | <a href="https://discord.gg/DRcvs6z5vu"><b>Discord</b></a> |
+| <a href="https://ericlbuehler.github.io/diffusion-rs/diffusion_rs_core/"><b>Latest Rust Documentation</b></a> | <a href="https://ericlbuehler.github.io/diffusion-rs/pyo3/diffusion_rs.html"><b>Latest Python Documentation</b></a> | <a href="https://discord.gg/DRcvs6z5vu"><b>Discord</b></a> |
 </p>
 
 
@@ -72,7 +72,7 @@ Examples with the Rust crate: [here](diffusion_rs_examples/examples).
 ```rust
 use std::time::Instant;
 
-use diffusion_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
+use diffusion_rs_core::{DiffusionGenerationParams, ModelSource, ModelDType, Offloading, Pipeline, TokenSource};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -87,6 +87,7 @@ let pipeline = Pipeline::load(
     TokenSource::CacheToken,
     None,
     None,
+    &ModelDType::Auto,
 )?;
 
 let start = Instant::now();

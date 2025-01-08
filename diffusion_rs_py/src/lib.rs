@@ -33,6 +33,16 @@ pub struct DiffusionGenerationParams {
     pub guidance_scale: f64,
 }
 
+#[pyclass(eq, eq_int)]
+#[pyo3(get_all)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ModelDType {
+    Auto,
+    BF16,
+    F16,
+    F32,
+}
+
 #[pymethods]
 impl DiffusionGenerationParams {
     #[new]
@@ -77,6 +87,7 @@ impl Pipeline {
         token = None,
         revision = None,
         offloading = None,
+        dtype = ModelDType::Auto,
     ))]
     pub fn new(
         source: ModelSource,
@@ -84,6 +95,7 @@ impl Pipeline {
         token: Option<String>,
         revision: Option<String>,
         offloading: Option<Offloading>,
+        dtype: ModelDType,
     ) -> PyResult<Self> {
         let token = token
             .map(diffusion_rs_core::TokenSource::Literal)
@@ -99,8 +111,14 @@ impl Pipeline {
         let offloading = offloading.map(|offloading| match offloading {
             Offloading::Full => diffusion_rs_core::Offloading::Full,
         });
+        let dtype = match dtype {
+            ModelDType::Auto => diffusion_rs_core::ModelDType::Auto,
+            ModelDType::F16 => diffusion_rs_core::ModelDType::F16,
+            ModelDType::BF16 => diffusion_rs_core::ModelDType::BF16,
+            ModelDType::F32 => diffusion_rs_core::ModelDType::F32,
+        };
         Ok(Self(
-            diffusion_rs_core::Pipeline::load(source, silent, token, revision, offloading)
+            diffusion_rs_core::Pipeline::load(source, silent, token, revision, offloading, &dtype)
                 .map_err(wrap_anyhow_error)?,
         ))
     }

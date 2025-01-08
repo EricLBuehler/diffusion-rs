@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use diffusion_rs_core::{
-    DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource,
+    DiffusionGenerationParams, ModelDType, ModelSource, Offloading, Pipeline, TokenSource,
 };
 
 use clap::{Parser, ValueEnum};
@@ -50,6 +50,7 @@ fn main() -> anyhow::Result<()> {
         TokenSource::CacheToken,
         None,
         args.offloading,
+        &ModelDType::Auto,
     )?;
     let num_steps = match args.which {
         Which::Dev => 50,

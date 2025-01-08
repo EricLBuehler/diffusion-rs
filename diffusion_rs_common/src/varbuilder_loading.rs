@@ -33,13 +33,8 @@ impl TensorLoaderBackend for SafetensorBackend {
             .map(|(name, _)| name)
             .collect::<Vec<_>>()
     }
-    fn load_name(&self, name: &str, device: &Device, dtype: Option<DType>) -> Result<Tensor> {
-        let t = self.0.load(name, device)?;
-        if let Some(dtype) = dtype {
-            t.to_dtype(dtype)
-        } else {
-            Ok(t)
-        }
+    fn load_name(&self, name: &str, device: &Device, _dtype: Option<DType>) -> Result<Tensor> {
+        self.0.load(name, device)
     }
 }
 
@@ -53,13 +48,8 @@ impl TensorLoaderBackend for BytesSafetensorBackend<'_> {
             .map(|(name, _)| name)
             .collect::<Vec<_>>()
     }
-    fn load_name(&self, name: &str, device: &Device, dtype: Option<DType>) -> Result<Tensor> {
-        let t = self.0.load(name, device)?;
-        if let Some(dtype) = dtype {
-            t.to_dtype(dtype)
-        } else {
-            Ok(t)
-        }
+    fn load_name(&self, name: &str, device: &Device, _dtype: Option<DType>) -> Result<Tensor> {
+        self.0.load(name, device)
     }
 }
 

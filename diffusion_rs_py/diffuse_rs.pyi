@@ -2,6 +2,18 @@ from dataclasses import dataclass
 from enum import Enum
 
 @dataclass
+class ModelDType(Enum):
+    """
+    DType for the model.
+    Note: When using `Auto`, fallback pattern is: BF16 -> F16 -> F32
+    """
+
+    Auto = 0
+    BF16 = 1
+    F16 = 2
+    F32 = 2
+
+@dataclass
 class Offloading(Enum):
     """
     Offloading settings for the model.
@@ -40,6 +52,8 @@ class Pipeline:
         silent: bool = False,
         token: str | None = None,
         revision: str | None = None,
+        offloading: Offloading | None = None,
+        ModelDType: ModelDType = ModelDType.Auto,
     ) -> None:
         """
         Load a model.
@@ -47,7 +61,10 @@ class Pipeline:
         - `source`: the source of the model
         - `silent`: silent loading, defaults to `False`.
         - `token`: specifies a literal Hugging Face token for accessing gated models.
-        - `revision`: specifies a specific Hugging Face model revision, otherwise the default is used.     - `token_source` specifies where to load the HF token from.
+        - `revision`: specifies a specific Hugging Face model revision, otherwise the default is used.
+        - `token_source` specifies where to load the HF token from.
+        - `offloading`: offloading setting for the model.
+        - `dtype`: dtype selection for the model. The default is to use an automatic strategy with a fallback pattern: BF16 -> F16 -> F32
         """
         ...
 

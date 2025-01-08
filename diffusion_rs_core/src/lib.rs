@@ -5,7 +5,7 @@
 //! ```rust,no_run
 //! use std::time::Instant;
 //!
-//! use diffusion_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
+//! use diffusion_rs_core::{DiffusionGenerationParams, ModelSource, ModelDType, Offloading, Pipeline, TokenSource};
 //!
 //! let pipeline = Pipeline::load(
 //!     ModelSource::dduf("FLUX.1-dev-Q4-bnb.dduf")?,
@@ -13,6 +13,7 @@
 //!     TokenSource::CacheToken,
 //!     None,
 //!     None,
+//!     &ModelDType::Auto,
 //! )?;
 //!
 //! let start = Instant::now();
@@ -37,6 +38,8 @@
 
 mod models;
 mod pipelines;
+mod util;
 
 pub use diffusion_rs_common::{ModelSource, TokenSource};
 pub use pipelines::{DiffusionGenerationParams, Offloading, Pipeline};
+pub use util::{ModelDType, TryIntoDType};

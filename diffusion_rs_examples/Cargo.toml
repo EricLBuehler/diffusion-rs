@@ -17,3 +17,10 @@ anyhow.workspace = true
 clap.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+
+[features]
+cuda = ["diffusion_rs_core/cuda"]
+cudnn = ["diffusion_rs_core/cudnn"]
+metal = ["diffusion_rs_core/metal"]
+accelerate = ["diffusion_rs_core/accelerate"]
+mkl = ["diffusion_rs_core/mkl"]
