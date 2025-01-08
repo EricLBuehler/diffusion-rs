@@ -273,6 +273,8 @@ CAST_FROM_BF16_FALLBACK_OP(__half, cast_bf16_f16)
 CAST_FROM_BF16_FALLBACK_OP(int32_t, cast_bf16_i32)
 
 CAST_TO_BF16_FALLBACK_OP(float, cast_f32_bf16)
+CAST_TO_BF16_FALLBACK_OP(__half, cast_f16_bf16)
+CAST_TO_BF16_FALLBACK_OP(double, cast_f64_bf16)
 #endif
 #endif
 
