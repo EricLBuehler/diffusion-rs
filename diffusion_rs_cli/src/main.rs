@@ -50,7 +50,7 @@ struct Args {
     offloading: Option<Offloading>,
 
     /// DType for the model. The default is to use an automatic strategy with a fallback pattern: BF16 -> F16 -> F32
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "auto")]
     dtype: ModelDType,
 }
 
