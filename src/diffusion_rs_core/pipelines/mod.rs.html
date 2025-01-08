@@ -260,7 +260,16 @@
 <a href="#259" id="259">259</a>
 <a href="#260" id="260">260</a>
 <a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a></pre></div><pre class="rust"><code><span class="kw">mod </span>flux;
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a></pre></div><pre class="rust"><code><span class="kw">mod </span>flux;
 <span class="kw">mod </span>sampling;
 <span class="kw">mod </span>scheduler;
 
@@ -271,13 +280,15 @@
 };
 
 <span class="kw">use </span>anyhow::Result;
-<span class="kw">use </span>diffusion_rs_common::core::{Device, Tensor};
+<span class="kw">use </span>diffusion_rs_common::core::{DType, Device, Tensor};
 <span class="kw">use </span>flux::FluxLoader;
 <span class="kw">use </span>image::{DynamicImage, RgbImage};
 <span class="kw">use </span>serde::Deserialize;
 
 <span class="kw">use </span>diffusion_rs_common::{FileData, FileLoader, ModelSource, NiceProgressBar, TokenSource};
 <span class="kw">use </span>tracing::info;
+
+<span class="kw">use </span><span class="kw">crate</span>::TryIntoDType;
 
 <span class="doccomment">/// Generation parameters.
 </span><span class="attr">#[derive(Debug, Clone)]
@@ -344,6 +355,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         components: HashMap&lt;ComponentName, ComponentElem&gt;,
         device: <span class="kw-2">&amp;</span>Device,
+        dtype: DType,
         silent: bool,
         offloading_type: <span class="prelude-ty">Option</span>&lt;Offloading&gt;,
         source: Arc&lt;ModelSource&gt;,
@@ -382,6 +394,7 @@
         token: TokenSource,
         revision: <span class="prelude-ty">Option</span>&lt;String&gt;,
         offloading_type: <span class="prelude-ty">Option</span>&lt;Offloading&gt;,
+        dtype: <span class="kw-2">&amp;</span><span class="kw">dyn </span>TryIntoDType,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="macro">info!</span>(<span class="string">"loading from source: {source}."</span>);
 
@@ -474,9 +487,14 @@
         <span class="attr">#[cfg(feature = <span class="string">"metal"</span>)]
         </span><span class="kw">let </span>device = Device::new_metal(<span class="number">0</span>)<span class="question-mark">?</span>;
 
+        <span class="comment">// NOTE: we can set the device to be just the primary even in the offloading case.
+        // This will need to be updated!
+        </span><span class="kw">let </span>dtype = dtype.try_into_dtype(<span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>device], silent)<span class="question-mark">?</span>;
+
         <span class="kw">let </span>model = model_loader.load_from_components(
             components,
             <span class="kw-2">&amp;</span>device,
+            dtype,
             silent,
             offloading_type,
             Arc::new(source),

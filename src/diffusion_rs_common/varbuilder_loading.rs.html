@@ -138,17 +138,7 @@
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a></pre></div><pre class="rust"><code><span class="doccomment">//! Utilities for creating a VarBuilder from a VarMap loaded from tensor storage formats.
+<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="doccomment">//! Utilities for creating a VarBuilder from a VarMap loaded from tensor storage formats.
 
 </span><span class="kw">use </span>std::{
     collections::HashMap,
@@ -183,13 +173,8 @@
             .map(|(name, <span class="kw">_</span>)| name)
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
     }
-    <span class="kw">fn </span>load_name(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, device: <span class="kw-2">&amp;</span>Device, dtype: <span class="prelude-ty">Option</span>&lt;DType&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Tensor&gt; {
-        <span class="kw">let </span>t = <span class="self">self</span>.<span class="number">0</span>.load(name, device)<span class="question-mark">?</span>;
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dtype) = dtype {
-            t.to_dtype(dtype)
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(t)
-        }
+    <span class="kw">fn </span>load_name(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, device: <span class="kw-2">&amp;</span>Device, _dtype: <span class="prelude-ty">Option</span>&lt;DType&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Tensor&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.load(name, device)
     }
 }
 
@@ -203,13 +188,8 @@
             .map(|(name, <span class="kw">_</span>)| name)
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
     }
-    <span class="kw">fn </span>load_name(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, device: <span class="kw-2">&amp;</span>Device, dtype: <span class="prelude-ty">Option</span>&lt;DType&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Tensor&gt; {
-        <span class="kw">let </span>t = <span class="self">self</span>.<span class="number">0</span>.load(name, device)<span class="question-mark">?</span>;
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dtype) = dtype {
-            t.to_dtype(dtype)
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(t)
-        }
+    <span class="kw">fn </span>load_name(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, device: <span class="kw-2">&amp;</span>Device, _dtype: <span class="prelude-ty">Option</span>&lt;DType&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;Tensor&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.load(name, device)
     }
 }
 

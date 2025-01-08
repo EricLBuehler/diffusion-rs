@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ModelSource","Offloading","TokenSource"],"struct":["DiffusionGenerationParams","Pipeline"]};
+window.SIDEBAR_ITEMS = {"enum":["ModelDType","ModelSource","Offloading","TokenSource"],"struct":["DiffusionGenerationParams","Pipeline"],"trait":["TryIntoDType"]};

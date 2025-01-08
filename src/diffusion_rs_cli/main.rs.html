@@ -138,12 +138,16 @@
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="kw">use </span>cliclack::input;
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a></pre></div><pre class="rust"><code><span class="kw">use </span>cliclack::input;
 <span class="kw">use </span>std::{path::PathBuf, time::Instant};
 
 <span class="kw">use </span>clap::{Parser, Subcommand};
 <span class="kw">use </span>diffusion_rs_core::{
-    DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource,
+    DiffusionGenerationParams, ModelDType, ModelSource, Offloading, Pipeline, TokenSource,
 };
 <span class="kw">use </span>tracing::level_filters::LevelFilter;
 <span class="kw">use </span>tracing_subscriber::EnvFilter;
@@ -188,6 +192,10 @@
     <span class="doccomment">/// Offloading setting to use for this model
     </span><span class="attr">#[arg(short, long)]
     </span>offloading: <span class="prelude-ty">Option</span>&lt;Offloading&gt;,
+
+    <span class="doccomment">/// DType for the model. The default is to use an automatic strategy with a fallback pattern: BF16 -&gt; F16 -&gt; F32
+    </span><span class="attr">#[arg(short, long, default_value = <span class="string">"auto"</span>)]
+    </span>dtype: ModelDType,
 }
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
@@ -207,7 +215,7 @@
         .map(TokenSource::Literal)
         .unwrap_or(TokenSource::CacheToken);
 
-    <span class="kw">let </span>pipeline = Pipeline::load(source, <span class="bool-val">false</span>, token, <span class="prelude-val">None</span>, args.offloading)<span class="question-mark">?</span>;
+    <span class="kw">let </span>pipeline = Pipeline::load(source, <span class="bool-val">false</span>, token, <span class="prelude-val">None</span>, args.offloading, <span class="kw-2">&amp;</span>args.dtype)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>height: usize = input(<span class="string">"Height:"</span>)
         .default_input(<span class="string">"720"</span>)

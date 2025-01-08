@@ -57,11 +57,18 @@
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
 <a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>autoencoder_kl::{AutencoderKlConfig, AutoEncoderKl};
 <span class="kw">use </span>diffusion_rs_common::{
-    core::{Device, <span class="prelude-ty">Result</span>, Tensor},
+    core::{DType, Device, <span class="prelude-ty">Result</span>, Tensor},
     ModelSource,
 };
 <span class="kw">use </span>serde::Deserialize;
@@ -105,10 +112,17 @@
     cfg_json: <span class="kw-2">&amp;</span>FileData,
     safetensor_files: Vec&lt;FileData&gt;,
     device: <span class="kw-2">&amp;</span>Device,
+    dtype: DType,
     silent: bool,
     source: Arc&lt;ModelSource&gt;,
 ) -&gt; anyhow::Result&lt;Arc&lt;<span class="kw">dyn </span>VAEModel&gt;&gt; {
-    <span class="kw">let </span>vb = from_mmaped_safetensors(safetensor_files, <span class="prelude-val">None</span>, device, silent, source.clone())<span class="question-mark">?</span>;
+    <span class="kw">let </span>vb = from_mmaped_safetensors(
+        safetensor_files,
+        <span class="prelude-val">Some</span>(dtype),
+        device,
+        silent,
+        source.clone(),
+    )<span class="question-mark">?</span>;
 
     <span class="kw">let </span>VaeConfigShim { name } = serde_json::from_str(<span class="kw-2">&amp;</span>cfg_json.read_to_string(<span class="kw-2">&amp;</span>source)<span class="question-mark">?</span>)<span class="question-mark">?</span>;
     <span class="kw">match </span>name.as_str() {
