@@ -1,6 +1,6 @@
 #include<stdint.h>
 
-__device__ __forceinline__ float bf16_to_f32(const uint16_t i)
+__device__ __forceinline__ float fallback_bf16_to_f32(const uint16_t i)
 {
     // If NaN, keep current mantissa but also set most significant mantissa bit
     if ((i & 0x7FFFu) > 0x7F80u) {
@@ -29,7 +29,7 @@ __device__ __forceinline__ float bf16_to_f32(const uint16_t i)
 }
 
 // Convert FP32 (float) to BF16 (unsigned short)
-__device__ __forceinline__ uint16_t f32_to_bf16(const float value)
+__device__ __forceinline__ uint16_t fallback_f32_to_bf16(const float value)
 {
     // Reinterpret float bits as uint32_t
     union {
