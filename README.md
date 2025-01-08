@@ -72,7 +72,7 @@ Examples with the Rust crate: [here](diffusion_rs_examples/examples).
 ```rust
 use std::time::Instant;
 
-use diffusion_rs_core::{DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource};
+use diffusion_rs_core::{DiffusionGenerationParams, ModelSource, ModelDType, Offloading, Pipeline, TokenSource};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
@@ -87,6 +87,7 @@ let pipeline = Pipeline::load(
     TokenSource::CacheToken,
     None,
     None,
+    &ModelDType::Auto,
 )?;
 
 let start = Instant::now();
