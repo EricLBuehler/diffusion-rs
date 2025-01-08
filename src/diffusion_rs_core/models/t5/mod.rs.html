@@ -716,7 +716,14 @@
 <a href="#715" id="715">715</a>
 <a href="#716" id="716">716</a>
 <a href="#717" id="717">717</a>
-<a href="#718" id="718">718</a></pre></div><pre class="rust"><code><span class="attr">#![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a></pre></div><pre class="rust"><code><span class="attr">#![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 
 </span><span class="comment">// T5 Text Model
 // https://github.com/huggingface/transformers/blob/main/src/transformers/models/t5/modeling_t5.py
@@ -725,6 +732,7 @@
 <span class="kw">use </span>diffusion_rs_common::core::{DType, Device, Module, <span class="prelude-ty">Result</span>, Tensor, D};
 <span class="kw">use </span>diffusion_rs_common::nn::{Activation, Embedding};
 <span class="kw">use </span>diffusion_rs_common::{embedding, VarBuilder};
+<span class="kw">use </span>float8::F8E4M3;
 <span class="kw">use </span>serde::Deserialize;
 <span class="kw">use </span>std::sync::Arc;
 
@@ -1197,11 +1205,17 @@
     <span class="kw">fn </span>any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
         <span class="kw">let </span>sum = <span class="self">self</span>.sum_all()<span class="question-mark">?</span>;
         <span class="kw">match </span><span class="self">self</span>.dtype() {
+            DType::I8 =&gt; <span class="prelude-val">Ok</span>(sum.to_scalar::&lt;u8&gt;()<span class="question-mark">? </span>== <span class="number">0</span>),
+            DType::U8 =&gt; <span class="prelude-val">Ok</span>(sum.to_scalar::&lt;u8&gt;()<span class="question-mark">? </span>== <span class="number">0</span>),
+            DType::U32 =&gt; <span class="prelude-val">Ok</span>(sum.to_scalar::&lt;u32&gt;()<span class="question-mark">? </span>== <span class="number">0</span>),
+            DType::I16 =&gt; <span class="prelude-val">Ok</span>(sum.to_scalar::&lt;i16&gt;()<span class="question-mark">? </span>== <span class="number">0</span>),
+            DType::I32 =&gt; <span class="prelude-val">Ok</span>(sum.to_scalar::&lt;i32&gt;()<span class="question-mark">? </span>== <span class="number">0</span>),
+            DType::I64 =&gt; <span class="prelude-val">Ok</span>(sum.to_scalar::&lt;i64&gt;()<span class="question-mark">? </span>== <span class="number">0</span>),
             DType::F16 =&gt; <span class="prelude-val">Ok</span>(sum.to_scalar::&lt;half::f16&gt;()<span class="question-mark">? </span>== half::f16::from_f32_const(<span class="number">0.</span>)),
             DType::BF16 =&gt; <span class="prelude-val">Ok</span>(sum.to_scalar::&lt;half::bf16&gt;()<span class="question-mark">? </span>== half::bf16::from_f32_const(<span class="number">0.</span>)),
             DType::F32 =&gt; <span class="prelude-val">Ok</span>(sum.to_scalar::&lt;f32&gt;()<span class="question-mark">? </span>== <span class="number">0.</span>),
             DType::F64 =&gt; <span class="prelude-val">Ok</span>(sum.to_scalar::&lt;f64&gt;()<span class="question-mark">? </span>== <span class="number">0.</span>),
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+            DType::F8E4M3 =&gt; <span class="prelude-val">Ok</span>(sum.to_scalar::&lt;F8E4M3&gt;()<span class="question-mark">? </span>== F8E4M3::ZERO),
         }
     }
 }
