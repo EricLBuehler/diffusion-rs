@@ -2,6 +2,18 @@ from dataclasses import dataclass
 from enum import Enum
 
 @dataclass
+class ModelDType(Enum):
+    """
+    DType for the model.
+    Note: When using `Auto`, fallback pattern is: BF16 -> F16 -> F32
+    """
+
+    Auto = 0
+    BF16 = 1
+    F16 = 2
+    F32 = 2
+
+@dataclass
 class Offloading(Enum):
     """
     Offloading settings for the model.

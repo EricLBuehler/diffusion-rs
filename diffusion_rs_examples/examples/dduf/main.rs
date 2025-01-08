@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use clap::Parser;
 use diffusion_rs_core::{
-    DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource,
+    DiffusionGenerationParams, ModelDType, ModelSource, Offloading, Pipeline, TokenSource,
 };
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
@@ -44,6 +44,7 @@ fn main() -> anyhow::Result<()> {
         TokenSource::CacheToken,
         None,
         args.offloading,
+        &ModelDType::Auto,
     )?;
 
     let start = Instant::now();

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use autoencoder_kl::{AutencoderKlConfig, AutoEncoderKl};
 use diffusion_rs_common::{
-    core::{Device, Result, Tensor},
+    core::{DType, Device, Result, Tensor},
     ModelSource,
 };
 use serde::Deserialize;
@@ -46,10 +46,17 @@ pub(crate) fn dispatch_load_vae_model(
     cfg_json: &FileData,
     safetensor_files: Vec<FileData>,
     device: &Device,
+    dtype: DType,
     silent: bool,
     source: Arc<ModelSource>,
 ) -> anyhow::Result<Arc<dyn VAEModel>> {
-    let vb = from_mmaped_safetensors(safetensor_files, None, device, silent, source.clone())?;
+    let vb = from_mmaped_safetensors(
+        safetensor_files,
+        Some(dtype),
+        device,
+        silent,
+        source.clone(),
+    )?;
 
     let VaeConfigShim { name } = serde_json::from_str(&cfg_json.read_to_string(&source)?)?;
     match name.as_str() {

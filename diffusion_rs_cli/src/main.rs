@@ -3,7 +3,7 @@ use std::{path::PathBuf, time::Instant};
 
 use clap::{Parser, Subcommand};
 use diffusion_rs_core::{
-    DiffusionGenerationParams, ModelSource, Offloading, Pipeline, TokenSource,
+    DiffusionGenerationParams, ModelDType, ModelSource, Offloading, Pipeline, TokenSource,
 };
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
@@ -48,6 +48,10 @@ struct Args {
     /// Offloading setting to use for this model
     #[arg(short, long)]
     offloading: Option<Offloading>,
+
+    /// DType for the model. The default is to use an automatic strategy with a fallback pattern: BF16 -> F16 -> F32
+    #[arg(short, long)]
+    dtype: ModelDType,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -67,7 +71,7 @@ fn main() -> anyhow::Result<()> {
         .map(TokenSource::Literal)
         .unwrap_or(TokenSource::CacheToken);
 
-    let pipeline = Pipeline::load(source, false, token, None, args.offloading)?;
+    let pipeline = Pipeline::load(source, false, token, None, args.offloading, &args.dtype)?;
 
     let height: usize = input("Height:")
         .default_input("720")

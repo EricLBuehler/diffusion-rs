@@ -46,6 +46,7 @@ impl Loader for FluxLoader {
         &self,
         mut components: HashMap<ComponentName, ComponentElem>,
         device: &Device,
+        dtype: DType,
         silent: bool,
         offloading_type: Option<Offloading>,
         source: Arc<ModelSource>,
@@ -96,7 +97,7 @@ impl Loader for FluxLoader {
 
             let vb = from_mmaped_safetensors(
                 safetensors.into_values().collect(),
-                None,
+                Some(dtype),
                 device,
                 silent,
                 source.clone(),
@@ -116,7 +117,7 @@ impl Loader for FluxLoader {
             let cfg: T5Config = serde_json::from_str(&config.read_to_string(&source)?)?;
             let vb = from_mmaped_safetensors(
                 safetensors.into_values().collect(),
-                None,
+                Some(dtype),
                 &t5_flux_device,
                 silent,
                 source.clone(),
@@ -137,6 +138,7 @@ impl Loader for FluxLoader {
                 &config,
                 safetensors.into_values().collect(),
                 device,
+                dtype,
                 silent,
                 source.clone(),
             )?
@@ -154,7 +156,7 @@ impl Loader for FluxLoader {
             let cfg: FluxConfig = serde_json::from_str(&config.read_to_string(&source)?)?;
             let vb = from_mmaped_safetensors(
                 safetensors.into_values().collect(),
-                None,
+                Some(dtype),
                 &t5_flux_device,
                 silent,
                 source,

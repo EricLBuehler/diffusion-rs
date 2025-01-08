@@ -37,6 +37,8 @@
 
 mod models;
 mod pipelines;
+mod util;
 
 pub use diffusion_rs_common::{ModelSource, TokenSource};
 pub use pipelines::{DiffusionGenerationParams, Offloading, Pipeline};
+pub use util::{ModelDType, TryIntoDType};
